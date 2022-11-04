@@ -13,7 +13,7 @@
     "@actbase/react-native-kakao-link": "1.0.5",
     "@react-native-community/async-storage": "^1.6.1",
     "@react-native-seoul/kakao-login": "^3.4.0",
-    "axios": "^0.18.0",
+    "axios": "^0.21.2",
     "iamport-react-native": "1.4.0",
     "jsc-android": "^241213.1.0",
     "query-string": "^6.8.1",
