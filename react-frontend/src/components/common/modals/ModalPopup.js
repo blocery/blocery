@@ -1,6 +1,8 @@
 import React, { Component, Fragment } from 'react'
-import { Modal, ModalHeader, ModalBody, Button, ModalFooter } from 'reactstrap'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from 'reactstrap'
+import {Button} from '~/styledComponents/shared'
 import PropTypes from 'prop-types'
+import {color} from "~/styledComponents/Properties";
 class ModalPopup extends Component {
     constructor(props){
         super(props)
@@ -34,7 +36,7 @@ class ModalPopup extends Component {
                         {
                             this.props.showFooter && (
                                 <ModalFooter>
-                                    <Button color={this.props.color} onClick={this.toggle}>확인</Button>{' '}
+                                    <Button bg={'green'} fg={'white'} px={10} py={8} rounded={3} onClick={this.toggle}>확인</Button>{' '}
                                 </ModalFooter>
                             )
                         }

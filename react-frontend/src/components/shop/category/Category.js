@@ -40,7 +40,7 @@ const Category = (props) => {
     return(
         <div>
             {/*<Header />*/}
-            <B2cHeader category/>
+            {/*<B2cHeader category/>*/}
             {/*<ShopXButtonNav underline fixed isVisibleXButton={false} isVisibleCart>*/}
                 {/*카테고리*/}
             {/*</ShopXButtonNav>*/}

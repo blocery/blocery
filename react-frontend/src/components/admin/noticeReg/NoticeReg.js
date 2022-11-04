@@ -14,6 +14,7 @@ const NoticeReg = (props) => { // props에 수정할 공지사항 key를 넘겨�
     const [title, setTitle] = useState(props.noticeData.title || '')
     const [content, setContent] = useState(props.noticeData.content || '')
     const [userType, setUserType] = useState(props.noticeData.userType || 'consumer')
+    const [noticeType, setNoticeType] = useState(props.noticeData.noticeType || 'notice')
     const [sendPush, setSendPush] = useState(props.noticeData.sendPush || false)
     const [reserved, setReserved] = useState(props.noticeData.reserved || false)
     const [reservedDate, setReservedDate] = useState('')
@@ -74,11 +75,13 @@ const NoticeReg = (props) => { // props에 수정할 공지사항 key를 넘겨�
             title: title,
             content: content,
             userType: userType,
+            noticeType: noticeType,
             sendPush: sendPush,
             reserved: reservedValue,
             reservedDateHHmm: reservedDateHHmm
         }
 
+        console.log(notice)
         const { status, data } = await regNotice(notice);
         if(data) {
             alert('공지사항을 등록하였습니다.')
@@ -90,6 +93,11 @@ const NoticeReg = (props) => { // props에 수정할 공지사항 key를 넘겨�
 
     const onSelectUserType = (e) => {
         setUserType(e.target.selectedOptions[0].value);
+    }
+
+    const onSelectNoticeType = (e) => {
+        console.log(e.target)
+        setNoticeType(e.target.selectedOptions[0].value);
     }
 
     const onChangeTitle = (e) => {
@@ -150,6 +158,17 @@ const NoticeReg = (props) => { // props에 수정할 공지사항 key를 넘겨�
                 </Col>
             </Row>
             <br/>
+            <Row>
+                <Col xs={'5'}> 공지 유형 </Col>
+                <Col xs={'7'}>
+                    <Input type='select' name='select' id='noticeType' onChange={onSelectNoticeType}>
+                        <option name='radio_notice' value='notice' selected={ noticeType === 'notice' }>공지</option>
+                        <option name='radio_event' value='event' selected={ noticeType === 'event' }>이벤트</option>
+                        <option name='radio_check' value='check' selected={ noticeType === 'check' }>점검</option>
+                        <option name='radio_etc' value='etc' selected={ noticeType === 'etc' }>기타</option>
+                    </Input>
+                </Col>
+            </Row>
             <hr/>
             <br/>
             <div className="flex">

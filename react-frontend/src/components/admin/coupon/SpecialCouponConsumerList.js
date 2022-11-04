@@ -1,10 +1,12 @@
 import React, {Component} from "react";
 import { getLoginAdminUser } from "~/lib/loginApi";
-import {addSpecialCouponConsumer, getConsumerList, getConsumerByConsumerNo} from '~/lib/adminApi';
+import {addSpecialCouponMultiConsumer, getConsumerCommaList, getConsumerByConsumerNo, addSpecialCouponAllConsumer} from '~/lib/adminApi';
 import ComUtil from "~/util/ComUtil";
 import { ModalConfirm } from "~/components/common";
 import {Button} from "reactstrap";
 import {AgGridReact} from "ag-grid-react";
+import Checkbox from "~/components/common/checkboxes/Checkbox";
+import {Div, Span, Flex, Right} from '~/styledComponents/shared'
 
 export default class ConsumerList extends Component{
     constructor(props) {
@@ -37,7 +39,8 @@ export default class ConsumerList extends Component{
             modal: false,
             masterCouponNo: this.props.masterCouponNo,
             selectedConsumer: [],
-            consumer: null
+            consumer: null,
+            selectedAllConsumer: false
         }
     }
 
@@ -55,12 +58,20 @@ export default class ConsumerList extends Component{
         }
     }
 
-    search = async () => {
+
+    onClickSearch = () => {
+        const consumerNo = window.prompt("검색할 consumerNo를 ,로 구분해서 입력해 주세요. (미입력시 전체검색-서버부하)")
+        this.search(consumerNo)
+    }
+
+    search = async (consumerNo) => {
         if(this.gridApi) {
             //ag-grid 레이지로딩중 보이기
             this.gridApi.showLoadingOverlay();
         }
-        const { status, data } = await getConsumerList();
+
+
+        const { status, data } = await getConsumerCommaList(consumerNo);
         if(status !== 200){
             alert('응답이 실패 하였습니다')
             return
@@ -91,26 +102,28 @@ export default class ConsumerList extends Component{
         return <span className={rowData.stoppedUser && 'text-danger'}>{rowData.name}</span>
     }
 
+    onClickAllConsumerSelection = async() => {
+
+        if(!window.confirm('6개월내 접속 소비자 전체에게 쿠폰을 발급합니다. 진행하시겠습니까?')) return
+
+        const masterNo = this.state.masterCouponNo;
+        const {data:response} = await addSpecialCouponAllConsumer(masterNo);
+
+        alert(`${response}명에게 지급이 완료되었습니다.`)
+    }
+
     // 쿠폰 발급대상 선택 완료
     onClickSelection = async (isConfirmed) => {
+        const masterNo = this.state.masterCouponNo;
         if(isConfirmed) {
-            const masterNo = this.state.masterCouponNo;
-            this.state.selectedConsumer.map(async (consumerNo) => {
-                const {data: res} = await addSpecialCouponConsumer(masterNo,consumerNo);
+            addSpecialCouponMultiConsumer(masterNo, this.state.selectedConsumer);
+            alert(`쿠폰 지급을 요청했습니다. 잠시후 쿠폰발급내역을 확인해주세요.`)
+            // alert(`${response}명에게 지급이 완료되었습니다.`)
 
-                const {data: consumer} = await getConsumerByConsumerNo(consumerNo);
-
-                if(res === -2) {
-                    alert(`'${consumer.name}'님은 이미 지급한 소비자입니다. 다시 확인해주세요`);
-                    return false;
-                } else if(res > 0) { //==200 을 > 0 으로 변경 20200322
-                    alert(`'${consumer.name}'님에게 지급이 완료되었습니다.`)
-                }
-            })
             this.props.onClose();
+            await this.search();    // refresh
         }
 
-        await this.search();    // refresh
     }
 
     onSelectionChanged = (event) => {
@@ -123,22 +136,36 @@ export default class ConsumerList extends Component{
         })
     }
 
+    onAllConsumerChanged = async (e) => {
+        this.setState({
+            ...this.state,
+            selectedAllConsumer: e.target.checked,
+            //selectedConsumer: 모든 consumer
+        })
+    }
+
     render() {
         return (
-            <div>
-                <div className="d-flex p-1">
-                    <div>
-                        <Button className='mr-1' size={'sm'} onClick={this.search}>검색</Button>
-                    </div>
-                    <div className={'flex-grow-1 text-right'}>
-                        <ModalConfirm title={'알림'} color={'primary'}
-                                      content={`선택한 소비자(${this.state.selectedConsumer.length}명)에게 쿠폰을 지급하시겠습니까?`}
-                                      onClick={this.onClickSelection}>
-                            <Button className='mr-1' size={'sm'}>확인</Button>
-                        </ModalConfirm>
-                    </div>
+            <Div>
+                <Flex p={3} alignItems={'center'}>
+                    <Div mr={10}>
+                        <Button size={'sm'} onClick={this.onClickSearch}>검색</Button>
+                    </Div>
+                    <Div>총 {this.state.data.length}명</Div>
+                    <Right>
+                        <Flex>
+                            <ModalConfirm title={'알림'} color={'primary'}
+                                          content={`선택한 소비자(${this.state.selectedConsumer.length}명)에게 쿠폰을 지급하시겠습니까?`}
+                                          onClick={this.onClickSelection}>
+                                <Button className='mr-1' size={'sm'}>확인</Button>
+                            </ModalConfirm>
 
-                </div>
+                            <Button className={'ml-2'} size={'sm'} color={'danger'} onClick={this.onClickAllConsumerSelection}> 6개월내 접속소비자 전체에 발급(검색불필요) </Button>
+                            {/*<Checkbox checked={this.state.selectedAllConsumer} onChange={this.onAllConsumerChanged}>전체 회원에 발급(화면 전체 아니고 진짜 전체)</Checkbox>*/}
+
+                        </Flex>
+                    </Right>
+                </Flex>
 
                 <div
                     className="ag-theme-balham"
@@ -147,13 +174,9 @@ export default class ConsumerList extends Component{
                     }}
                 >
                     <AgGridReact
-                        // enableSorting={true}                //정렬 여부
-                        // enableFilter={true}                 //필터링 여부
                         columnDefs={this.state.columnDefs}  //컬럼 세팅
                         rowSelection={'multiple'}
                         defaultColDef={this.state.defaultColDef}
-                        // components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
-                        // enableColResize={true}              //컬럼 크기 조정
                         overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                         overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
                         onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
@@ -164,7 +187,7 @@ export default class ConsumerList extends Component{
                     </AgGridReact>
                 </div>
 
-            </div>
+            </Div>
         )
     }
 

@@ -22,6 +22,7 @@ const BountyEventHistory = (props) => {
         selectedGubun: 'day', //'week': 최초화면을 오늘(day)또는 1주일(week)로 설정.
         startDate: moment(moment().toDate()),
         endDate: moment(moment().toDate()),
+        withCoupon: false
     });
 
     const [modalOpen, setModalOpen, selected, setSelected, setModalState] = useModal()
@@ -29,7 +30,7 @@ const BountyEventHistory = (props) => {
 
     const agGrid = {
         columnDefs: [
-            {headerName: "날짜", field: "date", sort: "desc", width:170},
+            {headerName: "날짜", field: "date", width:170},
             {headerName: "소비자번호", field: "consumerNo", width:100},
             {headerName: "이름", field: "name", width:100, cellRenderer: "nameRenderer"},
             {headerName: "어뷰저", field: "name", width:100, cellRenderer: "abuserRenderer"},
@@ -79,15 +80,6 @@ const BountyEventHistory = (props) => {
         excelData();
     }, [dataList]);
 
-    useEffect(() => {
-        async function getData() {
-            if(search.isSearch) {
-                await getSearch();
-            }
-        }
-        getData();
-    }, [search]);
-
     function nameRenderer ({value, data:rowData}) {
         return <Span fg={'primary'} onClick={onNameClick.bind(this, rowData)}><u>{rowData.name}</u></Span>
     }
@@ -102,10 +94,13 @@ const BountyEventHistory = (props) => {
             }
         }
 
+        console.log({search});
+
         const params = {
             startDate:search.startDate ? moment(search.startDate).format('YYYYMMDD'):null,
             endDate:search.endDate ? moment(search.endDate).format('YYYYMMDD'):null,
-            gubun:search.selectedGubun
+            gubun:search.selectedGubun,
+            withCoupon:search.withCoupon
         };
         if(gridApi) {
             //ag-grid 레이지로딩중 보이기
@@ -179,12 +174,22 @@ const BountyEventHistory = (props) => {
     }
 
     const onDatesChange = async (data) => {
-        const search = Object.assign({}, search);
-        search.startDate = data.startDate;
-        search.endDate = data.endDate;
-        search.selectedGubun = data.gubun;
-        search.isSearch = data.isSearch;
-        setSearch(search);
+        const newSearch = Object.assign({}, search);
+        newSearch.startDate = data.startDate;
+        newSearch.endDate = data.endDate;
+        newSearch.selectedGubun = data.gubun;
+        newSearch.isSearch = data.isSearch;
+        newSearch.withCoupon = search.withCoupon;
+
+        setSearch(newSearch);
+    }
+
+    const onChangeCoupon = (e) => {
+        console.log(e.target.checked);
+        setSearch({
+            ...search,
+            withCoupon: e.target.checked
+        })
     }
 
     return(
@@ -200,6 +205,9 @@ const BountyEventHistory = (props) => {
                                 endDate={search.endDate}
                                 onChange={onDatesChange}
                             />
+                            <input id={'exceptCoupon'} type="checkbox" className={'m-2'} color={'default'}
+                                   checked={search.withCoupon} onChange={onChangeCoupon}/>
+                            <label htmlFor={'exceptCoupon'} className='text-secondary mr-2'>쿠폰적립금 포함</label>
                             <Button className="ml-3" color="primary" onClick={() => getSearch(true)}> 검 색 </Button>
                         </Flex>
                     </Div>
@@ -216,16 +224,13 @@ const BountyEventHistory = (props) => {
                 <div
                     className="ag-theme-balham"
                     style={{
-                        height: '600px'
+                        height: '700px'
                     }}
                 >
                     <AgGridReact
-                        // enableSorting={true}
-                        // enableFilter={true}
                         columnDefs={agGrid.columnDefs}
                         defaultColDef={agGrid.defaultColDef}
                         rowSelection={'single'}  //멀티체크 가능 여부
-                        // enableColResize={true}
                         overlayLoadingTemplate={agGrid.overlayLoadingTemplate}
                         overlayNoRowsTempalte={agGrid.overlayNoRowsTemplate}
                         rowData={dataList}

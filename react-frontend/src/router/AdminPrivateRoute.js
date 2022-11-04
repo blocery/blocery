@@ -21,8 +21,11 @@ export function AdminPrivateRoute({ component: Component, ...rest }) {
             render={
                 props => {
                     const isLoggedIn = fakeAuth.isAuthenticated();
+
+                    console.log({'adminPrivateRoute': props, isLoggedIn})
+
                     return isLoggedIn ? (
-                        <Component {...props} />
+                        <Component {...props} history={props.history} />
                     ) : (
                         <Redirect
                             to={{
@@ -36,3 +39,25 @@ export function AdminPrivateRoute({ component: Component, ...rest }) {
         />
     );
 }
+// export function AdminPrivateRoute({ component: Component, ...rest }) {
+//     return (
+//         <Route
+//             {...rest}
+//             render={
+//                 props => {
+//                     const isLoggedIn = fakeAuth.isAuthenticated();
+//                     return isLoggedIn ? (
+//                         <Component {...props} />
+//                     ) : (
+//                         <Redirect
+//                             to={{
+//                                 pathname: '/admin/login',
+//                                 state: { from: props.location }
+//                             }}
+//                         />
+//                     )
+//                 }
+//             }
+//         />
+//     );
+// }

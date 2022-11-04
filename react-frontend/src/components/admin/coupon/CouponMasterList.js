@@ -1,35 +1,32 @@
-import React, { Component, PropTypes, lazy, Suspense} from 'react';
-import { Button, Input, Modal, ModalHeader, ModalBody, ModalFooter } from 'reactstrap'
+import React, { Component, lazy, Suspense} from 'react';
+import { Button, Input, Modal, ModalHeader, ModalBody } from 'reactstrap'
 import { Cell, ModalConfirm, BlocerySpinner } from '~/components/common'
-import { Server } from "~/components/Properties";
 import ComUtil from "~/util/ComUtil";
-import {getCouponMasterList, deleteCouponMaster, endedCouponMaster, getAllBlctToWonCachedLog} from '~/lib/adminApi'
-import { isTokenAdminUser, getLoginAdminUser } from '~/lib/loginApi'
-import {Flex, Span, Div, FilterGroup, Hr} from '~/styledComponents/shared'
-
+import {getCouponMasterList, getCouponMasterWithUsedWon, deleteCouponMaster, endedCouponMaster, getAllBlctToWonCachedLog} from '~/lib/adminApi'
+import { getLoginAdminUser } from '~/lib/loginApi'
+import {Div, FilterGroup, Flex, Hr, Right, Space} from '~/styledComponents/shared'
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
-
 import moment from 'moment-timezone'
-import DatePicker from "react-datepicker";
-import "react-datepicker/src/stylesheets/datepicker.scss";
 import FilterContainer from "~/components/common/gridFilter/FilterContainer";
 import InputFilter from "~/components/common/gridFilter/InputFilter";
 import CheckboxFilter from "~/components/common/gridFilter/CheckboxFilter";
-// import CouponMasterReg from './CouponMasterReg';
-// import ConsumerList from './../consumerList/ConsumerList'
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
+import {withRouter} from "react-router-dom"
+import SearchDates from "~/components/common/search/SearchDates";
+import Checkbox from "~/components/common/checkboxes/Checkbox";
 
 const SpecialCouponConsumerList = lazy(()=> import('./SpecialCouponConsumerList'))
-const ConsumerList = lazy(()=> import('./../consumerList/ConsumerList'))
 const CouponMasterReg = lazy(()=> import('./CouponMasterReg'))
 const BlySiseList = lazy(()=> import('./BlySiseList'))
 
-export default class CouponMasterList extends Component {
+class CouponMasterList extends Component {
     constructor(props) {
         super(props);
         this.state = {
             loading: false,
+            selectedGubun: 'week', //'week': 최초화면을 오늘(day)또는 1주일(week)로 설정.
+            startDate: moment(moment().toDate()).add(-7,"days"),
+            endDate: moment(moment().toDate()),
             isModalOpen: false,
             isSiseModalOpen: false,
             selectedFixedWon: 0,
@@ -39,12 +36,14 @@ export default class CouponMasterList extends Component {
                 year:moment().format('YYYY')
             },
             data: [],
+            needTotalWon: false,
+            searchMasterNo: 0,
             columnDefs: [
                 {
                     headerName: "쿠폰NO", field: "masterNo", width: 100,
                     suppressFilter: true,   //no filter
                     suppressSorting: true,  //no sort
-                    cellStyle:this.getCellStyle({cellAlign: 'center'})
+                    cellStyle:this.getCellStyle({cellAlign: 'center', color: 'blue'}),
                 },
                 {
                     headerName: "발급위치", field: "couponType", width: 120,
@@ -62,6 +61,8 @@ export default class CouponMasterList extends Component {
                             v_couponTypeName = '스페셜쿠폰';
                         } else if(params.data.couponType === 'potenCoupon'){
                             v_couponTypeName = '포텐타임쿠폰';
+                        } else if(params.data.couponType === 'deliveryCoupon') {
+                            v_couponTypeName = '배송비쿠폰';
                         }
                         return v_couponTypeName;
                     }
@@ -72,8 +73,57 @@ export default class CouponMasterList extends Component {
                     cellRenderer: "titleRenderer",
                 },
                 {
+                    headerName: "앱전용", field: "onlyAppCoupon", width: 80,
+                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    valueGetter: function(params) {
+                        return params.data.onlyAppCoupon ? "O" : "-" ;
+                    }
+                },
+                {
+                    headerName: "원화쿠폰", field: "wonCoupon", width: 90,
+                    cellStyle: this.getCellStyle({cellAlign: 'center'}),
+                    valueGetter: function(params) {
+                        return params.data.wonCoupon ? "O" : "-" ;
+                    }
+                },
+                {
+                    headerName: "다운로드용", field: "downloadableFlag", width: 100,
+                    cellStyle: this.getCellStyle({cellAlign: 'center'}),
+                    valueGetter: function(params) {
+                        return params.data.downloadableFlag ? "O" : "-" ;
+                    }
+                },
+                {
+                    headerName: "상품쿠폰", field: "couponGoods", width: 180,
+                    cellStyle:this.getCellStyle({cellAlign: 'left'}),
+                    valueGetter: function(params) {
+                        return params.data.couponGoods ? params.data.couponGoods.goodsNm : "-" ;
+                    }
+                },
+                {
+                    headerName: "생산자쿠폰", field: "targetProducerNo", width: 100,
+                    cellStyle:this.getCellStyle({cellAlign: 'left'}),
+                    valueGetter: function(params) {
+                        return params.data.targetProducerNo ? params.data.targetProducerNo : "" ;
+                    }
+                },
+                {
+                    headerName: "생산자명", field: "targetProducerName", width: 140,
+                    cellStyle:this.getCellStyle({cellAlign: 'left'}),
+                    valueGetter: function(params) {
+                        return params.data.targetProducerNo ? params.data.targetProducerName : "" ;
+                    }
+                },
+                {
                     headerName: "메모", field: "couponMemo", width: 150,
                     cellStyle:this.getCellStyle({cellAlign: 'left'}),
+                },
+                {
+                    headerName: "생성일", field: "timestamp", width: 120,
+                    cellStyle:this.getCellStyle({cellAlign: 'left'}),
+                    valueGetter: function(params) {
+                        return ComUtil.utcToString(params.data.timestamp);
+                    }
                 },
                 {
                     headerName: "발급기간", field: "issuedDate",
@@ -92,7 +142,7 @@ export default class CouponMasterList extends Component {
                 },
                 {
                     headerName: "상품명", field: "goodsNm",
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:this.getCellStyle({cellAlign: 'left'}),
                     width: 200,
                     valueGetter: function(params) {
                         if(params.data.potenCouponGoodsNo > 0) {
@@ -118,36 +168,26 @@ export default class CouponMasterList extends Component {
                         return '-'
                     }
                 },
-                {
-                    headerName: "할인금액(BLY)", field: "couponBlyAmount", width: 120,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
-                    valueGetter: function(params) {
-                        if(params.data.couponBlyAmount > 0){
-                            return ComUtil.toCurrency(params.data.couponBlyAmount) + ' BLY'
-                        }
-                        return '-'
-                    }
-                },
-                {
-                    headerName: "포텐할인율(%)", field: "potenCouponDiscount", width: 140,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
-                    valueGetter: function(params) {
-                        if(params.data.potenCouponDiscount > 0){
-                            return ComUtil.toCurrency(params.data.potenCouponDiscount) + ' %'
-                        }
-                        return '-'
-                    }
-                },
                 // {
-                //     headerName: "할인율(%)", field: "couponDiscountRate", width: 100,
+                //     headerName: "할인금액(BLY)", field: "couponBlyAmount", width: 120,
                 //     cellStyle:this.getCellStyle({cellAlign: 'center'}),
                 //     valueGetter: function(params) {
-                //         if(params.data.couponDiscountRate > 0){
-                //             return ComUtil.toCurrency(params.data.couponDiscountRate) + ' %'
+                //         if(params.data.couponBlyAmount > 0){
+                //             return ComUtil.toCurrency(params.data.couponBlyAmount) + ' BLY'
                 //         }
                 //         return '-'
                 //     }
                 // },
+                {
+                    headerName: "포텐할인율(%)", field: "potenCouponDiscount", width: 130,
+                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    valueGetter: function(params) {
+                        if(params.data.potenCouponDiscount > 0){
+                            return ComUtil.toCurrency(params.data.potenCouponDiscount.toFixed(2)) + ' %'
+                        }
+                        return '-'
+                    }
+                },
                 {
                     headerName: "총 수량", field: "totalCount", width: 100,
                     cellStyle:this.getCellStyle({cellAlign: 'center'}),
@@ -164,6 +204,50 @@ export default class CouponMasterList extends Component {
                     }
                 },
                 {
+                    headerName: "사용 수량", field: "usedCount", width: 100,
+                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    valueGetter: function(params) {
+                        if(params.data.couponType === 'memberJoin' || params.data.couponType === 'specialCoupon'|| params.data.couponType === 'deliveryCoupon') {
+                            return params.data.usedCount;
+                        }
+                        else {
+                            return '-';
+                        }
+                    }
+                },
+                {
+                    headerName: "사용률(%)", field: "usedCount", width: 100,
+                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    valueGetter: function(params) {
+                        if((params.data.couponType === 'memberJoin' || params.data.couponType === 'specialCoupon'|| params.data.couponType === 'deliveryCoupon')&& params.data.usedCount ) {
+
+                            const v_totalCount = params.data.totalCount || 0;
+                            const v_remainCount = params.data.remainCount || 0;
+                            let issueCount = v_totalCount - v_remainCount;
+                            if(issueCount === 0) {
+                                return '0%'
+                            } else {
+                                return ((params.data.usedCount / issueCount) * 100).toFixed(2) + '%'
+                            }
+                        }
+                        else {
+                            return '-';
+                        }
+                    }
+                },
+                {
+                    headerName: "사용원화", field: "totalCouponWon", width: 100,
+                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    valueGetter: function(params) {
+                        if(params.data.couponType === 'memberJoin' || params.data.couponType === 'specialCoupon'|| params.data.couponType === 'deliveryCoupon') {
+                            return ComUtil.addCommas(params.data.totalCouponWon);
+                        }
+                        else {
+                            return '-';
+                        }
+                    }
+                },
+                {
                     headerName: "남은 수량", field: "remainCount", width: 100,
                     cellStyle:this.getCellStyle({cellAlign: 'center'}),
                 },
@@ -171,6 +255,9 @@ export default class CouponMasterList extends Component {
                     headerName: "최소주문금액", field: "minAmount", width: 120,
                     cellStyle:this.getCellStyle({cellAlign: 'center'}),
                     valueGetter: function(params) {
+                        if(params.data.minGoodsPrice > 0) {
+                            return ComUtil.toCurrency(params.data.minGoodsPrice) + '원';
+                        }
                         if(params.data.fixedWon > 0){
                             return ComUtil.toCurrency(params.data.fixedWon) + ' 원';
                         }
@@ -194,18 +281,23 @@ export default class CouponMasterList extends Component {
                 resizable: true,
                 filter: true,
                 sortable: true,
-                floatingFilter: false,
+                floatingFilter: true,
                 filterParams: {
                     newRowsAction: 'keep'
                 }
             },
             frameworkComponents: {
                 titleRenderer: this.titleRenderer,
-                buttonRenderer: this.buttonRenderer
+                buttonRenderer: this.buttonRenderer,
+                masterNoRenderer: this.masterNoRenderer
             },
             overlayLoadingTemplate: '<span class="ag-overlay-loading-center">...로딩중입니다...</span>',
             overlayNoRowsTemplate: '<span class="ag-overlay-loading-center">조회된 내역이 없습니다</span>',
         }
+    }
+
+    getRowHeight(params) {
+        return 50;
     }
 
     // Ag-Grid Cell 스타일 기본 적용 함수
@@ -248,6 +340,10 @@ export default class CouponMasterList extends Component {
         );
     };
 
+    masterNoRenderer = ({value, data:rowData}) => {
+
+    }
+
     buttonRenderer = ({value, data:rowData}) => {
 
         const v_nowDate = moment().format('YYYYMMDD');
@@ -259,6 +355,7 @@ export default class CouponMasterList extends Component {
         const v_couponType = rowData.couponType;
         const v_deleted = rowData.deleted;
         const v_fixedWon = rowData.fixedWon;
+        const v_downloadable = rowData.downloadableFlag;
 
         let isStatus = false;
 
@@ -278,13 +375,13 @@ export default class CouponMasterList extends Component {
         //     isStatus = true;
         // }
 
-        if (v_couponType=='memberJoin' && (v_endDay > v_nowDate)){ //수량은 아래에서 다시 체크
+        if (v_couponType === 'memberJoin' && (v_endDay > v_nowDate)){ //수량은 아래에서 다시 체크
             isStatus = true;
         }
-        if (v_couponType=='goodsBuyReward'){
+        if (v_couponType === 'goodsBuyReward'){
             isStatus = true;
         }
-        if (v_couponType=='specialCoupon'){
+        if (v_couponType === 'specialCoupon' || v_couponType === 'deliveryCoupon'){
             isStatus = true;
         }
         // 남은 발급 수량이 없는 경우 (발급기간 보다 우선순위 높음)
@@ -310,11 +407,11 @@ export default class CouponMasterList extends Component {
                 }
                 <div className={'ml-2'} style={{textAlign: 'center'}}>
                 {
-                    isStatus && v_couponType=='specialCoupon' &&
+                    isStatus && (v_couponType === 'specialCoupon' || v_couponType === 'deliveryCoupon') && !v_downloadable &&
                         <Button block size={'sm'} color={'info'} onClick={this.onSearchConsumerModalOpen.bind(this, rowData)}>{'지급'}</Button>
                 }
                 {
-                    !isStatus && v_couponType=='specialCoupon' &&
+                    !isStatus && v_couponType === 'specialCoupon' && !v_downloadable &&
                     <Button block size={'sm'} disabled={true}>{'지급'}</Button>
                 }
                 </div>
@@ -362,17 +459,52 @@ export default class CouponMasterList extends Component {
         }
 
         await this.search();
-        //await this.searchSise();
     }
 
-    search = async () => {
+    searchOne = async() => {
+        if(this.state.searchMasterNo === 0) {
+            alert("검색할 쿠폰번호를 입력해주세요");
+            return;
+        }
         this.setState({loading: true});
-        // const searchInfo = this.state.search;
-        // const params = {
-        //     year:searchInfo.year
-        // };
-        // console.log(params);
-        const { status, data } = await getCouponMasterList();
+        const {status, data} = await getCouponMasterWithUsedWon({masterNo:this.state.searchMasterNo})
+        if(status !== 200){
+            alert('응답이 실패 하였습니다');
+            return;
+        }
+
+        let list = [];
+        list.push(data);
+
+        this.setState({
+            data: list,
+            loading: false
+        })
+    }
+
+    search = async (searchButtonClicked) => {
+
+        if (searchButtonClicked) {
+            if (!this.state.startDate || !this.state.endDate) {
+                alert('시작일과 종료일을 선택해주세요')
+                return;
+            }
+        }
+
+        this.setState({loading: true});
+
+        const params = {
+            startDate:this.state.startDate ? moment(this.state.startDate).format('YYYYMMDD'):null,
+            endDate:this.state.endDate ? moment(this.state.endDate).format('YYYYMMDD'):null,
+            needTotalWon: this.state.needTotalWon
+        };
+
+        // 검색버튼을 누르지 않으면 전체기간 검색
+        // if (!searchButtonClicked) {
+        //     params.startDate = null;
+        //     params.endDate = null;
+        // }
+        const { status, data } = await getCouponMasterList(params);
         if(status !== 200){
             alert('응답이 실패 하였습니다');
             return;
@@ -385,17 +517,13 @@ export default class CouponMasterList extends Component {
         })
     };
 
-    // 일별 BLY 시세 조회
-    searchSise = async () => {
-        const { status, data } = await getAllBlctToWonCachedLog();
-        if(status !== 200){
-            alert('응답이 실패 하였습니다');
-            return;
-        }
-
-        // console.log(data);
+    onSearchDateChange = async (data) => {
+        await this.setState({
+            startDate: data.startDate,
+            endDate: data.endDate,
+            selectedGubun: data.gubun
+        });
     }
-
     // onSearchDateChange = async (date) => {
     //     const search = Object.assign({}, this.state.search);
     //     search.year = date.getFullYear();
@@ -476,8 +604,22 @@ export default class CouponMasterList extends Component {
     onGridReady(params) {
         //API init
         this.gridApi = params.api;
-        this.gridColumnApi = params.columnApi;
+        this.columnApi = params.columnApi;
+    }
 
+    masterNoClicked = (params) => {
+        if(params.colDef.field === 'masterNo')
+            this.props.history.push(`/admin/shop/couponPoint/consumerCoupon?couponMasterNo=${params.data.masterNo}`)
+    }
+
+    onChangeMasterNo = (e) => {
+        this.setState({
+            searchMasterNo: e.target.value
+        })
+    }
+
+    copy = ({value}) => {
+        ComUtil.copyTextToClipboard(value, '', '');
     }
 
     render() {
@@ -490,28 +632,37 @@ export default class CouponMasterList extends Component {
         );
 
         return(
-            <div>
+            <Div p={16}>
                 {
                     this.state.loading && <BlocerySpinner/>
                 }
-                {/*<div className='border p-2'>*/}
-                    {/*<div className='d-flex'>*/}
-                        {/*<div>*/}
-                            {/*<DatePicker*/}
-                                {/*selected={new Date(moment().set('year',this.state.search.year))}*/}
-                                {/*onChange={this.onSearchDateChange}*/}
-                                {/*showYearPicker*/}
-                                {/*dateFormat="yyyy"*/}
-                                {/*customInput={<ExampleCustomDateInput />}*/}
-                            {/*/>*/}
-                        {/*</div>*/}
-                        {/*<div className="ml-3">*/}
-                            {/*<Button color={'info'} onClick={this.search}>검색</Button>*/}
-                        {/*</div>*/}
-                    {/*</div>*/}
-                {/*</div>*/}
+
+                <Div p={10} mb={10} bc={'secondary'}>
+                    <Space>
+                        <Div> 기 간 (발급일) </Div>
+                        <SearchDates
+                            gubun={this.state.selectedGubun}
+                            startDate={this.state.startDate}
+                            endDate={this.state.endDate}
+                            onChange={this.onSearchDateChange}
+                        />
+                        <Checkbox bg={'green'} checked={this.state.needTotalWon} onChange={(e) => this.setState({needTotalWon: e.target.checked})}>사용원화 보기</Checkbox>
+                        <MenuButton onClick={() => this.search(true)}> 검 색 </MenuButton>
+                    </Space>
+
+                    <Space mt={15}>
+                        <Div> 쿠폰 번호</Div>
+                        <div>
+                            <Input type="text" placeholder="쿠폰번호" value={this.state.searchMasterNo} onChange={this.onChangeMasterNo}/>
+                        </div>
+
+                        <MenuButton onClick={this.searchOne}> 특정번호 검색 </MenuButton>
+                    </Space>
+
+                </Div>
+
                 {/* filter START */}
-                <FilterContainer gridApi={this.gridApi} excelFileName={'쿠폰마스터 목록'}>
+                <FilterContainer gridApi={this.gridApi} columnApi={this.columnApi} excelFileName={'쿠폰마스터 목록'}>
                     <FilterGroup>
                         <InputFilter
                             gridApi={this.gridApi}
@@ -541,14 +692,16 @@ export default class CouponMasterList extends Component {
                     </FilterGroup>
                 </FilterContainer>
                 {/* filter END */}
-                <div className="d-flex p-1">
-                    <div className="d-flex align-items-center pl-1">
+
+                <Flex mb={10}>
+                    <Space>
+                        <MenuButton onClick={this.onRegModalOpen}>쿠폰 발급</MenuButton>
+                    </Space>
+                    <Right>
                         총 {this.state.data.length} 건
-                    </div>
-                    <div className="flex-grow-1 text-right">
-                        <Button color={'secondary'} onClick={this.onRegModalOpen}>쿠폰 발급</Button>
-                    </div>
-                </div>
+                    </Right>
+                </Flex>
+
                 <div
                     id="myGrid"
                     className="ag-theme-balham"
@@ -557,19 +710,16 @@ export default class CouponMasterList extends Component {
                     }}
                 >
                     <AgGridReact
-                        // enableSorting={true}                //정렬 여부
-                        // enableFilter={true}                 //필터링 여부
-                        floatingFilter={true}               //Header 플로팅 필터 여부
                         columnDefs={this.state.columnDefs}  //컬럼 세팅
                         defaultColDef={this.state.defaultColDef}
-                        // components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
                         frameworkComponents={this.state.frameworkComponents}
-                        // enableColResize={true}              //컬럼 크기 조정
                         overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                         overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
                         onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
                         rowData={this.state.data}
-                        rowHeight={45}
+                        getRowHeight={this.getRowHeight}
+                        onCellClicked={this.masterNoClicked}
+                        onCellDoubleClicked={this.copy}
                     >
                     </AgGridReact>
                 </div>
@@ -635,7 +785,9 @@ export default class CouponMasterList extends Component {
 
 
 
-            </div>
+            </Div>
         );
     }
 }
+
+export default withRouter(CouponMasterList);

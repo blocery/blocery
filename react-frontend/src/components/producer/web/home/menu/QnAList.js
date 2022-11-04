@@ -18,9 +18,8 @@ const QnAList = (props) => {
     }, [])
 
     async function getList(){
-        const { status, data } = await getGoodsQnaListByProducerNo()
 
-
+        const { status, data } = await getGoodsQnaListByProducerNo({status:"notsuccess"})
 
         //답변 미완료인것만
         let items = data.filter(item => item.goodsQnaStat !== 'success')

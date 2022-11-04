@@ -10,6 +10,7 @@ import { ToastContainer, toast } from 'react-toastify'                          
 import 'react-toastify/dist/ReactToastify.css'
 import ComUtil from '~/util/ComUtil'
 import { Webview } from "~/lib/webviewApi";
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 
 export default class ProducerJoin extends Component{
@@ -158,7 +159,8 @@ export default class ProducerJoin extends Component{
             Webview.updateFCMToken({userType: 'producer', userNo: producerNo});
 
             //alert('가입이 정상처리되었습니다.');
-            this.props.history.push('/joinComplete?name='+state.name+'&email='+state.email+'&farmName='+state.farmName+'&coRegistrationNo='+state.coRegistrationNo);
+            // this.props.history.push('/joinComplete?name='+state.name+'&email='+state.email+'&farmName='+state.farmName+'&coRegistrationNo='+state.coRegistrationNo);
+            this.props.history.push('/joinComplete');
         }
     }
 
@@ -247,7 +249,8 @@ export default class ProducerJoin extends Component{
         const data = Object.assign({}, this.state)
         return(
             <Fragment>
-                <ShopXButtonNav historyBack>생산자 회원가입</ShopXButtonNav>
+                {/*<ShopXButtonNav historyBack>생산자 회원가입</ShopXButtonNav>*/}
+                <BackNavigation>생산자 회원가입</BackNavigation>
                 <Container fluid>
                     <p></p>
                     <Row>
@@ -351,7 +354,7 @@ export default class ProducerJoin extends Component{
                     </Row>
                 </Container>
 
-                <ToastContainer/>
+                {/*<ToastContainer/>*/}
 
                 {/* 블록체인 비밀번호용 modal */}
                 <Modal isOpen={this.state.modalPassPhrase} centered>

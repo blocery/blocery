@@ -1,6 +1,54 @@
 import React from 'react'
-import Style from './PassPhrase.module.scss'
-import {FaStarOfLife, FaBackspace, FaRandom} from 'react-icons/fa'
+import {FaBackspace, FaRandom} from 'react-icons/fa'
+import {Div, Flex, GridColumns} from "~/styledComponents/shared";
+import {color} from "~/styledComponents/Properties";
+import styled from 'styled-components'
+import {getValue} from "~/styledComponents/Util";
+
+const DotItem = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    justify-content: center;
+    border-radius: ${getValue(3)};
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.2);
+    
+    width: 10vmin;
+    height: 12vmin;    
+    max-width: 60px;
+    max-height: 72px;
+    
+    ${props => props.showCircle && `
+        &::after {
+            content: "";
+            position: absolute;
+            width: 4vmin;
+            height: 4vmin;
+            max-width: 20px;
+            max-height: 20px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background-color: ${color.white};
+        }
+    `}
+}
+`
+
+
+const NumberItem = styled(Flex)`
+    justify-content: center;
+    height: 18vmin;
+    max-height: ${getValue(145)};
+    font-size: ${getValue(23)};
+    font-weight: ${700};    
+    cursor: pointer;
+`
 
 class PassPhrase extends React.Component {
 
@@ -9,6 +57,7 @@ class PassPhrase extends React.Component {
         super(props);
 
         this.state = {
+            pad:[],
             passPhraseClass1:null,
             passPhraseClass2:null,
             passPhraseClass3:null,
@@ -17,7 +66,7 @@ class PassPhrase extends React.Component {
             passPhraseClass6:null,
         };
         this.passPhraseAuthNo='';
-        this.pad = []
+        //this.pad = []
     }
     componentDidUpdate(prevProps, prevState) {
         if (prevProps.clearPassPhrase !== this.props.clearPassPhrase && this.props.clearPassPhrase === true) {
@@ -41,24 +90,24 @@ class PassPhrase extends React.Component {
 
     // 0~9 의 랜덤 숫자 생성(중복x)
     random = () => {
-        this.pad = [];
+        let pad = this.state.pad;
 
         while(true) {
-            for (var i = 0; i < 10; i++) {
+            for (let i = 0; i < 10; i++) {
                 const rand = Math.floor(Math.random() * 10) + 0
 
-                this.pad.push(rand); //기존에 실패해도 앞부분 데이터 재활용
+                pad.push(rand); //기존에 실패해도 앞부분 데이터 재활용
 
-                this.pad = this.pad.reduce(function (a, b) {
+                pad = pad.reduce(function (a, b) {
                     if (a.indexOf(b) < 0) a.push(b);
                     return a;
                 }, []);
             }
-            if (this.pad.length >= 10 ) {
+            if (pad.length >= 10 ) {
                 break;
             }
         }
-
+        this.setState({pad:pad})
     }
 
     //6자리 비번 조인Join)해서 결과 리턴
@@ -184,100 +233,37 @@ class PassPhrase extends React.Component {
     render() {
         return(
             <div>
-                <div className="d-flex align-items-center justify-content-center bg-light" style={{height:'170px'}}>
-                    {
-                        (this.state.passPhraseClass1 ||
-                        this.state.passPhraseClass2 ||
-                        this.state.passPhraseClass3 ||
-                        this.state.passPhraseClass4 ||
-                        this.state.passPhraseClass5 ||
-                        this.state.passPhraseClass6) ? (
-                            <>
-                            <div
-                                id="key_1"
-                                className={
-                                    this.state.passPhraseClass1 ?
-                                        [Style.character,Style.on,'mr-1 p-1 rounded-sm'].join(' ') :
-                                        [Style.character,'mr-1 p-1 rounded-sm'].join(' ')
+                <Flex flexDirection={'column'} justifyContent={'center'} px={20} py={30}
+                    custom={`
+                        background-image: linear-gradient(45deg, ${color.green}, #65906A);
+                    `}
 
-                                }
-                            >{this.state.passPhraseClass1 ? <FaStarOfLife /> : ""}</div>
-                            <div
-                                id="key_2"
-                                className={
-                                    this.state.passPhraseClass2 ?
-                                        [Style.character,Style.on,'mr-1 p-1 rounded-sm'].join(' ') :
-                                        [Style.character,'mr-1 p-1 rounded-sm'].join(' ')
-                                }
-                            >{this.state.passPhraseClass2 ? <FaStarOfLife /> : ""}</div>
-                            <div
-                                id="key_3"
-                                className={
-                                    this.state.passPhraseClass3 ?
-                                        [Style.character,Style.on,'mr-1 p-1 rounded-sm'].join(' ') :
-                                        [Style.character,'mr-1 p-1 rounded-sm'].join(' ')
-                                }
-                            >{this.state.passPhraseClass3 ? <FaStarOfLife /> : ""}</div>
-                            <div
-                                id="key_4"
-                                className={
-                                    this.state.passPhraseClass4 ?
-                                        [Style.character,Style.on,'mr-1 p-1 rounded-sm'].join(' ') :
-                                        [Style.character,'mr-1 p-1 rounded-sm'].join(' ')
-                                }
-                            >{this.state.passPhraseClass4 ? <FaStarOfLife /> : ""}</div>
-                            <div
-                                id="key_5"
-                                className={
-                                    this.state.passPhraseClass5 ?
-                                        [Style.character,Style.on,'mr-1 p-1 rounded-sm'].join(' ') :
-                                        [Style.character,'mr-1 p-1 rounded-sm'].join(' ')
-                                }
-                            >{this.state.passPhraseClass5 ? <FaStarOfLife /> : ""}</div>
-                            <div
-                                id="key_6"
-                                className={
-                                    this.state.passPhraseClass6 ?
-                                        [Style.character,Style.on,'mr-1 p-1 rounded-sm'].join(' ') :
-                                        [Style.character,'mr-1 p-1 rounded-sm'].join(' ')
-                                }
-                            >{this.state.passPhraseClass6 ? <FaStarOfLife /> : ""}</div>
-                            </>
-                        ) : (
-                            <div className={Style.fadeIn}>
-                                <div className={'font-weight-border f1 text-center'}><u>비밀번호</u></div>
-                                <small>블록체인 결제시 사용됩니다</small>
-                            </div>
-                        )
-                    }
+                >
+                    <Div fg={'white'} fontSize={16} fw={400} mb={25}>결제 비밀번호 6자리를 입력해 주세요.</Div>
 
-                </div>
-
-
-
-                <div class={Style.container}>
-                <div class={Style.row}>
-                    <figure onClick={this.passPhraseDoClick}>{this.pad[0]}</figure>
-                    <figure onClick={this.passPhraseDoClick}>{this.pad[1]}</figure>
-                    <figure onClick={this.passPhraseDoClick}>{this.pad[2]}</figure>
-                </div>
-                <div class={Style.row}>
-                    <figure onClick={this.passPhraseDoClick}>{this.pad[3]}</figure>
-                    <figure onClick={this.passPhraseDoClick}>{this.pad[4]}</figure>
-                    <figure onClick={this.passPhraseDoClick}>{this.pad[5]}</figure>
-                </div>
-                <div class={Style.row}>
-                    <figure onClick={this.passPhraseDoClick}>{this.pad[6]}</figure>
-                    <figure onClick={this.passPhraseDoClick}>{this.pad[7]}</figure>
-                    <figure onClick={this.passPhraseDoClick}>{this.pad[8]}</figure>
-                </div>
-                <div class={Style.row}>
-                    <figure onClick={this.passPhraseDoAllClearClick}><FaRandom size={30} /></figure>
-                    <figure onClick={this.passPhraseDoClick}>{this.pad[9]}</figure>
-                    <figure onClick={this.passPhraseDoClearClick}><FaBackspace size={30} /></figure>
-                </div>
-                </div>
-
+                    <GridColumns repeat={6} colGap={10} rowGap={0}>
+                        <DotItem showCircle={this.state.passPhraseClass1} />
+                        <DotItem showCircle={this.state.passPhraseClass2} />
+                        <DotItem showCircle={this.state.passPhraseClass3} />
+                        <DotItem showCircle={this.state.passPhraseClass4} />
+                        <DotItem showCircle={this.state.passPhraseClass5} />
+                        <DotItem showCircle={this.state.passPhraseClass6} />
+                    </GridColumns>
+                </Flex>
+                <GridColumns repeat={3} colGap={0} rowGap={0} bg={'veryLight'}>
+                    <NumberItem onClick={this.passPhraseDoClick}>{this.state.pad[0]}</NumberItem>
+                    <NumberItem onClick={this.passPhraseDoClick}>{this.state.pad[1]}</NumberItem>
+                    <NumberItem onClick={this.passPhraseDoClick}>{this.state.pad[2]}</NumberItem>
+                    <NumberItem onClick={this.passPhraseDoClick}>{this.state.pad[3]}</NumberItem>
+                    <NumberItem onClick={this.passPhraseDoClick}>{this.state.pad[4]}</NumberItem>
+                    <NumberItem onClick={this.passPhraseDoClick}>{this.state.pad[5]}</NumberItem>
+                    <NumberItem onClick={this.passPhraseDoClick}>{this.state.pad[6]}</NumberItem>
+                    <NumberItem onClick={this.passPhraseDoClick}>{this.state.pad[7]}</NumberItem>
+                    <NumberItem onClick={this.passPhraseDoClick}>{this.state.pad[8]}</NumberItem>
+                    <NumberItem fg={'dark'} onClick={this.passPhraseDoAllClearClick}><FaRandom /></NumberItem>
+                    <NumberItem onClick={this.passPhraseDoClick}>{this.state.pad[9]}</NumberItem>
+                    <NumberItem fg={'dark'} onClick={this.passPhraseDoClearClick}><FaBackspace /></NumberItem>
+                </GridColumns>
             </div>
         );
     }

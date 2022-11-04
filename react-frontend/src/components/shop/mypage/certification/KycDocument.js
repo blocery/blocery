@@ -11,6 +11,7 @@ import {getValue} from '~/styledComponents/Util'
 import {color, hoverColor} from "~/styledComponents/Properties";
 import {ScrollDummy, scrollIntoView} from '~/components/common/scrollDummy/ScrollDummy'
 import SecureApi from "~/lib/secureApi";
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 let validatedObj = {};
 
@@ -121,13 +122,6 @@ export default class KycDocument extends Component {
     }
 
     async componentDidMount() {
-
-        // 혹시나 CSRF 세팅이 안될 경우 대비 한번더 넣게 처리
-        SecureApi.setCsrf().then(()=>{
-            SecureApi.getCsrf().then(({data})=>{
-                localStorage.setItem('xToken',data);
-            });
-        });
 
         const {data:loginUser} = await getConsumer();
         if(!loginUser){
@@ -242,7 +236,8 @@ export default class KycDocument extends Component {
                 {
                     this.state.loading && <BlocerySpinner/>
                 }
-                <ShopXButtonNav underline back historyBack>KYC 신원 확인</ShopXButtonNav>
+                {/*<ShopXButtonNav underline back historyBack>KYC 신원 확인</ShopXButtonNav>*/}
+                <BackNavigation>KYC 신원 확인</BackNavigation>
                 <Body>
                     <Card shadow={'sm'}>
                         <Heading>01. 신분증 종류 선택</Heading>
@@ -257,7 +252,7 @@ export default class KycDocument extends Component {
                     <Card shadow={'sm'}>
                         <Heading>02. 신원확인 이미지 업로드</Heading>
                         <Desc>1. 신분증 앞면 사진</Desc>
-                        <Desc>2.신원 확인용 사진을 업로드 해주세요.</Desc>
+                        <Desc>2. 신원 확인용 사진을 업로드 해주세요.</Desc>
                         <KycSingleImageUploader images={this.state.kycImages} onChange={this.onImageChange} />
                     </Card>
 
@@ -280,7 +275,7 @@ export default class KycDocument extends Component {
                             <CheckBoxFlex>
                                 <Checkbox id={'check3'} bg={'green'} onChange={this.onCheckBoxChange}
                                           size={'sm'}>
-                                    <Span fontSize={13} fg={this.state.check3 ? 'darkBlack' : 'dark'}>메모에 '블로서리(또는 마켓블리)'와 '날짜'를 적어 주셨나요?</Span>
+                                    <Span fontSize={13} fg={this.state.check3 ? 'darkBlack' : 'dark'}>메모에 '블로서리(또는 샵블리)'와 '날짜'를 적어 주셨나요?</Span>
                                 </Checkbox>
                             </CheckBoxFlex>
                         </Div>

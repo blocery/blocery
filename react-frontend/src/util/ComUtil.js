@@ -6,8 +6,13 @@ import MobileDetect from 'mobile-detect'
 import cloneDeep from "lodash/cloneDeep"; //lodash 전체 라이브러리를 가져오던 초기 호출 방식을 변경 필요한 메서드만 가져옴
 import { Server } from '~/components/Properties'
 import axios from 'axios'
-import {getAbusers, getAbuser} from "~/lib/shopApi";
-
+import {getAbuser, checkMultiGifts} from "~/lib/shopApi";
+import {Span} from "~/styledComponents/shared";
+import React from "react";
+import {Webview} from "~/lib/webviewApi";
+import {doKakaoLogin, getLoginUser} from "~/lib/loginApi";
+import {ModalBody} from "reactstrap";
+import {TYPE_OF_IMAGE} from '~/lib/bloceryConst'
 export default class ComUtil {
 
     /*******************************************************
@@ -100,9 +105,9 @@ export default class ComUtil {
     }
 
     /*******************************************************
-     INT 날짜타입 => String 변환
-     @Param : intDate, formatter
-     @Return : yyyy-MM-dd (formatter 형식에 맞게 반환)
+     INT 날짜타입 => Moment 변환
+     @Param : intDate
+     @Return : moment
      *******************************************************/
     static intToDateMoment(intDate) {
 
@@ -120,11 +125,33 @@ export default class ComUtil {
     }
 
     /*******************************************************
+     LONG 날짜타입 => Moment 변환
+     @Param : longDate
+     @Return : moment
+     *******************************************************/
+    static longToDateMoment(longDate) {
+
+        let strDate = longDate.toString();
+        let dateTo = strDate.replace(/\-/g,'').replace(/\./g,'').replace(/\//g,'');
+
+        let pYear 	= dateTo.substr(0,4);
+        let pMonth 	= dateTo.substr(4,2) - 1;
+        let pDay 	= dateTo.substr(6,2);
+        let pHour 	= dateTo.substr(8,2);
+
+        const vDate = new Date(pYear, pMonth, pDay, this.toNum(pHour));
+
+        const utcDate = moment(vDate);
+        return utcDate.tz(moment.tz.guess());
+    }
+
+    /*******************************************************
      INT 날짜타입 => String 변환
      @Param : intDate, formatter
      @Return : yyyy-MM-dd (formatter 형식에 맞게 반환)
      *******************************************************/
     static intToDateString(intDate, formatter) {
+        if (intDate===0) return '-'
 
         let strDate = intDate.toString();
         let dateTo = strDate.replace(/\-/g,'').replace(/\./g,'').replace(/\//g,'');
@@ -202,9 +229,26 @@ export default class ComUtil {
         return moment.tz(localDate, moment.tz.guess()).format()
     }
 
+    // Ag-Grid Cell 스타일 기본 적용 함수
+    static getCellStyle = ({cellAlign,color,textDecoration,whiteSpace,fontWeight}) => {
+        if(cellAlign === 'left') cellAlign='flex-start';
+        else if(cellAlign === 'center') cellAlign='center';
+        else if(cellAlign === 'right') cellAlign='flex-end';
+        else cellAlign='flex-start';
+        return {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: cellAlign,
+            color: color,
+            textDecoration: textDecoration,
+            whiteSpace: whiteSpace,
+            fontWeight: fontWeight
+        }
+    }
+
     /*******************************************************
      숫자 및 문자(숫자)에 comma 추가
-     [잘못된 값 이외엔 항상 0 이상을 반환 하는 함수]
+     [잘못된 값 이외엔 항상 0 이상을 반환 하는 함수]  (2022.3.14 음수도 적용가능)
      @Param : 1234567
      @Return : 1,234,567
      *******************************************************/
@@ -305,13 +349,14 @@ export default class ComUtil {
     }
 
     /*******************************************************
-     이미지 파일을 받아 압축율을 적용 (안씀 버그있음)
+     이미지 파일을 받아 압축율을 적용 (안씀 버그있음 샘플의 이미지업로드 에서만 사용중)
      @Param : { file, opacity }
      @Return : file
      *******************************************************/
     static imageCompressor({file, quality, callback}) {
         return new Compressor(file, {
             quality: !quality && 0.6,       //압축률
+            convertTypes: ['image/webp'],
             success(result) {
                 const formData = new FormData();
                 formData.append('file', result, result.name);
@@ -332,6 +377,7 @@ export default class ComUtil {
         return new Promise((resolve, reject) => {
             new Compressor(file, {
                 quality: quality,
+                convertTypes: ['image/webp'],
                 success: async (result) => {
                     resolve(result)
                 },
@@ -509,6 +555,15 @@ export default class ComUtil {
     }
 
     /*******************************************************
+     url + 쿼리스트링으로 만들어 리턴
+     @Param : pathnames, object
+     @Return : url
+     *******************************************************/
+    static makeQueryStringUrl(pathname, params) {
+        return  pathname + '?' + new URLSearchParams(params).toString()
+    }
+
+    /*******************************************************
      현재부터 미래 날짜 사이의 시간차를 구하여 포맷에 맞게 반환
      @Param : Number(Millisecond), string
      @Return : string
@@ -552,6 +607,9 @@ export default class ComUtil {
      *******************************************************/
     static sortDate = (rowData, key, isDesc) => {
 
+        if (!rowData || rowData.length <= 0)
+            return []
+
         return rowData.sort((a, b) => {
             const aVal = ComUtil.utcToTimestamp(a[key]);
             const bVal = ComUtil.utcToTimestamp(b[key]);
@@ -575,10 +633,10 @@ export default class ComUtil {
             const bVal = b[key];
 
             if (isDesc) {
-                return bVal - aVal;
+                return Number(bVal) - Number(aVal);
             }
             else {
-                return aVal - bVal;
+                return Number(aVal) - Number(bVal);
             }
         })
     }
@@ -672,12 +730,30 @@ export default class ComUtil {
 
         return false; //mobile 브라우저
     }
+
+    /**
+     * 현재 환경이 PC용 IE웹브라우저일 때, true 반환: 첫페이지에서 IE미지원용도
+     */
+    static isIeBrowser() {
+        if (!this.isPcWeb()) {
+            return false;
+        }
+
+        let agent = navigator.userAgent.toLowerCase();
+
+        if( navigator.appName == 'Netscape' && navigator.userAgent.indexOf('Trident') != -1 || (agent.indexOf("msie") != -1)) {
+            console.log("Internet Explorer 브라우저입니다.");
+            return true;
+        }
+
+        return false; //mobile 브라우저
+    }
     /*******************************************************
      소수점 자리수 버림
      @Param : number, midPointRoundingNumber(소수점 자릿수)
      @Return : number
      *******************************************************/
-    static roundDown(number, midPointRoundingNumber){
+    static roundDown(number, midPointRoundingNumber=0){
         return this.decimalAdjust('floor', number, midPointRoundingNumber * (-1));
     }
 
@@ -706,9 +782,26 @@ export default class ComUtil {
      @Return : number
      *******************************************************/
     static sum(arr, key){
-        var val = 0;
+        let val = 0;
         arr.map(x => val += parseFloat(x[key]) || 0)
         return val;
+    }
+
+    /*******************************************************
+     월별 마지막 일자 구하기
+     @Param : month
+     @Return : dd(28, 30, 31)
+     *******************************************************/
+    static lastDay(month) {
+        var dd;     // 월별 말일
+        if(month === 2) {
+            dd = 28  //TODO add 29
+        } else if (month === 4 || month === 6 || month === 9 || month === 11) {
+            dd = 30
+        } else {
+            dd = 31
+        }
+        return dd;
     }
 
     /*******************************************************
@@ -763,7 +856,6 @@ export default class ComUtil {
      *******************************************************/
     static timeFromNow(targetTime) {
 
-        //console.log('targetTime : ', targetTime);
         if (!this.setupDone) { //duration을 formatting 하기위한 plugin초기화.
             momentDurationFormatSetup(moment);
             this.setupDone = true;
@@ -800,6 +892,7 @@ export default class ComUtil {
 
         if (!str || str.length < 4) {
             console.log("============ Valword ERROR: " + str);
+            return '';
         }
         //ascii값에 (index+1)더하기.   A+1, B+2, C+3..  G+7
         let rotatedStr = '';
@@ -815,13 +908,13 @@ export default class ComUtil {
 
     //간단한 복호화 - 비번복호용
     static decrypt(tempStr) {  //length:11
-
-        //양념빼면서 로테이션 해제  //3+4로 복귀
-        let rotatedStr = tempStr.substring(tempStr.length - 3) + tempStr.substring(4, tempStr.length-7 ) ; //뒤 + 앞.
-
         let str = '';
-        for (let i = 0; i < rotatedStr.length; i ++) {
-            str = str + String.fromCharCode(rotatedStr.charCodeAt(i) - ( i +1 ));
+        //양념빼면서 로테이션 해제  //3+4로 복귀
+        if(tempStr && tempStr.length > 0) {
+            let rotatedStr = tempStr.substring(tempStr.length - 3) + tempStr.substring(4, tempStr.length - 7); //뒤 + 앞.
+            for (let i = 0; i < rotatedStr.length; i++) {
+                str = str + String.fromCharCode(rotatedStr.charCodeAt(i) - (i + 1));
+            }
         }
         return str;
     }
@@ -862,10 +955,12 @@ export default class ComUtil {
     }
 
     static noScrollBody(){
+        console.log('overflow = hidden')
         let body = document.body
         body.style.overflow = 'hidden'
     }
     static scrollBody(){
+        console.log('overflow = auto')
         let body = document.body
         body.style.overflow = 'auto'
     }
@@ -964,16 +1059,36 @@ export default class ComUtil {
     static doubleMultiple(a, b) {
         return  ComUtil.roundDown(ComUtil.toNum(a) * ComUtil.toNum(b),2);
     }
-    static getFirstImageSrc(images, isThumbnail = true) {
+
+    static doubleDivide(a, b) {
+        return ComUtil.roundDown(ComUtil.toNum(a) / ComUtil.toNum(b), 2);
+    }
+
+    static getFirstImageSrc(images, type) {
 
         if (images && images.length > 0) {
             const image = images[0]
-            const imageTypeUrl = isThumbnail ? Server.getThumbnailURL() : Server.getImageURL()
+            let imageTypeUrl = Server.getThumbnailURL();
+            if(type === TYPE_OF_IMAGE.SQUARE){
+                imageTypeUrl = Server.getThumbnailURL('square');
+            } else if(type === TYPE_OF_IMAGE.SMALL_SQUARE){
+                imageTypeUrl = Server.getThumbnailURL('small');
+            } else if(type === TYPE_OF_IMAGE.WIDE){
+                imageTypeUrl = Server.getThumbnailURL('wide');
+            } else if(type === TYPE_OF_IMAGE.IMAGE){
+                imageTypeUrl = Server.getImageURL();
+            }
             const src = imageTypeUrl + image.imageUrl;
-
             return src
         }
-        return 'https://askleo.askleomedia.com/wp-content/uploads/2004/06/no_image-300x245.jpg'
+        return null//'https://askleo.askleomedia.com/wp-content/uploads/2004/06/no_image-300x245.jpg'
+    }
+
+    static getRandomProfileImg() {
+        let randomProfiles = ["3Ux7NZBnXYaz.png", "f5Uln8dvqco3.png", "C9axO5iq20OK.png", "MngRyTqvloIv.png", "OwKul6R8PWH3.png", "PtMbgsQ5jVtH.png"]
+
+        let randomIndex = Math.floor(Math.random() * 10) % 6;
+        return Server.getImageURL() + randomProfiles[randomIndex]
     }
 
     static encodeInviteCode(consumerNo) {
@@ -997,7 +1112,12 @@ export default class ComUtil {
             return 21530; //코박유저 하드코딩
         }
 
+        // isoj333 등이 들어가면 NaN 발생으로 방어코드 추가
         let consumerNo = parseInt(inviteCode.substring(2), 16);
+        if(consumerNo === NaN){
+            return 0;
+        }
+
         return consumerNo;
     }
 
@@ -1007,20 +1127,23 @@ export default class ComUtil {
             const fallbackCopyTextToClipboard = (text) => {
                 let textArea = document.createElement("textarea");
                 textArea.value = text;
+                textArea.style.top = 0;
+                textArea.style.left = 0;
+                textArea.style.position = "fixed";
 
                 // document.body.appendChild(textArea);
                 document.body.prepend(textArea);
 
                 textArea.readOnly = true;
+                // focus() -> 사파리 브라우저 서포팅
                 textArea.focus();
+                // select() -> 사용자가 입력한 내용을 영역을 설정할 때 필요
                 textArea.select();
 
                 try{
 
                     let successful = document.execCommand('copy');
-
                     document.body.removeChild(textArea);
-
                     return successful
 
                 }catch (err) {
@@ -1031,8 +1154,9 @@ export default class ComUtil {
             if (!navigator.clipboard) {
                 resolve(fallbackCopyTextToClipboard(text));
             }
-
-            navigator.clipboard.writeText(text)
+            // (IE는 사용 못하고, 크롬은 66버전 이상일때 사용 가능합니다.)
+            navigator.clipboard
+                .writeText(text)
                 .then(() => {
                     // alert("코드가 복사되었습니다");
                     resolve(true)
@@ -1045,7 +1169,8 @@ export default class ComUtil {
     }
 
     static async copyTextToClipboard(text, successMsg, failedMsg) {
-        const isCopied = await ComUtil.execCopy(text)
+        const isCopied = await this.execCopy(text)
+        console.log({isCopied})
         if (isCopied && successMsg) {
             alert(successMsg)
         }else{
@@ -1064,11 +1189,16 @@ export default class ComUtil {
             return false
 
         if (abuser && abuser.blocked) {
-            const userMessage = abuser.userMessage ? abuser.userMessage : '여뷰징 유사 사례로 판단되어 자동 차단 되었습니다. 고객센터 메일 cs@blocery.io 로 문의 부탁 드립니다.'
+            const userMessage = abuser.userMessage ? abuser.userMessage : '어뷰징 유사 사례로 판단되어 자동 차단 되었습니다. 고객센터 메일 cs@blocery.io 로 문의 부탁 드립니다.'
             alert(userMessage)
             return true;
         }
         return false;
+    }
+
+    static async isMultiGifts() {
+        const {data:check} = await checkMultiGifts();
+        return check;
     }
 
     static millisecondsToMinutesSeconds(ms) {
@@ -1089,6 +1219,12 @@ export default class ComUtil {
     //배열의 해당 인덱스의 값 제거
     static removeItemAtIndex(arr, index) {
         return [...arr.slice(0, index), ...arr.slice(index + 1)];
+    }
+
+
+    static secureEmail(email) {
+        const secureEmail = email.split('@');   // @를 기준으로 string 분할
+        return `${secureEmail[0].substring(0, 3)}***@${secureEmail[1]}`
     }
 
     static csvToArray(strData, strDelimiter){
@@ -1174,4 +1310,531 @@ export default class ComUtil {
         return( arrData );
     }
 
+
+    static isInsideWindow(elementRef) {
+        const innerHeight = window.innerHeight;
+        const offsetTop = elementRef.current.offsetTop;
+
+        if (offsetTop <= innerHeight) {
+            return true
+        }
+        return false
+    }
+
+    static isConsumerLoggedIn = (consumer) => {
+        if (!consumer) {
+            Webview.openPopup('/login')
+            return false
+        }
+        return true
+    }
+
+    static getImagesUrlByHtmlString(htmlString) {
+        const imagesUrl = []
+        const el = document.createElement('html');
+        el.innerHTML = htmlString;
+        const images = el.getElementsByTagName('img')
+
+        if (images.length > 0){
+
+            for (const img of images) {
+                const src = img.src
+                console.log({src})
+                const index = src.indexOf('/imagesContents')
+
+                if (index === -1) {
+                    imagesUrl.push(src)
+                }else {
+                    const imageUrl = src.slice(index, src.length)
+                    imagesUrl.push(imageUrl)
+                }
+
+
+            }
+        }
+        return imagesUrl
+    }
+
+
+    static getConsumerByLoginUser(loginUser) {
+        console.log({loginUser})
+        if(loginUser){
+            return {
+                consumerNo: loginUser.uniqueNo,
+                email: loginUser.email,
+                userType: loginUser.userType,
+                name: loginUser.name,
+                nickname: loginUser.nickname,
+                profile: loginUser.profile,
+                account: loginUser.account,
+                point: loginUser.point,
+                producerFlag: loginUser.producerFlag, //생산자 로그인인지 구분
+                level: loginUser.level
+            }
+        }else{
+            return null
+        }
+    }
+
+    //제주도 인지 여부 반환
+    static isJeju = async (zipNo) => {
+        const {jejuZipNoList} = await import('~/store')
+        console.log(jejuZipNoList.includes(zipNo))
+        return jejuZipNoList.includes(zipNo)
+    }
+
+    //consumer 이메일 로그인 후, 정보들 저장 => producer용 consumer(9억번대)도 사용 : recoil로 변경후 잘 쓰지는 않음.
+    static setLocalStorageLogin(data) {
+        localStorage.removeItem('authType');
+        localStorage.removeItem('userType');
+        //localStorage.removeItem('account'); //geth Account
+        localStorage.removeItem('email');
+        localStorage.removeItem('valword');
+        localStorage.removeItem('autoLogin');
+
+        //쿠키(localStorage)에 login된 userType저장. - 필요하려나.
+        localStorage.setItem('authType', 0);
+        localStorage.setItem('userType', data.userType);
+        //localStorage.setItem('account', loginInfo.account); //geth Account
+        localStorage.setItem('email', data.email);
+        localStorage.setItem('valword', ComUtil.encrypt(data.valword));
+        //localStorage.setItem('autoLogin', state.autoLogin? 1:0);
+        localStorage.setItem('autoLogin', 1); //pivot개발시 항상 1로 세팅.
+        //localStorage.setItem('today', ComUtil.utcToString(new Date()));
+
+        sessionStorage.setItem('logined', 1); //1 : true로 이용중
+
+        //console.log('loginInfo : ===========================',loginInfo);
+        //Webview.appLog('Login valword:' + data.valword);
+        //Webview.appLog('LoginlocalStorage Val:' + localStorage.getItem('valword'));
+
+    }
+
+    /*******************************************************
+     int를 binary값으로 변환 후 1값인 리스트 반환. 소비자 보유 배지에 활용
+     @Param : number
+     @Return : number List.
+     *******************************************************/
+    static intToBinaryArray(num) {
+        const binaryNum = num.toString(2);
+        let result = [];
+        for(let i = binaryNum.length ; i > 0; i--) {  // 맨 오른쪽 자리부터 왼쪽으로 검사.
+            if(binaryNum.charAt(i-1) === '1') {
+                result.push(binaryNum.length - i + 1);  // 맨 오른쪽 자리가 1이 되도록 바꿔서 리스트에 저장
+            }
+        }
+        return result;
+    }
+
+    // 카카오톡 공유하기
+    static shareKakaoLink(title, description, url, imageUrl) {
+        let urlObject = {
+            title     : title,
+            desc      : description,
+            url       : url,
+            imageUrl  : imageUrl,
+        };
+        Webview.kakaoDetailLink(urlObject);
+    }
+
+    /*******************************************************
+     날짜가 해당 기간에 포함되어있는지 여부
+     @Param : number
+     @Return : number List.
+     *******************************************************/
+    static isInPeriod(startDate, endDate, formatter = 'YYYYMMDD') {
+        const now = moment()
+        return now.isAfter(moment(startDate, formatter).endOf('day')) &&
+               now.isBefore(moment(endDate, formatter).endOf('day'))
+    }
+
+
+    //카카오톡 상품 공유하기 (공동구매상품일 경우 추가적립 됨) - pc는 URL복사
+    static kakaoLinkGoodsShare = async({consumerNo, goodsNo, goodsNm}) => {
+        //home에서 inviteCode를 localStorage에 저장 함
+        const url = `${Server.getFrontURL()}/goods?goodsNo=${goodsNo}&inviteCode=${consumerNo ? ComUtil.encodeInviteCode(consumerNo) : ''}`
+
+        if (ComUtil.isMobileApp() && !ComUtil.isMobileAppIos()) {  //android만 적용.
+        //if (ComUtil.isMobileApp()) {  //android, ios 모두 적용
+            const title = '샵블리 쑥쑥-계약재배';
+            const desc = '[모이면 추가적립 UP!]' + goodsNm;
+            const imageUrl = 'https://shopbly.shop/images/YP8BMgIo98I4.png';
+            ComUtil.shareKakaoLink(title,desc, url, imageUrl);
+        }
+        //web 환경 일 경우 url 복사
+        else {
+            await this.copyTextToClipboard(url,'URL이 복사 되었습니다!','URL 복사가 실패하였습니다')
+        }
+    }
+
+    //카카오톡 상품 공유하기 - pc는 URL복사
+    static kakaoLinkGoodsSimpleShare = async({goodsNo, goodsNm, goodsImageUrl}) => {
+        const url = `${Server.getFrontURL()}/goods?goodsNo=${goodsNo}`
+
+        if (ComUtil.isMobileApp() && !ComUtil.isMobileAppIos()) {  //android만 적용.
+            //if (ComUtil.isMobileApp()) {  //android, ios 모두 적용
+            const title = '샵블리';
+            const desc = goodsNm;
+            const imageUrl = `${Server.getFrontURL()}/images/${goodsImageUrl}` // 'https://shopbly.shop/images/' + goodsImageUrl;
+            ComUtil.shareKakaoLink(title, desc, url, imageUrl);
+        }
+        //web 환경 일 경우 url 복사
+        else {
+            await this.copyTextToClipboard(url,'URL이 복사 되었습니다!','URL 복사가 실패하였습니다')
+        }
+    }
+
+
+    //카카오톡 게시판 공유하기  - pc는 URL복사
+    static kakaoLinkBoardShare = async(writingId, content) => {
+        const url = `${Server.getFrontURL()}/community/board/${writingId}`
+        content = content.length > 15 ? content.substr(0, 14) + '...' : content;
+
+        if (ComUtil.isMobileApp() && !ComUtil.isMobileAppIos()) {  //android만 적용.
+        //if (ComUtil.isMobileApp()) {  //android, ios 모두 적용
+            const title = '샵블리 토크';
+            // const desc = '샵블리 게시글을 공유합니다.';
+            const desc = content;
+            const imageUrl = 'https://shopbly.shop/images/YP8BMgIo98I4.png';
+            ComUtil.shareKakaoLink(title,desc, url, imageUrl);
+        }
+        //web 환경 일 경우 url 복사
+        else {
+            await this.copyTextToClipboard(url,'URL이 복사 되었습니다!','URL 복사가 실패하였습니다')
+        }
+    }
+    //카카오톡 상품리뷰 공유하기  - pc는 URL복사
+    static kakaoLinkReviewShare = async(orderSeq, content) => {
+        const url = `${Server.getFrontURL()}/goodsReviewDetail/${orderSeq}`
+        content = content.length > 15 ? content.substr(0, 14) + '...' : content;
+
+        if (ComUtil.isMobileApp() && !ComUtil.isMobileAppIos()) {  //android만 적용.
+        //if (ComUtil.isMobileApp()) {  //android, ios 모두 적용
+            const title = '샵블리 상품리뷰';
+            // const desc = '샵블리 상품리뷰를 공유합니다.';
+            const desc = content;
+            const imageUrl = 'https://shopbly.shop/images/YP8BMgIo98I4.png';
+            ComUtil.shareKakaoLink(title,desc, url, imageUrl);
+        }
+        //web 환경 일 경우 url 복사
+        else {
+            await this.copyTextToClipboard(url,'URL이 복사 되었습니다!','URL 복사가 실패하였습니다')
+        }
+    }
+
+
+    //평점 리턴
+    static toScoreRate(number) {
+        if (Number.isInteger(number)) return number
+        else return number.toFixed(1)
+    }
+
+    //소비자 번호로 생산자 번호 조회
+    static getProducerNoByConsumerNo(consumerNo) {
+        if (this.isProducer(consumerNo)) {
+            return consumerNo - 900000000
+        }
+        return consumerNo
+    }
+
+    //생산자인지 여부
+    static isProducer(consumerNo) {
+        if (consumerNo > 900000000) {
+            return true
+        }
+        return false
+    }
+
+    static checkAndMoveDownloadAppPage() {
+        //모바일앱 에서만 가능한 서비스
+
+        //개발모드: 개발자 체크 제외.
+        // const isProduction = Server._serverMode() === 'production' ? true:false;
+        // if (!isProduction && Server.getServerURL().includes('localhost')) {
+        //     return true;
+        // }
+
+        if (!this.isMobileApp()) {
+            if (!window.confirm('모바일 앱 에서 이용 가능한 서비스 입니다. 앱을 다운 받으시겠습니까?')) {
+                return false
+            }
+            if(this.isMobileWebIos()){
+                window.location.assign('https://apps.apple.com/kr/app/%EB%A7%88%EC%BC%93%EB%B8%94%EB%A6%AC/id1471609293');
+                return false
+            } else {
+                window.location.assign('https://play.google.com/store/apps/details?id=com.blocery&hl=ko')
+                return false
+            }
+        }
+        return true
+    }
+
+    //ReactNative(RN)공용사용을 위해  분리. 202012
+    // code: -1 - 가져오기 실패
+    // code: 0  - 가져오기 성공 (로그인 성공)
+    // code: 1 -  회원가입 중=>  결제비번 입력창으로 redirect 필요.
+    // code: 20210101 - 8자리면서 날짜가 나오면 재가입 가능일
+    static kakaoLoginWithAccessKey = async(access_token, refresh_token) => {
+
+        const {data:res} = await doKakaoLogin(access_token, refresh_token);
+        //console.log("doKakaoLogin===",res)
+
+        const code = res.code;
+        if(code > 1 && code.toString().length == 8){
+            return {
+                result: 'FIRED',
+                data: {
+                    stopLoginReJoinDate:code,
+                    // stopLoginOpen:true
+                }
+            }
+
+
+            //console.log("doKakaoLogin2=code==",code)
+            // setState({
+            //     ...state,
+            //     stopLoginReJoinDate:code,
+            //     stopLoginOpen:true
+            // })
+        } else if(code == 1){
+            //consumerNo (0보다 크면) -  회원가입 중인 consumerNo =>  결제비번 입력창으로.
+            const consumerInfo = res.consumer;
+
+            return {
+                result: 'NEED_KAKAO_JOIN',
+                data: {
+                    consumer:consumerInfo,
+                    // token:consumerInfo.token,
+                    // refreshToken:consumerInfo.refreshToken
+                }
+            }
+
+            // setState({
+            //     ...state,
+            //     kakaoJoinInfo:{
+            //         consumer:consumerInfo,
+            //         token:consumerInfo.token,
+            //         refreshToken:consumerInfo.refreshToken
+            //     },
+            //     kakaoJoinOpen:true
+            // })
+
+        } else if(code == 0){
+            // 로그인 처리
+            // 0  - 가져오기 성공 (로그인 성공)
+            const consumerInfo = res.consumer;
+            const loginInfo = res.loginInfo;
+            // const {data:loginInfo} = await getLoginUser();
+
+
+            //recoil 세팅
+            // setConsumer({
+            //     consumerNo: consumerInfo.consumerNo,
+            //     email: consumerInfo.email,
+            //     userType: consumerInfo.userType,
+            //     name: consumerInfo.name,
+            //     nickname: consumerInfo.nickname,
+            //     profile: consumerInfo.profile,
+            // })
+
+            localStorage.removeItem('authType');
+            localStorage.removeItem('userType');
+            localStorage.removeItem('email');
+            localStorage.removeItem('valword');
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+
+            localStorage.setItem('authType', 1);
+            localStorage.setItem('userType', 'consumer');
+            localStorage.setItem('token', consumerInfo.token);
+            localStorage.setItem('refreshToken', consumerInfo.refreshToken);
+            localStorage.setItem('autoLogin', 1);
+            sessionStorage.setItem('logined', 1); //1 : true로 이용중
+            Webview.updateFCMToken({userType: 'consumer', userNo: loginInfo.uniqueNo})
+
+            return {
+                result: 'SUCCESS',
+                data: this.getConsumerByLoginUser(loginInfo)
+            }
+
+
+            //console.log('kakao Login OK: + history.goback');
+            // closePopup();
+
+            // movePage()
+
+        } else{
+            if(code == -1){
+                // -1 - 가져오기 실패
+                //console.log("-1 카카오톡 정보 가져오기 실패");
+            }else{
+                //console.log("-1 카카오톡 정보 가져오기 실패");
+            }
+        }
+
+    }
+
+    static getGoodsEventName = (goods) => {
+        //포텐타임
+        if (goods.timeSale && goods.inTimeSalePeriod) {
+            return 'POTENTIME'
+        }else if (goods.superReward && goods.inSuperRewardPeriod) {
+            return 'SUPERREWARD'
+        }else if (goods.dealGoods) {
+            return 'DEALGOODS'
+        }
+        return null
+    }
+
+    //마지막 클릭 후 delay 시간이 지나야 fn이 실행 됨
+    //사용법 debounce(onClick, 500) or debounce(onClick.bind(this, '파라미터'), 500)
+    static debounce = (fn, delay) =>{
+        let timeoutId = null;
+        return function(...args){
+            if(timeoutId){
+                clearTimeout(timeoutId);
+            }
+            timeoutId = setTimeout(()=>{
+                fn(...args);
+            }, delay)
+        }
+    }
+
+    //사업자등록번호 체크
+    static checkCoRegistrationNo = (bizID) =>{
+        // bizID는 숫자만 10자리로 해서 문자열로 넘긴다.
+        let checkID = new Array(1, 3, 7, 1, 3, 7, 1, 3, 5, 1);
+        let tmpBizID, i, chkSum=0, c2, remander;
+        bizID = bizID.replace(/-/gi,'');
+
+        for (i=0; i<=7; i++) chkSum += checkID[i] * bizID.charAt(i);
+        c2 = "0" + (checkID[8] * bizID.charAt(8));
+        c2 = c2.substring(c2.length - 2, c2.length);
+        chkSum += Math.floor(c2.charAt(0)) + Math.floor(c2.charAt(1));
+        remander = (10 - (chkSum % 10)) % 10 ;
+
+        if (Math.floor(bizID.charAt(9)) == remander) return true ; // OK!
+        return false;
+    }
+
+    static replaceAll = (str, searchStr, replaceStr) => {
+        // return str.split(searchStr).join(replaceStr);
+
+        const regexAllCase = new RegExp(searchStr, 'gi');
+        return str.replace(regexAllCase, replaceStr)
+    }
+
+    //문자열의 길이 (한, 영, 숫자 등)
+    static getTextLength (str) {
+
+        const type = typeof  str
+
+        if(type === 'number' || type === 'string') {
+            str = str.toString()
+        }else {
+            str = ''
+        }
+        var len = 0;
+        for (let i = 0; i < str.length; i++) {
+            if (escape(str.charAt(i)).length == 6) {
+                len++;
+            }
+            len++;
+        }
+        return len;
+    }
+
+    static getNow() {
+        return new Date().getTime();
+    }
+    static getNowYYYYMM() {
+        return moment(ComUtil.getNow()).format('YYYYMM')
+    }
+    static getNowYYYYMMDD() {
+        return moment(ComUtil.getNow()).format('YYYYMMDD')
+    }
+
+    //개발자 전요 모드인지 구분(화면에 정보를 보여주기 위해)
+    static isDeveloperMode() {
+        //쿠키 devMode 에 오늘 날짜가 있으면 화면에 정보를 보여줌
+        return localStorage.getItem('developerMode') === moment().format("YYYYMMDD").toString()
+    }
+
+    //로그인 상태 체크
+    static getIsLoginStatus(data) {
+        return ![-1,0,null].includes(data);
+    }
+
+    static maskingPhone(str){
+        if (!str || str.length < 5)
+            return "*******"
+
+        return '*'.repeat(str.toString().length -4) + str.slice(-4)
+    }
+
+    static maskingName(str){
+        if (!str)
+            return "****"
+
+        return str.substr(0,1) + "*".repeat(3)
+    }
+
+
+
+    /**
+     * 배열의 키가 달라졌는지 여부 리턴
+         ex) list.map((item, index, arr) => {
+                isNewGroup('orderSubGroupNo', item, index, arr)
+            }
+     * @param compareKey
+     * @param item
+     * @param index
+     * @param arr
+     * @returns {boolean|*}
+     */
+    static isNewGroup(compareKey, item, index, arr) {
+        return (index === 0) || (arr[index-1] && item[compareKey] !== arr[index-1][compareKey])
+    }
+    // 현재 스크롤이 아래로 향하는지 useScrollPos(scrollObj => ) 내에서 사용 가능
+    static isDownScrolling = ({ previous, current }) => previous > 0 && previous < current;
+    // 현재 스크롤이 젤 위에 있는지 useScrollPos(scrollObj => ) 내에서 사용 가능
+    static isTopScrolling = currentScrollTop => currentScrollTop < 4;
+
+    static getLocalStorage(key, defaultValue) {
+        const storageValue = localStorage.getItem(key) || defaultValue
+        // let convertedValue = storageValue;
+
+        try{
+            if (storageValue) {
+                return JSON.parse(storageValue)
+            }
+        }catch (err) {
+            return storageValue
+        }
+    }
+
+    /**
+     * 배열의 값을 구분자(divider) 에 맞게 붙임.
+     * 단 undefined, null, false, 0(숫자) 는 붙이지 않음
+     * @param divider
+     * @param args : join('_', []) or join('_', '','','') 모두허용
+     * @returns {string}
+     */
+    static join(divider, ...args) {
+        return args.filter(Boolean).join(divider);
+    }
+
+
+    /**
+     * value 가 있으면 combinedStr 반환. 이외는 '' 반환
+     * @param combinedStr
+     * @param orgStr
+     * @returns {string|*}
+     */
+    static getCombinedString(combinedStr, value) {
+        if(!value)
+            return ''
+        else
+            return combinedStr
+    }
 }

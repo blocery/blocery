@@ -1,26 +1,27 @@
 import React, { Component, Fragment } from 'react'
 import { Server } from '../../../Properties'
 import ComUtil from '~/util/ComUtil'
+import {getTransportCarrierId,getCardPgName,getPayMethodPgNm} from '~/util/bzLogic'
 import { Webview } from '~/lib/webviewApi'
 
 import { BlockChainSpinner, BlocerySpinner, ModalWithNav } from '~/components/common/index'
-import { getTransportCompany, getOrderDetailByOrderSeq } from '~/lib/shopApi'
+import { getTransportCompany, getOrderDetailByOrderSeq, checkSubGroupStartDelivery } from '~/lib/shopApi'
 import { getGoodsByGoodsNo } from '~/lib/goodsApi'
 
 import UpdateAddress from './UpdateAddress'
-import { Link } from '~/styledComponents/shared/Links'
+import {A, Link} from '~/styledComponents/shared/Links'
 import {FaGift} from 'react-icons/fa'
-import { ToastContainer, toast } from 'react-toastify'     //토스트
-import 'react-toastify/dist/ReactToastify.css'
+import { toast } from 'react-toastify'     //토스트
 import { Button as Btn } from '~/styledComponents/shared/Buttons'
-import { Div, Span, Img, Flex, Right } from '~/styledComponents/shared/Layouts'
+import {Div, Span, Img, Flex, Right} from '~/styledComponents/shared/Layouts'
+import {BadgeSharp} from "~/styledComponents/ShopBlyLayouts";
 import { Badge, HrThin } from "~/styledComponents/mixedIn";
 import { Icon } from '~/components/common/icons'
 import { Header } from '~/styledComponents/mixedIn/Headers'
 import styled from 'styled-components'
 import { getValue } from '~/styledComponents/Util'
-
-import SearchTracking from '~/components/shop/login/SearchTracking'
+import {withRouter} from "react-router-dom";
+import MathUtil from "~/util/MathUtil";
 
 let transportCompanies;
 
@@ -29,7 +30,7 @@ const Title = styled(Div)`
     font-weight: bold;
 `;
 
-export default class OrderDetail extends Component {
+class OrderDetail extends Component {
     constructor(props) {
         super(props);
 
@@ -45,9 +46,11 @@ export default class OrderDetail extends Component {
             isOpen: false,
             deliveryModal: false,
             trackingUrl: '',
+            trackingOtherUrl: '',
             chainLoading: false,
             loading: false,
-            serverToday: {}
+            serverToday: {},
+            alreadySubGroupStartDelivery: false
         }
 
         this.cancelTitleSel = [null,null,null,null,null,null]; //[5]=당일취소 추가
@@ -67,7 +70,6 @@ export default class OrderDetail extends Component {
 
         await this.getOrderInfo();
         let orderDetail = this.state.orderInfo;
-        //console.log(orderDetail);
 
         if (orderDetail.consumerOkDate != null) {
             this.setState({
@@ -82,9 +84,14 @@ export default class OrderDetail extends Component {
         this.setState({
             orderInfo: orderDetail
         });
+
+        let {data:startDelivery} = await checkSubGroupStartDelivery(this.state.orderSeq);
+
         let goodsInfo = await getGoodsByGoodsNo(orderDetail.goodsNo);
         //console.log("goodsInfo : ", goodsInfo);
         this.setState({
+            orderInfo: orderDetail,
+            alreadySubGroupStartDelivery: startDelivery,
             goodsInfo: goodsInfo.data
         });
     };
@@ -104,7 +111,7 @@ export default class OrderDetail extends Component {
             return;
         }
         let trackingUrl = transportCompany.transportCompanyUrl.replace('[number]', this.state.orderInfo.trackingNumber);
-
+        let trackingOtherUrl = transportCompany.transportCompanyUrl.replace('[number]', this.state.orderInfo.trackingNumber);
 
         // https://tracker.delivery/guide/ 해당 택배사 api 팝업연결 변경
         // 01 로젠택배      kr.logen
@@ -114,28 +121,22 @@ export default class OrderDetail extends Component {
         // 05 CU편의점택배  kr.cupost
         // 07 한진택배      kr.hanjin
 
-        // 세방택배 및 기타배송은 기존 url 사용
-        // 06 세방택배
+        // 새벽배송 및 기타배송 url 없음
+        // 98 새벽배송
         // 99 기타배송
 
         let track_id = this.state.orderInfo.trackingNumber;
-        let carrier_id = "";
         const v_TransportCompanyCd = this.state.orderInfo.transportCompanyCode;
-        if(v_TransportCompanyCd === '01') carrier_id = 'kr.logen';
-        else if(v_TransportCompanyCd === '02') carrier_id = 'kr.cjlogistics';
-        else if(v_TransportCompanyCd === '03') carrier_id = 'kr.epost';
-        else if(v_TransportCompanyCd === '04') carrier_id = 'kr.lotte';
-        else if(v_TransportCompanyCd === '05') carrier_id = 'kr.cupost';
-        else if(v_TransportCompanyCd === '07') carrier_id = 'kr.hanjin';
-        // carrier_id = "kr.cjlogistics";
-        // track_id = "639823384653";
-        if(
-            v_TransportCompanyCd !== '06' ||
-            v_TransportCompanyCd !== '99') {
+
+        let carrier_id = getTransportCarrierId(v_TransportCompanyCd);
+
+        //새벽, 기타
+        if(v_TransportCompanyCd !== '98' && v_TransportCompanyCd !== '99') {
             trackingUrl = `https://tracker.delivery/#/${carrier_id}/${track_id}`;
         }
         this.setState({
             trackingUrl,
+            trackingOtherUrl,
             isOpen: true
         });
     };
@@ -154,8 +155,10 @@ export default class OrderDetail extends Component {
             orderDetail.receiverPhone = data.receiverPhone;
             orderDetail.receiverZipNo = data.receiverZipNo;
             orderDetail.receiverAddr = data.receiverAddr;
+            orderDetail.receiverRoadAddr = data.receiverRoadAddr;
             orderDetail.receiverAddrDetail = data.receiverAddrDetail;
             orderDetail.deliveryMsg = data.deliveryMsg;
+            orderDetail.commonEnterPwd = data.commonEnterPwd;
             this.setState({
                 orderInfo: orderDetail
             });
@@ -175,6 +178,10 @@ export default class OrderDetail extends Component {
         if(orderDetail.trackingNumber) {
             alert('배송지정보 수정이 불가능합니다. 상품 수령 후 판매자에게 문의해주세요.');
         } else {
+            if(orderDetail.orderSubGroupNo > 0 && orderDetail.subGroupListSize > 1) {
+                if (!window.confirm('함께 구매한 묶음/옵션상품의 배송지가 일괄 수정됩니다. 수정하시겠습니까?'))
+                    return
+            }
             this.deliveryToggle();
         }
     };
@@ -183,15 +190,15 @@ export default class OrderDetail extends Component {
     onPayCancelReq = () => {
         let orderDetail = Object.assign({},this.state.orderInfo);
 
-        if(orderDetail.usedCouponNo > 0) {
-            if(!window.confirm('쿠폰으로 구매한 상품입니다. 결제취소시 쿠폰이 재발급 되지 않습니다. 취소하시겠습니까?'))
-                return
-        }
+        // if(orderDetail.usedCouponNo > 0 && !orderDetail.dealGoods) {
+        //     if(!window.confirm('쿠폰으로 구매한 상품입니다. 결제취소시 쿠폰이 재발급 되지 않습니다. 취소하시겠습니까?'))
+        //         return
+        // }
 
-        if(orderDetail.producerWrapDelivered) {
-            if(!window.confirm('생산자 묶음 배송상품입니다. 취소시 같이 구매한 동일생산자 상품이 모두 취소됩니다. 취소하시겠습니까?'))
-                return
-        }
+        // if(orderDetail.producerWrapDelivered) { //2021.10 현재 미사용.
+        //     if(!window.confirm('생산자 묶음 배송상품입니다. 취소시 같이 구매한 동일생산자 상품이 모두 취소됩니다. 취소하시겠습니까?'))
+        //         return
+        // }
 
         let payMethod = orderDetail.payMethod;    //결제구분(blct, card)
         let merchant_uid = orderDetail.orderSeq;  //주문일련번호
@@ -202,107 +209,11 @@ export default class OrderDetail extends Component {
                 return false;
             }
         }
-        Webview.openPopup(`/mypage/orderCancel?orderSeq=${merchant_uid}`);
+        //Webview.openPopup(`/mypage/orderCancel?orderSeq=${merchant_uid}`);
+
+        this.props.history.push(`/mypage/orderCancel?orderSeq=${merchant_uid}`)
+
     }
-
-    // === 취소수수료 계산 ===
-    // 예상 배송 시작일 기준
-    // 취소수수료 2주 전: 100% 환불
-    // CANCEL_FEE_13TO5  //배송시작일 13~5일전 취소수수료 단위%
-    // CANCEL_FEE_4TO3   //배송시작일 4~3일전
-    // CANCEL_FEE_2TO1   //배송시작일 2~1일전
-    // CANCEL_FEE_MAX    //배송시작일 이후 MAX 취소수수료 단위%
-    /** payMethod가 card이면 자동으로 원으로 계산 및 리턴:   cancelFee
-     *             blct이면 Blct Token으로 계산 및 리턴:  cancelBlctTokenFee
-     *
-     *  참고 backend에 보낼 추가정보 계산방식:  Won일 경우, blct로 환산방식 : exchangeWon2BLCT = parseFloat(  (cancelFee / BLCT_TO_WON).toFixed(2)  );
-     *                                  blct일 경우, 원으로 환산방식 : exchangeBLCT2Won = parseInt(  (cancelBlctTokenFee * BLCT_TO_WON)  );
-     */
-
-        //현재 미사용으로 보임-> OrderCancel.js에서 계산 중..
-    _deliveryCancelFeeWonOrBlct = (orderDetail) => {
-        //
-        // //예상배송시작일 기준
-        // let expectShippingStart = orderDetail.expectShippingStart;
-        //
-        // //주문금액 : blct or Won 자동 선택.
-        // let orderPrice = (orderDetail.payMethod === 'blct') ? orderDetail.blctToken : orderDetail.orderPrice;
-        // console.log('계산단위:', (orderDetail.payMethod === 'blct')? 'BLCT':'Won');
-        //
-        // let ROUND_FLOAT = (orderDetail.payMethod === 'blct') ? 2:0; //BLCT면 소숫점 2째까지.
-        //
-        // //배송시작일 기준 취소수수료 정책 반영
-        // if(expectShippingStart){
-        //
-        //     //주문상태 = 주문취소가 아닐경우
-        //     //배송일 기준으로 5일전 4일전 3일전 2일전 당일 이였을 경우 취소 수수료 계산
-        //     let toDTUtc = this.state.serverToday;  //서버의 현재일자
-        //
-        //     let m_expectShippingStart = moment(expectShippingStart);
-        //     let m_toDate = moment(toDTUtc);
-        //     let diff = m_expectShippingStart.diff(m_toDate);
-        //     let diffDuration = moment.duration(diff);
-        //     let diffDay = diffDuration.asDays();
-        //
-        //     //당일취소 무료 추가
-        //     let orderDate = moment(orderDetail.orderDate).format('YYYY-MM-DD');
-        //     let today = m_toDate.format('YYYY-MM-DD');
-        //
-        //     console.log('당일취소 여부 테스트:', orderDate, today, expectShippingStart, diff, diffDay);
-        //
-        //     if (orderDate === today) {
-        //         let fee = 0;
-        //         this.cancelTitleSel[5] = 'V';
-        //         console.log("주문 당일취소 수수료 없음" ,fee);
-        //         return fee;
-        //
-        //     }else if(diffDay <= 0){
-        //         //당일(배송시작일) 및 그 이후 운송장 입력전까지: 60% 수수료 부과
-        //         let fee = ComUtil.roundDown(orderPrice * (CANCEL_FEE_MAX / 100), ROUND_FLOAT);
-        //         console.log("당일(배송시작일) 및 그 이후 운송장 입력전까지: %" + CANCEL_FEE_MAX ,fee);
-        //         this.cancelTitleSel[4] = 'V';
-        //         return fee;
-        //     }
-        //     else if(diffDay >= 1  && diffDay <= 2){
-        //         //2일~1일 전 50% 취소수수료 부과
-        //         let fee = ComUtil.roundDown(orderPrice * (CANCEL_FEE_2TO1 / 100), ROUND_FLOAT);
-        //         console.log("2일~1일 전 취소수수료 부과 %" + CANCEL_FEE_2TO1,fee);
-        //         this.cancelTitleSel[3] = 'V';
-        //         return fee;
-        //     }
-        //     else if(diffDay >= 3  && diffDay <= 4){
-        //         //4일~3일 전 30% 취소수수료 부과
-        //         let fee = ComUtil.roundDown(orderPrice * (CANCEL_FEE_4TO3 / 100), ROUND_FLOAT);
-        //         console.log("4일~3일 전 30% 취소수수료 부과 %" + CANCEL_FEE_4TO3,fee);
-        //         this.cancelTitleSel[2] = 'V';
-        //         return fee;
-        //     }
-        //     else if(diffDay >= 5  && diffDay <= 13){
-        //         //5일~13일 전 10% 취소수수료 부과
-        //         let fee = ComUtil.roundDown(orderPrice * (CANCEL_FEE_13TO5 / 100), ROUND_FLOAT);
-        //         console.log("13일~5일 전 10% 취소수수료 부과 %" + CANCEL_FEE_13TO5,fee);
-        //         this.cancelTitleSel[1] = 'V';
-        //         return fee;
-        //     }
-        //     else if(diffDay >= 14){
-        //         //2주전일경우 100% 환불
-        //         console.log("2주전일경우 100% 환불",0);
-        //         this.cancelTitleSel[0] = 'V';
-        //         return 0;
-        //     }
-        // }
-    };
-
-    getPayMethodNmSwitch = (payMethod) => {
-        switch(payMethod) {
-            case 'blct':
-                return 'BLY토큰결제';
-            case 'card':
-                return '카드결제';
-            default:
-                return '카드 + BLY결제'; //cardBlct
-        }
-    };
 
     render() {
         let orderDetail = this.state.orderInfo;
@@ -318,14 +229,19 @@ export default class OrderDetail extends Component {
 
         let r_pay_cancel_btn_view = null;
 
+        console.log({orderPayStatus});
         // 예상배송일 기준
-        if(orderPayStatus !== 'cancelled'){
+        if(orderPayStatus !== 'cancelled' && orderPayStatus !== 'revoked'){
             // 운송장번호 입력 전이면 취소요청 버튼 활성화
             // if(!orderDetail.trackingNumber){
             if(orderDetail.orderConfirm != 'confirmed' && !orderDetail.onePlusSubFlag){
                 // 마지막 예상배송일 이전
                 r_pay_cancel_btn_view = r_pay_cancel_btn;
             }
+        }
+
+        if(orderDetail.dealGoods && orderPayStatus === 'paid') {
+            r_pay_cancel_btn_view = null;
         }
 
         return (
@@ -350,12 +266,21 @@ export default class OrderDetail extends Component {
                                 <Div fg={'dark'} fontSize={12}>{ComUtil.utcToString(orderDetail.orderDate)}</Div>
                                 <Right>
                                     {
-                                        orderDetail.notDeliveryDate ? <Badge fg={'white'} bg={'danger'}>미배송</Badge> :
-                                            (orderDetail.payStatus === 'cancelled') ? <Badge fg={'white'} bg={'danger'}>취소완료</Badge> :
-                                                orderDetail.consumerOkDate ? <Badge fg={'white'} bg={'green'}>구매확정</Badge> :
-                                                    orderDetail.trackingNumber ? <Badge fg={'white'} bg={'green'}>배송중</Badge> :
+                                            (orderDetail.payStatus === 'cancelled' || orderDetail.payStatus === 'revoked' ) ?
+                                                <BadgeSharp size={'sm'} bg={'danger'}>
+                                                    {orderDetail.payStatus === 'cancelled' && '취소완료'}
+                                                    {orderDetail.payStatus === 'revoked' && '예약취소완료'}
+                                                </BadgeSharp>
+                                                :
+                                                orderDetail.consumerOkDate ? <BadgeSharp size={'sm'} bg={'green'}>구매확정</BadgeSharp> :
+                                                    orderDetail.trackingNumber ? <BadgeSharp size={'sm'} bg={'green'}>배송중</BadgeSharp> :
                                                         orderDetail.orderConfirm ?
-                                                            <Badge fg={'white'} bg={'green'}>출고준비완료</Badge> : <Badge fg={'white'} bg={'secondary'}>발송예정</Badge>
+                                                            <BadgeSharp size={'sm'} bg={'green'}>출고대기</BadgeSharp>
+                                                            :
+                                                            (orderDetail.payStatus === 'scheduled') ?
+                                                                <BadgeSharp size={'sm'} bg={'dark'}>예약주문</BadgeSharp>
+                                                                :
+                                                                <BadgeSharp size={'sm'} bg={'dark'}>발송예정</BadgeSharp>
                                     }
                                 </Right>
                             </Flex>
@@ -367,48 +292,70 @@ export default class OrderDetail extends Component {
                                     </Div>
                                     <Div lineHeight={24}>
                                         <Div fg={'green'} fontSize={12}>{orderDetail.itemName} | {orderDetail.farmName}</Div>
-                                        <Div>{orderDetail.goodsNm}</Div>
+                                        <Div>{orderDetail.goodsOptionNm}</Div>
                                         {
-                                            (orderDetail.onePlusSubFlag) ?
+                                            (orderDetail.onePlusSubFlag) &&
                                                 <Div>
-                                                    <Div mb={4} fontSize={14} bold>0원</Div>
+                                                    <Div mb={4} fontSize={14} bold>증정품</Div>
                                                     <Right fontSize={11} fg={'dark'}>수량 : {orderDetail.orderCnt} | 증정품</Right>
                                                 </Div>
-                                                :
-                                                (orderDetail.payMethod === 'card') ?
-                                                    <Div>
-                                                        <Div mb={4} fontSize={14} bold>{ComUtil.addCommas(orderDetail.orderPrice)}원</Div>
-                                                        <Right fontSize={11} fg={'dark'}>수량 : {orderDetail.orderCnt} | 카드결제
-                                                            <Span fg={'danger'}>
-                                                                {(orderDetail.superRewardGoods)?'(슈퍼리워드 적용)':''} {(orderDetail.blyTimeGoods)?'(블리타임 적용)':''}
-                                                            </Span>
-                                                        </Right>
-                                                    </Div>
-                                                    : orderDetail.payMethod === 'blct' ?
-                                                    <Div alignItems={'center'}>
-                                                        <Div mb={4} fontSize={14} bold><Icon name={'blocery'}/>&nbsp;{ComUtil.addCommas(orderDetail.blctToken.toFixed(2))}({ComUtil.addCommas(orderDetail.orderPrice)}원)</Div>
-                                                        <Right fontSize={11} fg={'dark'}>수량 : {orderDetail.orderCnt} | BLY결제</Right>
-                                                    </Div>
-                                                    :
-                                                    <Div alignItems={'center'}>
-                                                        <Div mb={4} fontSize={14} bold>
-                                                            {ComUtil.addCommas(orderDetail.cardPrice)}원 +
-                                                            <Icon name={'blocery'}/>&nbsp;{ComUtil.addCommas(ComUtil.roundDown(orderDetail.blctToken,2))}({ComUtil.addCommas(ComUtil.roundDown(orderDetail.orderBlctExchangeRate*orderDetail.blctToken,1))}원)
-                                                        </Div>
-                                                        <Right fontSize={11} fg={'dark'}>수량 : {orderDetail.orderCnt} | 카드+BLY결제
-                                                            <Span fg={'danger'}>
-                                                                {(orderDetail.superRewardGoods)?'(슈퍼리워드 적용)':''} {(orderDetail.blyTimeGoods)?'(블리타임 적용)':''}
-                                                            </Span>
-                                                        </Right>
-                                                    </Div>
-
                                         }
-
+                                        {
+                                            (!orderDetail.onePlusSubFlag) &&
+                                            <>
+                                                {
+                                                    (orderDetail.payMethod === 'card') &&
+                                                        <Div>
+                                                            <Div mb={4} fontSize={14} bold>
+                                                                {ComUtil.addCommas(orderDetail.mypageOrderPrice)}원
+                                                            </Div>
+                                                            <Right fontSize={11} fg={'dark'}>
+                                                                수량 : {orderDetail.orderCnt} | {getCardPgName(orderDetail.pgProvider)}
+                                                                <Span fg={'danger'}>
+                                                                    {(orderDetail.superRewardGoods) ? '(슈퍼리워드 적용)' : ''} {(orderDetail.blyTimeGoods) ? '(블리타임 적용)' : ''}
+                                                                </Span>
+                                                            </Right>
+                                                        </Div>
+                                                }
+                                                {
+                                                    (orderDetail.payMethod === 'blct') &&
+                                                        <Div alignItems={'center'}>
+                                                            <Div mb={4} fontSize={14} bold>
+                                                                <Icon name={'blocery'}/>&nbsp;{ComUtil.addCommas(orderDetail.mypageBlctToken.toFixed(2))}({ComUtil.addCommas(orderDetail.mypageOrderPrice)}원)
+                                                            </Div>
+                                                            <Right fontSize={11} fg={'dark'}>수량 : {orderDetail.orderCnt} | BLY결제</Right>
+                                                        </Div>
+                                                }
+                                                {
+                                                    (orderDetail.payMethod === 'cardBlct') &&
+                                                        <Div alignItems={'center'}>
+                                                            <Div mb={4} fontSize={14} bold>
+                                                                {ComUtil.addCommas(orderDetail.mypageCardPrice)}원 +<Icon name={'blocery'}/>&nbsp;{ComUtil.addCommas(orderDetail.mypageBlctToken.toFixed(2))}({ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(orderDetail.orderBlctExchangeRate,orderDetail.mypageBlctToken)))}원)
+                                                            </Div>
+                                                            <Right fontSize={11} fg={'dark'}>
+                                                                수량 : {orderDetail.orderCnt} | {getPayMethodPgNm(orderDetail.payMethod, orderDetail.pgProvider)}
+                                                                <Span fg={'danger'}>
+                                                                    {(orderDetail.superRewardGoods) ? '(슈퍼리워드 적용)' : ''} {(orderDetail.blyTimeGoods) ? '(블리타임 적용)' : ''}
+                                                                </Span>
+                                                            </Right>
+                                                        </Div>
+                                                }
+                                            </>
+                                        }
                                     </Div>
                                 </Flex>
                             </Link>
                             {
-                                orderDetail.notDeliveryDate ? null : orderPayStatus === 'cancelled' ?
+                                (orderDetail.payStatus === 'scheduled') && (orderDetail.scheduleAtTime > 0) ?
+                                    <Div width={'100%'} mb={16}>
+                                        <Btn block bc={'secondary'} bg={'white'} disabled={true}>
+                                            <Span fg={'white'} bold>결제예정 {ComUtil.longToDateMoment(orderDetail.scheduleAtTime).format("YY.MM.DD HH:00")}</Span>
+                                        </Btn>
+                                    </Div> : <></>
+                            }
+
+                            {
+                                (orderPayStatus === 'cancelled' ||  orderPayStatus === 'revoked' )?
                                     <Link to={'/goods?goodsNo='+goods.goodsNo} display={'block'}><Btn block bc={'secondary'}>재구매</Btn></Link> : orderDetail.consumerOkDate ?
                                         <Flex>
                                             <Div flexGrow={1} pr={4}>
@@ -423,9 +370,11 @@ export default class OrderDetail extends Component {
                                                     <Btn block bc={'secondary'} onClick={this.deliveryTracking}>배송조회</Btn>
                                                 </Div>
                                                 <Div flexGrow={1} pl={4}>
-                                                    <Btn block bc={'secondary'}><Link to={'/farmersDetailActivity?producerNo='+orderDetail.producerNo}>판매자 문의</Link></Btn>
+                                                    {/*<Btn block bc={'secondary'}><Link to={'/farmersDetailActivity?producerNo='+orderDetail.producerNo}>판매자 문의</Link></Btn>*/}
+                                                    <Btn block bc={'secondary'}><Link to={'/myPage/myQA/2'}>문의하기</Link></Btn>
                                                 </Div>
-                                            </Flex> : <Div width={'100%'}>{r_pay_cancel_btn_view}</Div>
+                                            </Flex> : orderDetail.subGroupListSize<=1 && <Div width={'100%'}>{r_pay_cancel_btn_view}</Div>
+                                                                 //2022.04 subGroupListSize가 여러개일때는 OrderList에 전체취소버튼 출력.
                             }
                         </Div>
                         <HrThin m={0} mb={16} />
@@ -441,13 +390,19 @@ export default class OrderDetail extends Component {
                                         </span>
                                     }
                                     {
-                                        (orderDetail.notDeliveryDate) ? null :
-                                            (orderPayStatus === 'cancelled')  ? null :
+                                            (orderPayStatus === 'cancelled' || orderPayStatus === 'revoked' || this.state.alreadySubGroupStartDelivery )  ? null :
                                                 (orderDetail.consumerOkDate || orderDetail.trackingNumber || orderDetail.orderConfirm) ? null :
                                                     <Btn bc={'secondary'} fontSize={12} onClick={this.updateDeliveryInfo}>수정</Btn>
                                     }
                                 </Right>
                             </Flex>
+                            {
+                                orderDetail.gift &&
+                                <Flex fontSize={12} mb={3}>
+                                    <Div fg={'adjust'} minWidth={80}>선물 발송자</Div>
+                                    <Div>{orderDetail.senderName}</Div>
+                                </Flex>
+                            }
                             <Flex fontSize={12} mb={3}>
                                 <Div fg={'adjust'} minWidth={80}>받는 사람</Div>
                                 <Div>{orderDetail.receiverName}</Div>
@@ -465,6 +420,13 @@ export default class OrderDetail extends Component {
                                 <Div>{orderDetail.deliveryMsg}</Div>
                             </Flex>
                             {
+                                orderDetail.commonEnterPwd &&
+                                <Flex fontSize={12} mb={3}>
+                                    <Div fg={'adjust'} minWidth={80}>공동현관출입번호</Div>
+                                    <Div>{orderDetail.commonEnterPwd}</Div>
+                                </Flex>
+                            }
+                            {
                                 orderDetail.hopeDeliveryFlag && (
                                     <Flex fontSize={12} mb={3}>
                                         <Div fg={'adjust'} minWidth={80}>희망 수령일</Div>
@@ -476,125 +438,160 @@ export default class OrderDetail extends Component {
 
                         <HrThin m={0} mb={16} />
 
-                        <Div m={16}>
-                            <Title mb={16}>최종 결제금액</Title>
-                            {
-                                orderDetail.onePlusSubFlag ?
-                                    <Div>
-                                        <Flex fontSize={12} mb={3}>
-                                            <Div fg={'adjust'} minWidth={80}>결제구분</Div>
-                                            <Div>증정품</Div>
-                                        </Flex>
-                                        <Flex fontSize={12} mb={3}>
-                                            <Div fg={'adjust'} minWidth={80}>총 상품가격</Div>
-                                            <Div>0원</Div>
-                                        </Flex>
-                                        <Flex fontSize={12} mb={3}>
-                                            <Div fg={'adjust'} minWidth={80}>총 배송비</Div>
-                                            <Div>0원</Div>
-                                        </Flex>
-                                    </Div>
-                                :
-                                    <Div>
-                                        <Flex fontSize={12} mb={3}>
-                                            <Div fg={'adjust'} minWidth={80}>결제구분</Div>
-                                            <Div>{this.getPayMethodNmSwitch(orderDetail.payMethod)}</Div>
-                                        </Flex>
-                                        <Flex fontSize={12} mb={3}>
-                                            <Div fg={'adjust'} minWidth={80}>총 상품가격</Div>
-                                            <Div>{ComUtil.addCommas(orderDetail.currentPrice * orderDetail.orderCnt)} 원</Div>
-                                        </Flex>
-                                        <Flex fontSize={12} mb={3}>
-                                            <Div fg={'adjust'} minWidth={80}>총 배송비</Div>
-                                            <Div>{ComUtil.addCommas(orderDetail.orderPrice - orderDetail.currentPrice * orderDetail.orderCnt)} 원</Div>
-                                        </Flex>
-                                    </Div>
-                            }
-                        </Div>
+                        {/*<Div m={16}>*/}
+                        {/*    <Title mb={16}>최종 결제금액</Title>*/}
+                        {/*    {*/}
+                        {/*        orderDetail.onePlusSubFlag ?*/}
+                        {/*            <Div>*/}
+                        {/*                <Flex fontSize={12} mb={3}>*/}
+                        {/*                    <Div fg={'adjust'} minWidth={80}>결제구분</Div>*/}
+                        {/*                    <Div>증정품</Div>*/}
+                        {/*                </Flex>*/}
+                        {/*                <Flex fontSize={12} mb={3}>*/}
+                        {/*                    <Div fg={'adjust'} minWidth={80}>총 상품가격</Div>*/}
+                        {/*                    <Div>-</Div>*/}
+                        {/*                </Flex>*/}
+                        {/*                {orderDetail.subGroupListSize <= 1 && //옵션여러개(or묶음) 아닐경우만 출력*/}
+                        {/*                    <Flex fontSize={12} mb={3}>*/}
+                        {/*                        <Div fg={'adjust'} minWidth={80}>총 배송비</Div>*/}
+                        {/*                        <Div>-</Div>*/}
+                        {/*                    </Flex>*/}
+                        {/*                }*/}
+                        {/*            </Div>*/}
+                        {/*        :*/}
+                        {/*            <Div>*/}
+                        {/*                <Flex fontSize={12} mb={3}>*/}
+                        {/*                    <Div fg={'adjust'} minWidth={80}>결제구분</Div>*/}
+                        {/*                    <Div>{getPayMethodPgNm(orderDetail.payMethod,orderDetail.pgProvider)}</Div>*/}
+                        {/*                </Flex>*/}
+                        {/*                <Flex fontSize={12} mb={3}>*/}
+                        {/*                    <Div fg={'adjust'} minWidth={80}>총 상품가격</Div>*/}
+                        {/*                    <Div>{ComUtil.addCommas(orderDetail.currentPrice * orderDetail.orderCnt)} 원</Div>*/}
+                        {/*                </Flex>*/}
+                        {/*                {orderDetail.subGroupListSize <= 1 && //옵션여러개(or묶음) 아닐경우만 출력*/}
+                        {/*                    <Flex fontSize={12} mb={3}>*/}
+                        {/*                        <Div fg={'adjust'} minWidth={80}>총 배송비</Div>*/}
+                        {/*                        <Div>{ComUtil.addCommas(orderDetail.adminDeliveryFee)} 원</Div>*/}
+                        {/*                    </Flex>*/}
+                        {/*                }*/}
+                        {/*            </Div>*/}
+                        {/*    }*/}
+                        {/*</Div>*/}
 
-                        <HrThin m={0} mb={16} />
+                        {
+                            !orderDetail.onePlusSubFlag ?
+                            <Div m={16} fontSize={15}>
+                                <Title mb={16}>결제상세</Title>
+                                <Flex mb={10}>
+                                    <Div>상품금액</Div>
+                                    <Right bold>{ComUtil.addCommas(MathUtil.multipliedBy(orderDetail.currentPrice,orderDetail.orderCnt))} 원</Right>
+                                </Flex>
 
-                        <Div m={16}>
-                            <Flex mb={16}>
-                                <Div bold alignItems={'center'} fontSize={16}>총 결제금액</Div>
-                                {
-                                    orderDetail.onePlusSubFlag ? <Right bold fontSize={20} fg={'green'}>0원</Right> :
-                                        <Right bold fontSize={20} fg={'green'}>{ComUtil.addCommas(orderDetail.orderPrice)} 원</Right>
-                                }
-                            </Flex>
-                            <Div>
-                                {
-                                    orderDetail.onePlusSubFlag ?
-                                        <Div>
-                                            <Flex mb={3}>
-                                                <Div fg={'adjust'}>신용카드</Div>
-                                                <Right>-</Right>
-                                            </Flex>
-                                            <Flex mb={3}>
-                                                <Div fg={'adjust'}>BLY</Div>
-                                                <Right>-</Right>
-                                            </Flex>
-                                        </Div>
-                                    :
-                                        <Div>
-                                            {
-                                                orderPayMethod !== "blct" &&
-                                                <Flex mb={3}>
-                                                    <Div fg={'adjust'}>신용카드</Div>
-                                                    <Right>{ComUtil.addCommas(orderDetail.cardPrice) + '원'}</Right>
-                                                </Flex>
-                                            }
-                                            {
-                                                (orderDetail.payMethod !== "card") &&
-                                                <Flex mb={3}>
-                                                    <Div fg={'adjust'}>BLY</Div>
-                                                    <Right><Icon name={'blocery'} />&nbsp;{ComUtil.addCommas((orderDetail.blctToken-orderDetail.usedCouponBlyAmount).toFixed(2))} BLY &nbsp;
-                                                        <small>({ComUtil.addCommas(ComUtil.roundDown((orderDetail.blctToken-orderDetail.usedCouponBlyAmount)*orderDetail.orderBlctExchangeRate, 1))}원)</small>
-                                                    </Right>
-                                                </Flex>
-                                            }
-                                        </Div>
-                                }
                                 {
                                     orderDetail.usedCouponNo !== 0 &&
-                                    <Flex>
-                                        <Div fg={'adjust'}>쿠폰</Div>
-                                        <Right><Icon name={'blocery'} />&nbsp;{ComUtil.addCommas(orderDetail.usedCouponBlyAmount.toFixed(2))} BLY &nbsp;
-                                            <small>({ComUtil.addCommas(ComUtil.roundDown(orderDetail.usedCouponBlyAmount*orderDetail.orderBlctExchangeRate, 1))}원)</small>
+                                    <Flex mb={10}>
+                                        <Div>쿠폰 사용</Div>
+                                        <Right fg={'danger'}>
+                                            (-) {ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(orderDetail.usedCouponBlyAmount,orderDetail.orderBlctExchangeRate)))}원
                                         </Right>
                                     </Flex>
                                 }
-                            </Div>
-                        </Div>
+
+                                {
+                                    orderDetail.subGroupListSize <= 1 && //옵션여러개(or묶음) 아닐경우만 출력
+                                    <Flex mb={10}>
+                                        <Div>배송비</Div>
+                                        <Right>(+) {ComUtil.addCommas(orderDetail.adminDeliveryFee)} 원</Right>
+                                    </Flex>
+                                }
+
+                                {
+                                    (orderDetail.payMethod !== "card") &&
+                                    <Flex mb={10}>
+                                        <Div>BLY 사용</Div>
+                                        <Right>
+                                            <Flex>
+                                                <Div fg={'danger'}>(-)</Div> &nbsp;
+                                                <Div fg={'bly'}>{ComUtil.addCommas(MathUtil.minusBy(orderDetail.mypageBlctToken,orderDetail.usedCouponBlyAmount).toFixed(2))} BLY</Div> &nbsp;
+                                                <Div fg={'danger'}>({ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(MathUtil.minusBy(orderDetail.mypageBlctToken,orderDetail.usedCouponBlyAmount),orderDetail.orderBlctExchangeRate)))}원)</Div>
+                                            </Flex>
+                                        </Right>
+                                    </Flex>
+                                }
+
+                                <HrThin m={0} mb={16} />
+
+                                <Flex mb={16} fontSize={14}>
+                                    <Div bold alignItems={'center'}>결제금액</Div>&nbsp;
+                                    {
+                                        orderPayMethod !== "blct" &&
+                                        <Div>
+                                            ({orderDetail.pgProvider === 'uplus' ? orderDetail.cardName : getCardPgName(orderDetail.pgProvider)})
+                                        </Div>
+                                    }
+                                    <Right bold fontSize={20}>{ComUtil.addCommas(orderDetail.mypageCardPrice)}원</Right>
+                                </Flex>
+                            </Div> :
+                            <Flex m={16} fontSize={15}>
+                                <Title mb={16}>결제상세</Title>
+                                <Right bold fontSize={20} fg={'green'}>증정품</Right>
+                            </Flex>
+                        }
 
                         <HrThin m={0} mb={16} />
 
                         <Div m={16}>
                             {
                                 //주문취소시 총 환불금액 표시
-                                (orderPayStatus === "cancelled") || (orderDetail.notDeliveryDate) ?
+                                !orderDetail.onePlusSubFlag && ((orderPayStatus === "cancelled") || (orderPayStatus === "revoked")) ?
                                     <Div>
-                                        <Flex mb={16}>
-                                            <Title alignItems={'center'} fontSize={16}>총 환불금액</Title>
-                                            <Right bold fontSize={20} fg={'danger'}>
-                                                {
-                                                    orderDetail.usedCouponNo ?
-                                                        orderPayMethod === 'blct' ?
-                                                            ComUtil.addCommas((ComUtil.toNum(orderDetail.blctToken)-ComUtil.toNum(orderDetail.cancelBlctTokenFee)-ComUtil.toNum(orderDetail.usedCouponBlyAmount)).toFixed(2))
-                                                            :
-                                                            ComUtil.addCommas(ComUtil.roundDown((ComUtil.toNum(orderDetail.orderPrice)-ComUtil.toNum(orderDetail.cancelFee)-ComUtil.toNum(ComUtil.doubleMultiple(orderDetail.usedCouponBlyAmount,orderDetail.orderBlctExchangeRate))),0))
-                                                        :
-                                                        orderPayMethod === 'blct' ?
-                                                            ComUtil.addCommas((ComUtil.toNum(orderDetail.blctToken)-ComUtil.toNum(orderDetail.cancelBlctTokenFee).toFixed(2)))
-                                                            :
-                                                            ComUtil.addCommas(ComUtil.toNum(orderDetail.orderPrice)-ComUtil.toNum(orderDetail.cancelFee))
-                                                }
-                                                { orderPayMethod === "blct" ? ' BLY' : ' 원' }
+                                        <Title mb={16}>환불상세</Title>
+                                        <Flex mb={10}>
+                                            <Div>환불금액</Div>
+                                            <Right bold fg={'danger'} fontSize={20}>{ComUtil.addCommas(orderDetail.mypageCardPrice)}원</Right>
+                                        </Flex>
+                                        <Flex mb={10}>
+                                            <Div>환불 BLY</Div>
+                                            <Right>
+                                                <Flex>
+                                                    <Div fg={'bly'}>{ComUtil.addCommas(MathUtil.minusBy(orderDetail.mypageBlctToken,orderDetail.usedCouponBlyAmount).toFixed(2))} BLY</Div> &nbsp;
+                                                    <Div fg={'danger'}>({ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(MathUtil.minusBy(orderDetail.mypageBlctToken,orderDetail.usedCouponBlyAmount),orderDetail.orderBlctExchangeRate)))}원)</Div>
+                                                </Flex>
                                             </Right>
                                         </Flex>
+                                    </Div>
+                                    : null
+
+
+                                    // <Div>
+                                    //     <Flex mb={16}>
+                                    //         <Title alignItems={'center'} fontSize={16}>환불금액</Title>
+                                    //         {orderDetail.onePlusSubFlag ?
+                                    //             <Right bold fontSize={20}> - </Right>
+                                    //             :
+                                    //             <Right bold fontSize={20} fg={'danger'}>
+                                    //                 {
+                                    //                     orderDetail.usedCouponNo ?
+                                    //                         orderPayMethod === 'blct' ?
+                                    //                             ComUtil.addCommas((ComUtil.toNum(orderDetail.mypageBlctToken) - ComUtil.toNum(orderDetail.usedCouponBlyAmount)).toFixed(2))
+                                    //                             :
+                                    //                             //ComUtil.addCommas(ComUtil.roundDown((ComUtil.toNum(orderDetail.orderPrice) - ComUtil.toNum(ComUtil.doubleMultiple(orderDetail.usedCouponBlyAmount, orderDetail.orderBlctExchangeRate))), 0))
+                                    //                             ComUtil.addCommas(ComUtil.roundDown( MathUtil.minusBy(orderDetail.mypageOrderPrice, MathUtil.multipliedBy(orderDetail.usedCouponBlyAmount, orderDetail.orderBlctExchangeRate)), 0))
+                                    //                         :
+                                    //                         orderPayMethod === 'blct' ?
+                                    //                             ComUtil.addCommas((ComUtil.toNum(orderDetail.mypageBlctToken).toFixed(2)))
+                                    //                             :
+                                    //                             ComUtil.addCommas(ComUtil.toNum(orderDetail.mypageOrderPrice))
+                                    //                 }
+                                    //                 {orderPayMethod === "blct" ? ' BLY' : ' 원'}
+                                    //             </Right>
+                                    //         }
+                                    //     </Flex>
+                                    // </Div>:null
+
+                                /** 이전 예약상품 취소수수료 제거
                                         <Div>
                                             {
-                                                (orderDetail.notDeliveryDate) ? null :
                                                     //주문취소시 취소수수료 표시
                                                     (orderPayStatus === 'cancelled' && orderDetail.directGoods !== true) ?
                                                         <Flex fontSize={12} mb={3}>
@@ -614,14 +611,16 @@ export default class OrderDetail extends Component {
                                             {
                                                 orderPayMethod !== "blct" &&
                                                 <Flex mb={3}>
-                                                    <Div fg={'adjust'}>신용카드</Div>
+                                                    <Div fg={'adjust'}>
+                                                        {getCardPgName(orderDetail.pgProvider)}
+                                                    </Div>
                                                     <Right>{ComUtil.addCommas(ComUtil.toNum(orderDetail.cardPrice)-ComUtil.toNum(orderDetail.cancelFee))}원</Right>
                                                 </Flex>
                                             }
                                             <Flex mb={3}>
                                                 <Div fg={'adjust'}>BLY</Div>
                                                 {
-                                                    orderPayMethod === "blct" ?
+                                                    !orderDetail.onePlusSubFlag && orderPayMethod === "blct" ?
                                                         <Right>
                                                             <Icon name={'blocery'} />&nbsp;
                                                             {ComUtil.addCommas((ComUtil.toNum(orderDetail.blctToken)-ComUtil.toNum(orderDetail.cancelBlctTokenFee)-ComUtil.toNum(orderDetail.usedCouponBlyAmount)).toFixed(2))} BLY &nbsp;
@@ -648,53 +647,54 @@ export default class OrderDetail extends Component {
                                                 }
                                             </Flex>
                                             {
-                                                orderDetail.usedCouponNo ?
+                                                (orderDetail.usedCouponNo && !orderDetail.dealGoods)?
                                                     <Flex>
                                                         <Right fg={'danger'}><small>* 사용한 쿠폰은 주문 취소 후 재발급되지 않습니다.</small></Right>
                                                     </Flex> : null
                                             }
                                         </Div>
-                                        {
-                                            // 미배송 보상금 표시
-                                            (orderDetail.notDeliveryDate) ?
-                                                <Div fontSize={12}>
-                                                    <Flex mt={16}>
-                                                        <Div>미배송 보상금</Div>
-                                                        <Right fg={'danger'}>(+){ComUtil.addCommas(orderDetail.depositBlct)} BLY</Right>
-                                                    </Flex>
-                                                </Div>
-                                                :
-                                                null
-                                        }
                                     </Div>
                                     :
                                     null
+                                 */
                             }
                             <br/>
                             <ModalWithNav show={this.state.deliveryModal} title={'배송지 수정'} onClose={this.updateDeliveryCallback} noPadding>
                                 <UpdateAddress
                                     orderSeq={orderDetail.orderSeq}
+                                    orderSubGroupNo={orderDetail.orderSubGroupNo}
                                     receiverZipNo={orderDetail.receiverZipNo}
                                     receiverAddr={orderDetail.receiverAddr}
+                                    receiverRoadAddr={orderDetail.receiverRoadAddr}
                                     receiverAddrDetail={orderDetail.receiverAddrDetail}
                                     receiverPhone={orderDetail.receiverPhone}
                                     receiverName={orderDetail.receiverName}
                                     deliveryMsg={orderDetail.deliveryMsg}
+                                    commonEnterPwd={orderDetail.commonEnterPwd}
                                 />
                             </ModalWithNav>
                         </Div>
-
-                        <ToastContainer/>
 
                         {
                             this.state.isOpen &&(
                                 <ModalWithNav show={this.state.isOpen} title={'배송조회'} onClose={this.onClose} noPadding={true}>
                                     <div style={{width: '100%',minHeight: '450px'}}>
-                                        <h6>운송장번호 : {orderDetail.trackingNumber}</h6>
-                                        <iframe src={this.state.trackingUrl}
-                                                width={'100%'}
-                                                style={{minHeight:'450px', border: '0'}}>
-                                        </iframe>
+                                        <h6>
+                                            <span>[{orderDetail.transportCompanyName}]</span> <span> {(orderDetail.transportCompanyCode !== '98' && orderDetail.transportCompanyCode !== '99') && "운송장번호: "}{orderDetail.trackingNumber}</span>
+                                        </h6>
+                                        <div>
+                                            {
+                                                (orderDetail.transportCompanyCode !== '98' && orderDetail.transportCompanyCode !== '99') &&
+                                                    <Span fontSize={12} fg={'secondary'}>* 배송조회오류일경우 <A href={this.state.trackingOtherUrl} target={'_blank'} fontSize={12} fg={'primary'}><u>배송추적</u></A> 클릭</Span>
+                                            }
+                                        </div>
+                                        {
+                                            (orderDetail.transportCompanyCode !== '98' && orderDetail.transportCompanyCode !== '99') &&
+                                                <iframe src={this.state.trackingUrl}
+                                                        width={'100%'}
+                                                        style={{minHeight:'450px', border: '0'}}>
+                                                </iframe>
+                                        }
                                     </div>
                                 </ModalWithNav>
                             )
@@ -706,3 +706,4 @@ export default class OrderDetail extends Component {
         )
     }
 }
+export default withRouter(OrderDetail)

@@ -5,6 +5,7 @@ import HomeScreen from './src/HomeScreen';
 import PopupScreen from './src/PopupScreen';
 import Payment  from './src/Payment';
 import QrScan from './src/QrScan';
+import Certification from './src/Certification';
 
 export default class App extends Component {
     render() {
@@ -22,7 +23,8 @@ const AppNavigator = createStackNavigator(
         Home: HomeScreen,
         Popup: PopupScreen,
         Qrcode: QrScan,
-        Payment: Payment
+        Payment: Payment,
+        Certification: Certification,
     },
     {
         initialRouteName: "Home",

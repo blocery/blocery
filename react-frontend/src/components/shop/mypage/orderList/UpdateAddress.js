@@ -3,6 +3,9 @@ import { Container, Label, Row, Col, Input, InputGroup, FormGroup, Button,Modal 
 import { updateReceiverInfo } from '~/lib/shopApi'
 import ComUtil from '~/util/ComUtil'
 import DaumPostcode from 'react-daum-postcode';
+import loadable from "@loadable/component";
+import {Flex, Right} from "~/styledComponents/shared";
+const AddressList = loadable(() => import('~/components/common/AddressList'))
 export default class UpdateAddress extends Component {
     constructor(props) {
         super(props);
@@ -10,15 +13,19 @@ export default class UpdateAddress extends Component {
         this.state = {
             order: {
                 orderSeq: this.props.orderSeq,
+                orderSubGroupNo: this.props.orderSubGroupNo,
                 receiverName: this.props.receiverName,
                 receiverPhone: this.props.receiverPhone,
                 receiverZipNo: this.props.receiverZipNo,
                 receiverAddr: this.props.receiverAddr,
+                receiverRoadAddr: this.props.receiverRoadAddr,
                 receiverAddrDetail: this.props.receiverAddrDetail,
-                deliveryMsg: this.props.deliveryMsg
+                deliveryMsg: this.props.deliveryMsg,
+                commonEnterPwd: this.props.commonEnterPwd
             },
 
-            modal: false
+            modal: false,
+            addressModal: false
         }
     }
 
@@ -33,7 +40,6 @@ export default class UpdateAddress extends Component {
     handleChange = (e) => {
         const order = Object.assign({}, this.state.order);
         order[e.target.name] = e.target.value;
-
         this.setState({order})
     }
 
@@ -54,6 +60,7 @@ export default class UpdateAddress extends Component {
 
         let zipNo = data.zonecode;
         let fullAddress = data.address;
+        let roadFullAddress = data.roadAddress;
         let extraAddress = '';
 
         if (data.userSelectedType === 'R') { // 사용자가 도로명 주소를 선택했을 경우
@@ -62,20 +69,22 @@ export default class UpdateAddress extends Component {
             fullAddress = data.jibunAddress;
         }
 
+        if (data.bname !== '') {
+            extraAddress += data.bname;
+        }
+        if (data.buildingName !== '') {
+            extraAddress += (extraAddress !== '' ? `, ${data.buildingName}` : data.buildingName);
+        }
+
         if (data.addressType === 'R') {
-            if (data.bname !== '') {
-                extraAddress += data.bname;
-            }
-            if (data.buildingName !== '') {
-                extraAddress += (extraAddress !== '' ? `, ${data.buildingName}` : data.buildingName);
-            }
             fullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
         }
-        let v_address = fullAddress;
+        roadFullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
 
         const order = Object.assign({}, this.state.order);
         order.receiverZipNo = zipNo;
-        order.receiverAddr = v_address;
+        order.receiverAddr = fullAddress;
+        order.receiverRoadAddr = roadFullAddress;
 
         this.setState({
             order
@@ -84,14 +93,40 @@ export default class UpdateAddress extends Component {
         this.modalToggle();
     }
 
+    onAddressChange = (address) => {
+        console.log({address})
+        const order = Object.assign({}, this.state.order);
+        order.receiverZipNo = address.zipNo;
+        order.receiverAddr = address.addr;
+        order.receiverRoadAddr = address.roadAddr;
+        order.receiverAddrDetail = address.addrDetail;
+        order.receiverName = address.receiverName;
+        order.receiverPhone = address.phone;
+        this.setState({
+            order
+        });
+        this.addressModalToggle()
+    }
+    addressModalToggle = () => {
+        this.setState(prevState => ({
+            addressModal: !prevState.addressModal
+        }));
+    }
+
     // 저장버튼 클릭
     saveAddress = async () => {
         const order = Object.assign({}, this.state.order);
-        await updateReceiverInfo(order);
+        let {data:errRes} = await updateReceiverInfo(order);
 
-        this.props.onClose({
-            ...order,
-        })
+        console.log(errRes)
+        if (errRes.resCode) {
+            alert(errRes.errMsg) //update 실패.
+
+        }else { //성공
+            this.props.onClose({
+                ...order,
+            })
+        }
 
     }
 
@@ -105,6 +140,19 @@ export default class UpdateAddress extends Component {
             <Fragment>
                 <Container>
                     <Row>
+                        <Col xs={12}>
+                            <Flex mt={5}>
+                                <Right>
+                                    <Button outline color="secondary" onClick={this.addressModalToggle}>배송지목록</Button>
+                                </Right>
+                            </Flex>
+                            {/*<FormGroup>*/}
+                            {/*    <Label>배송지목록</Label>*/}
+                            {/*    <InputGroup>*/}
+                            {/*        */}
+                            {/*    </InputGroup>*/}
+                            {/*</FormGroup>*/}
+                        </Col>
                         <Col xs={12}>
                             <FormGroup>
                                 <Label>받는 사람</Label>
@@ -146,6 +194,14 @@ export default class UpdateAddress extends Component {
                                 </InputGroup>
                             </FormGroup>
                         </Col>
+                        <Col xs={12}>
+                            <FormGroup>
+                                <Label>공동현관 출입번호</Label>
+                                <InputGroup>
+                                    <Input name="commonEnterPwd" value={order.commonEnterPwd || ''} onChange={this.handleChange} />
+                                </InputGroup>
+                            </FormGroup>
+                        </Col>
                     </Row>
                     <br />
                     <Row>
@@ -167,10 +223,10 @@ export default class UpdateAddress extends Component {
                         </div>
                     </Modal>
                 </div>
-
-
+                <Modal size="lg" isOpen={this.state.addressModal} toggle={this.addressModalToggle} centered>
+                    <AddressList onChange={this.onAddressChange} onClose={this.addressModalToggle}/>
+                </Modal>
             </Fragment>
         )
     }
 }
-

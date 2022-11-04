@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import {Modal, ModalBody, ModalFooter, ModalHeader} from 'reactstrap'
+import {Alert, Label, Modal, ModalBody, ModalFooter, ModalHeader} from 'reactstrap'
 import ComUtil from '~/util/ComUtil'
 import {B2cGoodsSearch, SingleImageUploader} from '~/components/common'
-import {Div, Span, Button, ShadowBox, Flex, Input} from '~/styledComponents/shared'
+import {Div, Span, Button, ShadowBox, Flex, Input, Space} from '~/styledComponents/shared'
 import styled from 'styled-components'
 import { getHomeSetting, setHomeSetting} from '~/lib/adminApi'
 import { useModal } from '~/util/useModal'
@@ -10,8 +10,10 @@ import EventList from '~/components/admin/eventList/EventList'
 import {FaPlusCircle} from "react-icons/fa";
 import GoodsSelect from "./GoodsSelect";
 import ProducerList from '~/components/common/modalContents/producerList'
-import {getCancelOrderByProducerNo} from "~/lib/producerApi";
 import ProducerSelect from "~/components/admin/b2cHomeSetting/ProducerSelect";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
+import {BsCaretDownFill, BsCaretUpFill} from "react-icons/bs";
+import {DateRangePicker} from "react-dates";
 
 const Subject = styled(Div)`
     font-size: 16px;
@@ -36,7 +38,9 @@ export default (props) => {
         potenTime: null,
         superReward: null
     })
-
+    //배너용 리스트
+    const [bannerList, setBannerList] = useState([])
+    const [localfoodBannerList, setLocalfoodBannerList] = useState([])
     const [goodsModalOpen, , selected, setSelected, setGoodsModalState] = useModal()
     const [producerModalOpen, , producerSelected, setProducerSelected, setProducerModalState] = useModal()
 
@@ -53,10 +57,87 @@ export default (props) => {
         let {data} = await getHomeSetting();
 
         setState(data)
+
+        const arr = getBannerDataFromState(data.bannerList)
+        setBannerList(arr)
+
+        const arr2 = getBannerDataFromState(data.localfoodBannerList)
+        setLocalfoodBannerList(arr2)
+
+        console.log({arr2})
+
+        // setBannerList(data.bannerList)
+    }
+
+    const getBannerDataFromState = (bannerList) => {
+        return bannerList.map(banner => ({
+            images: [{imageNo: 0, imageUrl: banner.imageUrl, imageNm: banner.imageNm,}],
+            url: banner.url,
+            startDay:banner.startDay,
+            endDay:banner.endDay
+        }))
+    }
+
+    const getBannerDataForSave = (bannerList) => {
+        console.log(bannerList)
+        const list = []
+        bannerList.map(banner => {
+
+            // let image = banner.images
+            // let url = banner.url
+
+            let tempBanner = {
+                imageNo: 0,
+                imageUrl: null,
+                imageNm: null,
+                url: banner.url,
+                startDay: banner.startDay,
+                endDay: banner.endDay,
+            }
+
+            if (banner.images.length > 0) {
+                const image = banner.images[0]
+                if (image.imageUrl) {
+                    tempBanner.imageNo = 0
+                    tempBanner.imageUrl = image.imageUrl
+                    tempBanner.imageNm = image.imageNm
+                }
+            }
+
+            list.push(tempBanner)
+        })
+
+        //imageUrl, url 하나라도 있는것만 리턴
+        return list.filter(banner => banner.imageUrl || banner.url)
     }
 
     const onSaveClick = () => {
         save()
+    }
+
+    const isOnePlusDuplicated = (arr) => {
+        let isDuplicated = false
+
+        arr.map(item1 => {
+            if(item1 && ComUtil.toNum(item1.main) > 0){
+                const numbers = arr.filter(item2 => ComUtil.toNum(item2.main) === ComUtil.toNum(item1.main))
+                if (!isDuplicated) {
+                    if (numbers.length > 1) {
+                        isDuplicated = true
+                    }
+                }
+            }
+            if(item1 && ComUtil.toNum(item1.sub) > 0){
+                const numbers = arr.filter(item2 => ComUtil.toNum(item2.main) === ComUtil.toNum(item1.sub))
+                if (!isDuplicated) {
+                    if (numbers.length > 0) {
+                        isDuplicated = true
+                    }
+                }
+            }
+        })
+
+        return isDuplicated
     }
 
     const isDuplicated = (arr) => {
@@ -77,18 +158,26 @@ export default (props) => {
     const save = async () => {
         ComUtil.sortNumber(state.bannerList, 'imageNo')
 
-        // return
+        //저장용으로 다시 조합
+        const newBannerList = getBannerDataForSave(bannerList)
+        const newLocalfoodBannerList = getBannerDataForSave(localfoodBannerList)
+
         const params = {
             onePlusList: state.onePlusList,
             specialDealGoodsList: state.specialDealGoodsList.filter(item=> (item && ComUtil.toNum(item) > 0) ),
             // exGoodsList: state.exGoodsList.filter(item=> ComUtil.toNum(item) > 0),
             todayProducerList: state.todayProducerList.filter(item=> ComUtil.toNum(item) > 0),
-            bannerList: state.bannerList,
+            bannerList: newBannerList,
+            localfoodBannerList: newLocalfoodBannerList, //2022.05 추가
             blyTime: state.blyTime,
             potenTime: state.potenTime,
             superReward: state.superReward
         }
 
+        if(isOnePlusDuplicated(params.onePlusList)){
+            alert('1+1상품 판매상품번호가 중복이거나, 증정상품번호가 판매상품번호에 있습니다.')
+            return
+        }
         if (isDuplicated(params.specialDealGoodsList)){
             alert('특가 Deal 상품번호가 중복 되었습니다.')
             return
@@ -123,21 +212,21 @@ export default (props) => {
         console.log({list})
     }
 
-    // 배너용 이미지 조회
-    const onBannerImageChange = (images) => {
-
-        ComUtil.sortNumber(images, 'imageNo')
-
-        images.map((image, index) => {
-            image.imageNo = index;
-        })
-
-        setState({
-            ...state,
-            bannerList: images.filter(image => image.imageUrl.length > 0)
-        })
-
-    }
+    // // 배너용 이미지 조회
+    // const onBannerImageChange = (images) => {
+    //
+    //     ComUtil.sortNumber(images, 'imageNo')
+    //
+    //     images.map((image, index) => {
+    //         image.imageNo = index;
+    //     })
+    //
+    //     setState(prev => ({
+    //         ...prev,
+    //         bannerList: images.filter(image => image.imageUrl.length > 0)
+    //     }))
+    //
+    // }
 
     // 1+1 판매상품 변경
     const onOnePlusMainChange = (index, e) => {
@@ -173,57 +262,6 @@ export default (props) => {
             ...state,
             onePlusList: onePlusList
         })
-    }
-
-    const onBannerUrlChange = (index, e) => {
-        const value = e.target.value
-
-        const bannerList = Object.assign([], state.bannerList)
-
-        bannerList[index].url = value
-
-        setState({
-            ...state,
-            bannerList: bannerList
-        })
-    }
-
-    // 배너 이미지 url 변경
-    const onBannerImageUrlChange = (index, e) => {
-        const value = e.target.value
-
-        const bannerList = Object.assign([], state.bannerList)
-
-        bannerList[index]= {
-            imageNo: index, imageUrl: '', imageNm: '', url: ''
-        }
-        bannerList[index].imageUrl = value
-
-        setState({
-            ...state,
-            bannerList: bannerList
-        })
-    }
-
-    const onClickChange = (index, key) => {
-        let temp = {};
-        const bannerList = Object.assign([], state.bannerList)
-
-        if(bannerList[key] === undefined) {
-            alert(key+1 + '번에 이미지가 존재하지 않습니다.')
-            return false;
-        } else {
-            temp = bannerList[index]
-            bannerList[index] = bannerList[key]
-            bannerList[key] = temp
-
-            bannerList[index].imageNo = index
-            bannerList[key].imageNo = key
-
-            setState({
-                ...state,
-                bannerList: bannerList })
-        }
     }
 
     const onInputChange = (e) => {
@@ -298,6 +336,15 @@ export default (props) => {
         const onePlusList = Object.assign([], state.onePlusList)
         const onePlusGoods = onePlusList[index]
         onePlusGoods[key] = ''
+        if(key === 'main'){
+            if(onePlusGoods['sub'] === '' || onePlusGoods['sub'] === null){
+                onePlusList.splice(index, 1)
+            }
+        }else if(key === 'sub'){
+            if(onePlusGoods['main'] === '' || onePlusGoods['main'] === null){
+                onePlusList.splice(index, 1)
+            }
+        }
 
         setState({
             ...state,
@@ -337,6 +384,15 @@ export default (props) => {
         setState({
             ...state,
             specialDealGoodsList
+        })
+    }
+
+    const addOnePlusListGoodsClick = () => {
+        const onePlusList = Object.assign([], state.onePlusList)
+        onePlusList.push({main: 0, sub: 0})
+        setState({
+            ...state,
+            onePlusList
         })
     }
 
@@ -400,35 +456,187 @@ export default (props) => {
         toggleProducerModal()
     }
 
+    
+
+        
+    const onBannerDeleteClick = (index) => {
+        const list = Object.assign([], bannerList)
+        list.splice(index, 1)
+        setBannerList(list)
+    }
+
+    //배너 이미지 + url 체인지
+    const onBannerChange_test = (index, params) => {
+
+        console.log({index, params})
+
+        const list = Object.assign([], bannerList)
+
+        list[index].images = params.images
+        list[index].url = params.url
+        list[index].startDay = params.startDay
+        list[index].endDay = params.endDay
+
+        console.log({list})
+
+        setBannerList(list)
+    }
+
+
+
+    //배너 행추가
+    const addBannerItem = () => {
+        const newBanner = {images: [], url: '', startDay: null, endDay: null}// 로우 의 이미지 하나임 array 로 들어가야 해서 이렇게 함
+
+        const list = Object.assign([], bannerList)
+
+        list.push(newBanner)
+
+        console.log({newBanner: newBanner})
+
+        setBannerList(list) //이중 배열
+    }
+
+    //배너 위치
+    const onBannerSortClick = (index, moveIndex) => {
+        const list = Object.assign([], bannerList)
+
+        if (moveIndex < 0 || moveIndex >= list.length) return
+
+        //잘라내기
+        const item = list.splice(index, 1)[0]
+
+        console.log({item,  index,  moveIndex})
+
+        list.splice(moveIndex, 0, item)
+
+        setBannerList(list)
+    }
+
+
+    //로컬푸드배너 이미지 + url 체인지
+    const onLocalfoodBannerChange = (index, params) => {
+
+        console.log({index, params})
+
+        const list = Object.assign([], localfoodBannerList)
+
+        list[index].images = params.images
+        list[index].url = params.url
+        list[index].startDay = params.startDay
+        list[index].endDay = params.endDay
+
+        console.log({list})
+
+        setLocalfoodBannerList(list)
+    }
+    //로컬푸드 배너 행추가
+    const addLocalfoodBannerItem = () => {
+        const newBanner = {images: [], url: '', startDay: null, endDay: null}// 로우 의 이미지 하나임 array 로 들어가야 해서 이렇게 함
+
+        const list = Object.assign([], localfoodBannerList)
+
+        list.push(newBanner)
+
+        console.log({newBanner: newBanner})
+
+        setLocalfoodBannerList(list) //이중 배열
+    }
+
+    //로컬푸드 배너 위치소팅
+    const onLocalfoodBannerSortClick = (index, moveIndex) => {
+        const list = Object.assign([], localfoodBannerList)
+
+        if (moveIndex < 0 || moveIndex >= list.length) return
+
+        //잘라내기
+        const item = list.splice(index, 1)[0]
+
+        console.log({item,  index,  moveIndex})
+
+        list.splice(moveIndex, 0, item)
+
+        setLocalfoodBannerList(list)
+    }
+
+    //로컬푸드 배너 삭제
+    const onLocalfoodBannerDeleteClick = (index) => {
+        const list = Object.assign([], localfoodBannerList)
+        list.splice(index, 1)
+        setLocalfoodBannerList(list)
+    }
+
+
     if (!state) return null
 
     return (
         <Div p={16} bg={'background'}>
 
             <Subject mb={10}>홈 화면 구성 Page</Subject>
+            <ShadowBox>
+                <Subject mb={10}>스토어 배너 (이미지, url 둘 중 하나라도 있으면 저장 됩니다) 그리고 url이 있을경우만 배너에 노출 됩니다. </Subject>
 
+                <Div>
+                    <Button mb={10} onClick={addBannerItem} bg={'green'} fg={'white'} px={10}><FaPlusCircle/>{' 행추가'}</Button>
+                    {
+                        bannerList.map((banner, index) =>
+                            <BannerItem
+                                images={banner.images}
+                                url={banner.url}
+                                startDay={banner.startDay}
+                                endDay={banner.endDay}
+                                onChange={onBannerChange_test.bind(this, index)}
+                                onDeleteClick={onBannerDeleteClick.bind(this, index)}
+                                onUpClick={onBannerSortClick.bind(this, index, index-1)}
+                                onDownClick={onBannerSortClick.bind(this, index, index+1)}
+                            />)
+                    }
+                </Div>
+            </ShadowBox>
+            <ShadowBox>
+                <Subject mb={10}>로컬푸드 배너 (이미지, url 둘 중 하나라도 있으면 저장 됩니다) 그리고 url이 있을경우만 배너에 노출 됩니다. </Subject>
+
+                <Div>
+                    <Button mb={10} onClick={addLocalfoodBannerItem} bg={'green'} fg={'white'} px={10}><FaPlusCircle/>{' 행추가'}</Button>
+                    {
+                        localfoodBannerList.map((banner, index) =>
+                            <BannerItem
+                                images={banner.images}
+                                url={banner.url}
+                                startDay={banner.startDay}
+                                endDay={banner.endDay}
+                                onChange={onLocalfoodBannerChange.bind(this, index)}
+                                onDeleteClick={onLocalfoodBannerDeleteClick.bind(this, index)}
+                                onUpClick={onLocalfoodBannerSortClick.bind(this, index, index-1)}
+                                onDownClick={onLocalfoodBannerSortClick.bind(this, index, index+1)}
+                            />)
+                    }
+                </Div>
+            </ShadowBox>
             <ShadowBox>
                 <Subject mb={10}>* 1+1 상품 번호(판매상품, 증정상품) 입력</Subject>
 
-                <Div p={10} mb={10} rounded={5} bc={'secondary'}>
-                    <GoodsSelect goodsNo={state.onePlusList[0]?state.onePlusList[0].main:''} onClick={onGoodsClick.bind(this, {type: TYPE.onePlus, index: 0, key: 'main', })} onDeleteClick={onOnePlusGoodsDeleteClick.bind(this, {index: 0, key:'main'})}  />
-                    <GoodsSelect goodsNo={state.onePlusList[0]?state.onePlusList[0].sub:''} onClick={onGoodsClick.bind(this, {type: TYPE.onePlus, index: 0, key: 'sub'})} onDeleteClick={onOnePlusGoodsDeleteClick.bind(this, {index: 0, key:'sub'})} />
-                </Div>
+                <Button mb={10} onClick={addOnePlusListGoodsClick} bg={'green'} fg={'white'} px={10}><FaPlusCircle/>{' 행추가'}</Button>
 
-                <Div p={10} rounded={5} bc={'secondary'}>
-                    <GoodsSelect goodsNo={state.onePlusList[1]?state.onePlusList[1].main:''} onClick={onGoodsClick.bind(this, {type: TYPE.onePlus, index: 1, key: 'main', })} onDeleteClick={onOnePlusGoodsDeleteClick.bind(this, {index: 1, key:'main'})}  />
-                    <GoodsSelect goodsNo={state.onePlusList[1]?state.onePlusList[1].sub:''} onClick={onGoodsClick.bind(this, {type: TYPE.onePlus, index: 1, key: 'sub'})} onDeleteClick={onOnePlusGoodsDeleteClick.bind(this, {index: 1, key:'sub'})} />
-                </Div>
+                {
+                    state.onePlusList.map((goodsNo, index) =>
+                        <Div p={1} mb={2} rounded={5} bc={'secondary'} key={'onePlusGoods'+index}>
+                            <GoodsSelect goodsNo={state.onePlusList[index]?state.onePlusList[index].main:''} onClick={onGoodsClick.bind(this, {type: TYPE.onePlus, index: index, key: 'main', })} onDeleteClick={onOnePlusGoodsDeleteClick.bind(this, {index: index, key:'main'})}  />
+                            <GoodsSelect goodsNo={state.onePlusList[index]?state.onePlusList[index].sub:''} onClick={onGoodsClick.bind(this, {type: TYPE.onePlus, index: index, key: 'sub'})} onDeleteClick={onOnePlusGoodsDeleteClick.bind(this, {index: index, key:'sub'})} />
+                        </Div>
+                    )
+
+                }
 
                 <Div mt={20}>
-                    <Flex> 1. &nbsp;
-                        <input type="text" placeholder={'1번 판매상품'} value={state.onePlusList[0]?state.onePlusList[0].main:''} onChange={onOnePlusMainChange.bind(this, 0)} />
-                        <input type="text" placeholder={'1번 증정상품'} value={state.onePlusList[0]?state.onePlusList[0].sub:''} onChange={onOnePlusSubChange.bind(this, 0)} />
-                    </Flex>
-                    <Flex> 2. &nbsp;
-                        <input type="text" placeholder={'2번 판매상품'} value={state.onePlusList[1]?state.onePlusList[1].main:''} onChange={onOnePlusMainChange.bind(this, 1)} />
-                        <input type="text" placeholder={'2번 증정상품'} value={state.onePlusList[1]?state.onePlusList[1].sub:''} onChange={onOnePlusSubChange.bind(this, 1)} />
-                    </Flex>
+                    {
+                        state.onePlusList.map((goodsNo, index) =>
+                            <Flex> {index}. &nbsp;
+                                <input key={`onePlusMainGoodsNo${index}`} type="text" placeholder={index+'번 판매상품'} value={state.onePlusList[index]?state.onePlusList[index].main:''} onChange={onOnePlusMainChange.bind(this, index)} />
+                                <input key={`onePlusSubGoodsNo${index}`} type="text" placeholder={index+'번 증정상품'} value={state.onePlusList[index]?state.onePlusList[index].sub:''} onChange={onOnePlusSubChange.bind(this, index)} />
+                            </Flex>
+                        )
+                    }
                 </Div>
             </ShadowBox>
 
@@ -487,57 +695,7 @@ export default (props) => {
                 {/*<input type="number" name={'todayProducerList'} value={state.todayProducerList[2]} onChange={onSpecialDealChange.bind(this, 2)} />*/}
             </ShadowBox>
 
-            <ShadowBox>
-                <Subject mb={10}>배너</Subject>
-                <Div>
-                    <SingleImageUploader isNoResizing images={state.bannerList} defaultCount={5} isShownMainText={false} isShownInput={true} onChange={onBannerImageChange} />
-                    1.
-                    <div className='d-flex flex-column'>
-                        <input type="text" value={state.bannerList[0]?state.bannerList[0].imageUrl:''} onChange={onBannerImageUrlChange.bind(this,0)} placeholder='imageUrl' />
-                        <input type="text" value={state.bannerList[0]?state.bannerList[0].url:''} onChange={onBannerUrlChange.bind(this, 0)} placeholder='url 입력' />
-                    </div>
-                    <Div my={10}>
-                        <Button bc={'dark'} mr={8} onClick={onClickChange.bind(this, 0, 1)}>2번과 Change</Button>
-                        <Button bc={'dark'} mr={8} onClick={onClickChange.bind(this, 0, 2)}>3번과 Change</Button>
-                        <Button bc={'dark'} mr={8} onClick={onClickChange.bind(this, 0, 3)}>4번과 Change</Button>
-                        <Button bc={'dark'} mr={8} onClick={onClickChange.bind(this, 0, 4)}>5번과 Change</Button>
-                    </Div>
-                    2.
-                    <div className='d-flex flex-column'>
-                        {/*<input type="text" value={state.bannerList[1]?state.bannerList[1].imageUrl:''} placeholder='imageUrl' style={{backgroundColor:'#e2e2e2'}} />*/}
-                        <input type="text" value={state.bannerList[1]?state.bannerList[1].imageUrl:''} onChange={onBannerImageUrlChange.bind(this,1)} placeholder='imageUrl'/>
-                        <input type="text" value={state.bannerList[1]?state.bannerList[1].url:''} onChange={onBannerUrlChange.bind(this, 1)} placeholder='url 입력' />
-                    </div>
-                    <Div my={10}>
-                        <Button bc={'dark'} onClick={onClickChange.bind(this, 1, 2)}>3번과 Change</Button>
-                        <Button bc={'dark'} mr={8} onClick={onClickChange.bind(this, 1, 3)}>4번과 Change</Button>
-                        <Button bc={'dark'} mr={8} onClick={onClickChange.bind(this, 1, 4)}>5번과 Change</Button>
-                    </Div>
-                    3.
-                    <div className='d-flex flex-column'>
-                        <input type="text" value={state.bannerList[2]?state.bannerList[2].imageUrl:''} onChange={onBannerImageUrlChange.bind(this,2)} placeholder='imageUrl' />
-                        <input type="text" value={state.bannerList[2]?state.bannerList[2].url:''} onChange={onBannerUrlChange.bind(this, 2)} placeholder='url 입력' />
-                    </div>
-                    <Div my={10}>
-                        <Button bc={'dark'} mr={8} onClick={onClickChange.bind(this, 2, 3)}>4번과 Change</Button>
-                        <Button bc={'dark'} mr={8} onClick={onClickChange.bind(this, 2, 4)}>5번과 Change</Button>
-                    </Div>
-                    4.
-                    <div className='d-flex flex-column'>
-                        <input type="text" value={state.bannerList[3]?state.bannerList[3].imageUrl:''} onChange={onBannerImageUrlChange.bind(this,3)} placeholder='imageUrl' />
-                        <input type="text" value={state.bannerList[3]?state.bannerList[3].url:''} onChange={onBannerUrlChange.bind(this, 3)} placeholder='url 입력' />
-                    </div>
-                    <div>
-                        <Button className={'mr-2'} onClick={onClickChange.bind(this, 3, 4)}>5번과 Change</Button>
-                    </div>
-                    5.
-                    <div className='d-flex flex-column'>
-                        <input type="text" value={state.bannerList[4]?state.bannerList[4].imageUrl:''} onChange={onBannerImageUrlChange.bind(this,4)} placeholder='imageUrl' />
-                        <input type="text" value={state.bannerList[4]?state.bannerList[4].url:''} onChange={onBannerUrlChange.bind(this, 4)} placeholder='url 입력' />
-                    </div>
 
-                </Div>
-            </ShadowBox>
 
             {/*<ShadowBox>*/}
             {/*    <Subject>*/}
@@ -575,6 +733,8 @@ export default (props) => {
                     <Div fg={'danger'}><small>삭제 할 경우 슈퍼리워드의 기본 이미지가 나타납니다</small></Div>
                 </Div>
             </ShadowBox>
+
+
 
             <Div textAlign={'center'}>
                 <Button  px={16} bg={'green'} fg={'white'} onClick={onSaveClick}>저장</Button>
@@ -630,4 +790,103 @@ export default (props) => {
         </Div>
     )
 
+}
+
+
+function BannerItem({images, url, startDay, endDay, onChange, onDeleteClick, onUpClick, onDownClick}) {
+
+
+    const [_focusedInput, setFocusedInput] = useState()
+
+    const onImageChange = (images) => {
+        console.log("images===", images)
+        onChange({
+            images: images,
+            url: url,
+            startDay: startDay,
+            endDay: endDay,
+        })
+    }
+    const onUrlChange = (e) => {
+        onChange({
+            images: images,
+            url: e.target.value,
+            startDay: startDay,
+            endDay: endDay,
+        })
+    }
+
+    //기간 달력
+    const onEventDatesChange = ({ startDate, endDate }) => {
+        console.log("onEventDatesChange");
+        // const event = Object.assign({}, this.state.event);
+        const newStartDay = startDate && startDate.startOf('day').format('YYYYMMDD');
+        const newEndDay = endDate && endDate.endOf('day').format('YYYYMMDD');
+        // this.setState({event})
+
+        onChange({
+            images: images,
+            url: url,
+            startDay: newStartDay,
+            endDay: newEndDay,
+        })
+    };
+
+    const renderEventCalendarInfo = () => <Alert className='m-1'>이벤트 시작일 ~ 종료일을 선택해 주세요</Alert>;
+
+    return(
+        <Space custom={`
+                            & > div:first-child {
+                                max-width: 106px;
+                            }
+                            
+                            & > div > div > div {
+                                height: 46px;
+                            }
+                        `}>
+            <SingleImageUploader images={images} defaultCount={1} onChange={onImageChange} />
+            <Input width={400} value={url} onChange={onUrlChange} placeholder={'URL 입력 ex) /home/superReward'} />
+
+            <Label className={'font-weight-bold text-secondary small'}>기간</Label>
+            <div>
+                <DateRangePicker
+                    startDateId='my-eventStartDate'
+                    endDateId='my-eventEndDate'
+                    startDatePlaceholderText="시작일"
+                    endDatePlaceholderText="종료일"
+                    startDate={startDay ? ComUtil.intToDateMoment(startDay).startOf() : null}
+                    endDate={endDay ? ComUtil.intToDateMoment(endDay).endOf() : null}
+                    onDatesChange={onEventDatesChange}
+                    focusedInput={_focusedInput}
+                    onFocusChange={(focusedInput) => setFocusedInput(focusedInput)}
+                    numberOfMonths={1}          //달력 갯수(2개로 하면 모바일에서는 옆으로 들어가버리기 때문에 orientation='vertical'로 해야함), pc 에서는 상관없음
+                    orientation={'horizontal'}
+                    openDirection="up"
+                    withPortal
+                    small
+                    readOnly
+                    showClearDates
+                    calendarInfoPositio="top"
+                    isOutsideRange={()=>false}
+                    renderCalendarInfo={renderEventCalendarInfo}
+                />
+            </div>
+
+            <MenuButton bg={'danger'} onClick={onDeleteClick}>삭제</MenuButton>
+            <Div ml={10} fg={'white'}>
+                <Button
+                    bg={'secondary'} fg={'white'}
+                    px={10}
+                    onClick={onUpClick} mr={8}>
+                    <BsCaretUpFill/>
+                </Button>
+                <Button
+                    bg={'secondary'} fg={'white'}
+                    px={10}
+                    onClick={onDownClick}>
+                    <BsCaretDownFill/>
+                </Button>
+            </Div>
+        </Space>
+    )
 }

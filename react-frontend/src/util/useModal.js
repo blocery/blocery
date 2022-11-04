@@ -11,5 +11,6 @@ export const useModal = (
             setSelected(null)
         }
     }
-    return [modalOpen, setModalOpen, selected, setSelected, setModalState]
+    const toggle = () => setModalState(!modalOpen)
+    return [modalOpen, setModalOpen, selected, setSelected, setModalState, toggle]
 }

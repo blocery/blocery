@@ -1,22 +1,33 @@
 import axios from 'axios'
-import { Server } from "../components/Properties";
-//const getCsrf = () => axios(Server.getRestAPIHost() + '/getCsrfToken', { method: "get", withCredentials: true, credentials: 'same-origin' })
-const instance = axios.create({
+import {cacheAdapterEnhancer} from "axios-extensions";
+import SecureApi from "~/lib/secureApi";
+const axiosSecure = axios.create({
+    headers: { "Pragma": "no-cache" },
     xsrfHeaderName:"x-csrf-token",
     withCredentials: true,
-    credentials: 'same-origin'
+    credentials: 'same-origin',
+    // cacheAdapterEnhancer 적용. 기본 캐시동작은 해제
+    // enabledByDefault:false 모든 네트워크 요청에 대해 캐싱된 데이터를 사용하지 않도록
+    adapter: cacheAdapterEnhancer(axios.defaults.adapter, {
+        enabledByDefault: false
+    })
 });
-instance.interceptors.request.use(
+axiosSecure.interceptors.request.use(
     async (config) => {
-        //const {data:csrfData} = await getCsrf();
-        const csrfData = localStorage.getItem('xToken');
-        if (csrfData) {
-            config.headers['x-csrf-token'] = csrfData;
-        }
+        //csrf 세팅
+        await SecureApi.getCsrf().then(({data})=>{
+            const csrfData = data;
+            if (csrfData) {
+                config.headers['x-csrf-token'] = csrfData;
+            }
+            return config;
+        }).catch(()=>{
+            return config;
+        });
         return config;
     },
-    err => {
+    (err) => {
         return Promise.reject(err);
     }
 );
-export default instance;
+export default axiosSecure;

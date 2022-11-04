@@ -15,14 +15,15 @@ import {getBankInfoList, getProducer, setProducerShopModify, updValword, getProd
 import { ToastContainer, toast } from 'react-toastify'                              //토스트
 import 'react-toastify/dist/ReactToastify.css'
 import ComUtil from '~/util/ComUtil'
-import { SingleImageUploader, BlocerySpinner, ModalWithNav, ProducerProfileCard, ModalPopup } from '~/components/common'
+import {SingleImageUploader, BlocerySpinner, ModalWithNav, ProducerProfileCard, SwitchButton} from '~/components/common'
 import { AddressCard } from '~/components/common/cards'
 import Select from 'react-select'
 import Textarea from 'react-textarea-autosize'
-import {updateValword} from "~/lib/shopApi";
-import axios from "axios";
-import {Server} from "~/components/Properties";
+import HashTagInput from "~/components/common/hashTag/HashTagInput";
+import SummernoteEditor from "~/components/common/summernoteEditor";
+
 const Star = () => <span className='text-danger'>*</span>
+
 export default class WebShop extends Component{
 
     constructor(props) {
@@ -49,30 +50,36 @@ export default class WebShop extends Component{
 
             shopMainItems: '',                                           //상점 주요취급품목
             profileImages: [],                                           //상점 프로필 이미지
+            profileBackgroundImages: [],
             shopIntroduce: '',                                           //상점 한줄소개
+            // localFarmerContent: null,                                    //로컬농가 소개문구(editor)
 
             payoutBankCode: '',  // 판매대금 입금 은행 코드: bankInfo.code
             payoutAccount: '',   // 판매대금 입금 은행 계좌
             payoutAccountName: '',  // 판매대금 입금 은행 계좌 예금주 이름
             charger: '',
             chargerPhone: '',
+            chargerEmail: '',
             memo:'',
+            tags: [],
             /* producer end */
 
             bankList: [],
             loading: false,
             isMounted: false,
             previewOpen: false,
-            producerWrapDeliver: false,
-            producerWrapLimitPrice: '-',
-            producerWrapFee: '-',
+            //producerWrapDeliver: false,
+            producerWrapLimitPrice: 0,
+            producerWrapFee: 0,
 
             valword: '',
             newValword: '',
             modalValword: false,
             fadeValwordCheck: false,            // 현재비번 일치 체크
             fadeNewValwordCheck: false,          // 새비번 유효성 체크
-            compareNewValword: false            // 새비번 일치 확인
+            compareNewValword: false,            // 새비번 일치 확인
+            localfoodFlag: false,               //로컬푸드농가 여부
+            pbFlag: false,                      //PB상품 판매 여부
         }
 
         //필수체크 포커스 이동을 위한 ref 적용
@@ -89,6 +96,7 @@ export default class WebShop extends Component{
 
         this.charger = React.createRef()
         this.chargerPhone = React.createRef()
+        this.chargerEmail = React.createRef()
         this.memo = React.createRef()
 
 
@@ -103,6 +111,7 @@ export default class WebShop extends Component{
     async componentDidMount() {
         await this.bindBankData()
         const {status, data: producer} = await getProducer()
+        console.log({producer})
 
         //조회된 데이터가 있을 경우(수정모드)
         if(producer){
@@ -171,14 +180,10 @@ export default class WebShop extends Component{
     }
 
     onProfileImageChange = (images) => {
-        // const state = Object.assign({}, this.state);
-        // state.profileImages = images;
         this.setState({profileImages:images})
     }
 
     onProfileBackgroundImageChange = (images) => {
-        // const state = Object.assign({}, this.state);
-        // state.profileImages = images;
         this.setState({profileBackgroundImages:images})
     }
 
@@ -196,6 +201,8 @@ export default class WebShop extends Component{
         if(!verification){
             return
         }
+
+        console.log({state: this.state})
 
         const response = await setProducerShopModify(this.state)
         this.notify('저장되었습니다', toast.success);
@@ -215,14 +222,14 @@ export default class WebShop extends Component{
         })
     }
 
-    onProducerWrapDeliverCheck = (e) => {
-        const checked = e.target.checked;
-        this.setState({
-            producerWrapDeliver: checked,
-            producerWrapLimitPrice: 0,
-            producerWrapFee: 0
-        })
-    }
+    // onProducerWrapDeliverCheck = (e) => {
+    //     const checked = e.target.checked;
+    //     this.setState({
+    //         producerWrapDeliver: checked,
+    //         producerWrapLimitPrice: 0,
+    //         producerWrapFee: 0
+    //     })
+    // }
 
     onInputProducerWrapLimit = (e) => {
         const value = e.target.value;
@@ -311,13 +318,15 @@ export default class WebShop extends Component{
                 this.chargerPhone.current.focus()
                 return false
             }
-            if(this.state.producerWrapDeliver && this.state.producerWrapLimitPrice === 0) {
-                alert('생산자 묶음배송의 경우 무료배송 조건금액은 필수입니다 ')
+            //if(this.state.producerWrapDeliver && this.state.producerWrapLimitPrice === 0) {
+            if( this.state.producerWrapLimitPrice === 0) {
+                alert('생산자 묶음배송을 위한 무료배송 조건금액은 필수입니다 ')
                 this.producerWrapLimitPrice.current.focus()
                 return false
             }
-            if(this.state.producerWrapDeliver && this.state.producerWrapFee === 0) {
-                alert('생산자 묶음배송의 경우 배송비는 필수입니다 ')
+            //if(this.state.producerWrapDeliver && this.state.producerWrapFee === 0) {
+            if(this.state.producerWrapFee === 0) {
+                alert('생산자 묶음배송을 위한 배송비는 필수입니다 ')
                 this.producerWrapFee.current.focus()
                 return false
             }
@@ -390,6 +399,22 @@ export default class WebShop extends Component{
         } else {
             this.setState({ compareNewValword: false })
         }
+    }
+
+    onHashTagChange = (tags) => {
+        this.setState({
+            tags: tags
+        })
+    }
+
+    onPbChange = () => {
+        this.setState({ pbFlag: !this.state.pbFlag })
+    }
+
+    onChangeShopIntroduce = (editorHtml) => {
+        const state = Object.assign({}, this.state)
+        state.shopIntroduce = editorHtml
+        this.setState(state)
     }
 
     render(){
@@ -486,51 +511,51 @@ export default class WebShop extends Component{
                                         </Row>
                                     </FormGroup>
 
-                                    {/*<FormGroup inline>*/}
-                                    {/*    <Row>*/}
-                                    {/*        <Col sm={2}>*/}
-                                    {/*            <div className='d-flex align-items-center mt-2'>*/}
-                                    {/*                <input*/}
-                                    {/*                    type="checkbox"*/}
-                                    {/*                    id='producerWrapDeliver'*/}
-                                    {/*                    className='mr-2'*/}
-                                    {/*                    checked={state.producerWrapDeliver}*/}
-                                    {/*                    onChange={this.onProducerWrapDeliverCheck}*/}
-                                    {/*                />*/}
-                                    {/*                <label for='producerWrapDeliver' className='m-0'>*/}
-                                    {/*                    생산자 묶음 배송*/}
-                                    {/*                </label>*/}
-                                    {/*            </div>*/}
-                                    {/*        </Col>*/}
-                                    {/*        <Col sm={5}>*/}
-                                    {/*            <div className='d-flex align-items-center'>*/}
-                                    {/*                <span className="flex-shrink-0 mr-2"> 무료배송 조건 금액 </span>*/}
-                                    {/*                <Input*/}
-                                    {/*                    //className={'mt-2'}*/}
-                                    {/*                    name="producerWrapLimitPrice"*/}
-                                    {/*                    innerRef={this.producerWrapLimitPrice}*/}
-                                    {/*                    value={state.producerWrapLimitPrice}*/}
-                                    {/*                    readOnly={!state.producerWrapDeliver}*/}
-                                    {/*                    onChange={this.onInputProducerWrapLimit}*/}
-                                    {/*                />*/}
-                                    {/*            </div>*/}
-                                    {/*        </Col>*/}
-                                    {/*        <Col sm={5}>*/}
-                                    {/*            <div className='d-flex align-items-center'>*/}
-                                    {/*                <span className="flex-shrink-0 mr-2"> 배송비 </span>*/}
-                                    {/*                <Input*/}
-                                    {/*                    // className={'mt-2'}*/}
-                                    {/*                    name="producerWrapFee"*/}
-                                    {/*                    innerRef={this.producerWrapFee}*/}
-                                    {/*                    value={state.producerWrapFee}*/}
-                                    {/*                    readOnly={!state.producerWrapDeliver}*/}
-                                    {/*                    onChange={this.onInputProducerWrapFee}*/}
-                                    {/*                />*/}
-                                    {/*            </div>*/}
-                                    {/*        </Col>*/}
-                                    {/*    </Row>*/}
+                                    <FormGroup inline>
+                                        <Row>
+                                            {/*        <Col sm={2}>*/}
+                                            {/*            <div className='d-flex align-items-center mt-2'>*/}
+                                            {/*                <input*/}
+                                            {/*                    type="checkbox"*/}
+                                            {/*                    id='producerWrapDeliver'*/}
+                                            {/*                    className='mr-2'*/}
+                                            {/*                    checked={state.producerWrapDeliver}*/}
+                                            {/*                    onChange={this.onProducerWrapDeliverCheck}*/}
+                                            {/*                />*/}
+                                            {/*                <label for='producerWrapDeliver' className='m-0'>*/}
+                                            {/*                    생산자 묶음 배송*/}
+                                            {/*                </label>*/}
+                                            {/*            </div>*/}
+                                            {/*        </Col>*/}
+                                            <Col sm={5}>
+                                                <div className='d-flex align-items-center'>
+                                                    <span className="flex-shrink-0 mr-2"> 묶음배송시: 무료배송 조건 금액 <Star/></span>
+                                                    <Input
+                                                        //className={'mt-2'}
+                                                        name="producerWrapLimitPrice"
+                                                        innerRef={this.producerWrapLimitPrice}
+                                                        value={state.producerWrapLimitPrice}
+                                                        //readOnly={!state.producerWrapDeliver}
+                                                        onChange={this.onInputProducerWrapLimit}
+                                                    />
+                                                </div>
+                                            </Col>
+                                            <Col sm={5}>
+                                                <div className='d-flex align-items-center'>
+                                                    <span className="flex-shrink-0 mr-2"> 묶음배송시: 배송비<Star/> </span>
+                                                    <Input
+                                                        // className={'mt-2'}
+                                                        name="producerWrapFee"
+                                                        innerRef={this.producerWrapFee}
+                                                        value={state.producerWrapFee}
+                                                        //readOnly={!state.producerWrapDeliver}
+                                                        onChange={this.onInputProducerWrapFee}
+                                                    />
+                                                </div>
+                                            </Col>
+                                        </Row>
 
-                                    {/*</FormGroup>*/}
+                                    </FormGroup>
                                 </div>
 
                                 <hr/>
@@ -595,7 +620,7 @@ export default class WebShop extends Component{
                                                 <Label>프로필 사진</Label>
                                             </Col>
                                             <Col sm={10}>
-                                                <SingleImageUploader images={this.state.profileImages} defaultCount={5} isShownMainText={false} onChange={this.onProfileImageChange} />
+                                                <SingleImageUploader images={this.state.profileImages} defaultCount={1} isShownMainText={false} onChange={this.onProfileImageChange} />
                                             </Col>
                                         </Row>
                                     </FormGroup>
@@ -605,7 +630,8 @@ export default class WebShop extends Component{
                                                 <Label>상점 배경사진</Label>
                                             </Col>
                                             <Col sm={10}>
-                                                <SingleImageUploader images={this.state.profileBackgroundImages} defaultCount={5} isShownMainText={false} onChange={this.onProfileBackgroundImageChange} />
+                                                <SingleImageUploader images={this.state.profileBackgroundImages} defaultCount={4} isShownMainText={false} onChange={this.onProfileBackgroundImageChange} />
+
                                             </Col>
                                         </Row>
                                     </FormGroup>
@@ -615,18 +641,39 @@ export default class WebShop extends Component{
                                                 <Label>한줄소개</Label>
                                             </Col>
                                             <Col sm={10}>
-                                                <Textarea
-                                                    name="shopIntroduce"
-                                                    style={{width: '100%', minHeight: 90, borderRadius: 0}}
-                                                    className={'border-secondary'}
-                                                    value={state.shopIntroduce}
-                                                    onChange={this.handleChange}
-                                                    placeholder='한줄소개'
+                                                <SummernoteEditor
+                                                    height={400}
+                                                    quality={1}
+                                                    onChange={this.onChangeShopIntroduce}
+                                                    editorHtml={state.shopIntroduce||null}
                                                 />
                                             </Col>
                                         </Row>
                                     </FormGroup>
+
+                                    <FormGroup inline>
+                                        <Row>
+                                            <Col sm={2}>
+                                                <Label>해시태그</Label>
+                                            </Col>
+                                            <Col sm={10}>
+                                                <HashTagInput tags={state.tags} limit={10} onChange={this.onHashTagChange} />
+                                            </Col>
+                                        </Row>
+                                    </FormGroup>
+
+                                    <FormGroup inline>
+                                        <Row>
+                                            <Col sm={2}>
+                                                <Label>PB상품 판매</Label>
+                                            </Col>
+                                            <Col sm={10}>
+                                                <SwitchButton checked={state.pbFlag} onChange={this.onPbChange} />
+                                            </Col>
+                                        </Row>
+                                    </FormGroup>
                                 </div>
+
                                 <hr/>
 
                                 {/* 정산계좌 정보 */}
@@ -692,6 +739,20 @@ export default class WebShop extends Component{
                                     <FormGroup inline>
                                         <Row>
                                             <Col sm={2}>
+                                                <Label>담당자 이메일</Label>
+                                            </Col>
+                                            <Col sm={10}>
+                                                <Input name="chargerEmail"
+                                                       value={state.chargerEmail}
+                                                       onChange={this.handleChange}
+                                                       innerRef={this.chargerEmail}
+                                                />
+                                            </Col>
+                                        </Row>
+                                    </FormGroup>
+                                    <FormGroup inline>
+                                        <Row>
+                                            <Col sm={2}>
                                                 <Label>메모</Label>
                                             </Col>
                                             <Col sm={10}>
@@ -712,7 +773,7 @@ export default class WebShop extends Component{
                                                 <FormGroup inline>
                                                     <Row>
                                                         <Col sm={12} className='text-center'>
-                                                            <Button onClick={this.onPreviewClick} color={'info'} style={{width: 200}} className='mr-4'>미리보기</Button>
+                                                            {/*<Button onClick={this.onPreviewClick} color={'info'} style={{width: 200}} className='mr-4'>미리보기</Button>*/}
                                                             <Button onClick={this.onSaveClick} color={'warning'} style={{width: 200}}>확인</Button>
                                                         </Col>
                                                     </Row>
@@ -725,17 +786,17 @@ export default class WebShop extends Component{
                         </Row>
                     </Container>
                 </div>
-                <ModalWithNav show={this.state.previewOpen}
-                              title={this.state.farmName}
-                              onClose={this.onPreviewClose} noPadding>
-                    <div>
-                        <ProducerProfileCard
-                            {...this.state}
-                            profileBackgroundImages={this.state.shopMainItems}
-                        />
-                        <div className='m-3 p-3'/>
-                    </div>
-                </ModalWithNav>
+                {/*<ModalWithNav show={this.state.previewOpen}*/}
+                {/*              title={this.state.farmName}*/}
+                {/*              onClose={this.onPreviewClose} noPadding>*/}
+                {/*    <div>*/}
+                {/*        <ProducerProfileCard*/}
+                {/*            {...this.state}*/}
+                {/*            profileBackgroundImages={this.state.shopMainItems}*/}
+                {/*        />*/}
+                {/*        <div className='m-3 p-3'/>*/}
+                {/*    </div>*/}
+                {/*</ModalWithNav>*/}
                 {
                     this.state.modalValword &&
                     <Modal isOpen={true} centered>
@@ -774,7 +835,7 @@ export default class WebShop extends Component{
                     </Modal>
                 }
 
-                <ToastContainer/>
+                {/*<ToastContainer/>*/}
 
             </Fragment>
 

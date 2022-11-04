@@ -1,7 +1,10 @@
 import React, { Component, Fragment } from 'react'
-import { ShopXButtonNav, BlocerySpinner } from '~/components/common'
+import {ShopXButtonNav, BlocerySpinner, SummerNoteIEditorViewer} from '~/components/common'
 import {getEventInfo} from '~/lib/shopApi'
 import ComUtil from '~/util/ComUtil'
+import BackNavigation from "~/components/common/navs/BackNavigation";
+import ReplyContainer from "~/components/common/replyContainer";
+import {Div} from "~/styledComponents/shared";
 export default class Event extends Component {
 
     constructor(props){
@@ -20,7 +23,7 @@ export default class Event extends Component {
     search = async () => {
 
         this.setState({loading: true});
-        const eventNo = this.state.eventNo;
+        const eventNo = this.state.eventNo; //=writingId
 
         const { data:event } = await getEventInfo(eventNo);
         //console.log('event:',event, event.eventNo);
@@ -36,15 +39,23 @@ export default class Event extends Component {
         return (
             <Fragment>
                 {this.state.loading && event ? (<BlocerySpinner/>) : null}
-                <ShopXButtonNav underline historyBack>{event && event.eventTitle}</ShopXButtonNav>
-                {/*<img className="w-100" src="https://blocery.com/images/Vaom0ZXrBo33.png"/>*/}
-                <div className={"ql-container ql-snow ql-no-border"}>
-                    <div className={'ql-editor ql-no-border ql-no-resize'}
-                         style={{padding:0}}
-                         dangerouslySetInnerHTML={{
-                             __html: event && event.eventContent
-                         }}></div>
+                <BackNavigation>상세 내용</BackNavigation>
+                <div>
+                    <SummerNoteIEditorViewer
+                        height="100%"
+                        initialValue={event && event.eventContent}
+                    />
                 </div>
+                {
+                    (event && !event.replyHide) &&
+                    <ReplyContainer
+                        onReplied={this.search}
+                        replies={event?event.replies:[]}
+                        boardType={'event'} //review vote board + 'event'는 예외적.
+                        uniqueKey={event && event.eventNo}
+                        refresh={this.search}
+                    />
+                }
             </Fragment>
         )
     }

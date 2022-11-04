@@ -1,5 +1,5 @@
 import React, { useState, useEffect} from 'react'
-import { getRegularShopListByProducerNo } from '~/lib/producerApi'
+import {getOperStatRegularShopCntByProducerNo, getRegularShopListByProducerNo} from '~/lib/producerApi'
 import ComUtil from '~/util/ComUtil'
 import { Link } from 'react-router-dom'
 
@@ -9,13 +9,14 @@ const FollowerList = () => {
 
     const [data, setData] = useState()
     const [count, setCount] = useState()
-
+    const [totalCount, setTotalCount] = useState()
     useEffect(() => {
         getList()
+        searchFollowerCount()
     }, [])
 
     async function getList(){
-        const { status, data } = await getRegularShopListByProducerNo()
+        const { status, data } = await getRegularShopListByProducerNo(null,"recent")
         // console.log({follerList: data})
 
         let items = []
@@ -34,6 +35,16 @@ const FollowerList = () => {
         setData(items)
     }
 
+    //단골회원건수
+    async function searchFollowerCount(){
+        //(오늘, 어제, 주간, 월간)
+        const { status, data } = await getOperStatRegularShopCntByProducerNo();
+        if(status === 200) {
+            const totalFollowerCount = data.totalCnt || 0
+            setTotalCount(totalFollowerCount)
+        }
+    }
+
 
     if(!data) return null
 
@@ -45,7 +56,7 @@ const FollowerList = () => {
                 최근 단골고객
             </div>
             <div className={'ml-auto bg-danger small rounded-lg text-white d-flex align-items-center pl-2 pr-2'}>
-                {ComUtil.addCommas(count)}
+                {ComUtil.addCommas(totalCount)}
             </div>
         </div>
         {

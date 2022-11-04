@@ -24,6 +24,7 @@ import {color, activeColor} from "~/styledComponents/Properties";
 import {FaPaste, FaQrcode} from 'react-icons/fa'
 import {withRouter} from 'react-router-dom'
 import {getDonTotal, donWithdrawRequest, withdrawDonStatus} from "~/lib/donAirDropApi";
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 const HeadingLayout = styled(Flex)`
     justify-content: space-between;
@@ -423,7 +424,8 @@ class WithdrawErcDon extends Component {
                 {/*{*/}
                 {/*    this.state.chainLoading && <BlockChainSpinner/>*/}
                 {/*}*/}
-                <ShopXButtonNav underline historyBack>ERC 출금</ShopXButtonNav>
+                {/*<ShopXButtonNav underline historyBack>ERC 출금</ShopXButtonNav>*/}
+                <BackNavigation>ERC 출금</BackNavigation>
                 {
                     this.state.withdrawCntErrorText &&
                     <Div p={15} bg={'danger'} fg={'white'}>{this.state.withdrawCntErrorText}</Div>

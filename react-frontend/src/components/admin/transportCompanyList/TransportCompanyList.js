@@ -134,6 +134,15 @@ class TransportCompanyList extends Component {
                             width: 80
                         },
                         {
+                            Header: 'ID',
+                            // id: "orderNo",
+                            accessor: 'carrierId',
+                            Cell: props => <Cell textAlign='center'>{props.value}</Cell>,
+                            filterMethod: (filter, rows) => matchSorter(rows, filter.value, { keys: [filter.id] }),
+                            filterAll: true,
+                            width: 80
+                        },
+                        {
                             Header: '명칭',
                             accessor: 'transportCompanyName',
                             Cell: props => {

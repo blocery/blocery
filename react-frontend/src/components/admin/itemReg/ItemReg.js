@@ -220,7 +220,7 @@ class ItemReg extends Component {
                             />
                             <span className='text-danger'>{errors.itemName}</span>
                             <SingleImageUploader
-                                isNoResizing
+                                quality={1}
                                 isShownCopyButton
                                 images={this.state.item.image ? [this.state.item.image] : []}
                                 defaultCount={1}

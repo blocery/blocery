@@ -4,33 +4,33 @@ import ComUtil from '~/util/ComUtil'
 import { getLoginAdminUser } from '~/lib/loginApi'
 import { delSuperReward, getSuperRewardAdminList } from '~/lib/adminApi'
 import moment from 'moment-timezone'
-import {Span} from '~/styledComponents/shared'
+import {Div, Flex, Right, Space, Span} from '~/styledComponents/shared'
 import { ModalConfirm,  AdminModalWithNav } from '~/components/common'
 import B2cSuperRewardReg from './B2cSuperRewardReg'
 
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
 import { Cell } from '~/components/common'
 import { Server } from '../../Properties'
 
 import DatePicker from "react-datepicker";
 import "react-datepicker/src/stylesheets/datepicker.scss";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
+import MathUtil from "~/util/MathUtil";
 
 export default class B2cSuperRewardList extends Component {
     constructor(props) {
         super(props);
+        this.gridRef = React.createRef();
         this.state = {
             search: {
                 year:moment().format('YYYY')
             },
-            loading: false,
             data: [],
             columnDefs: [
                 {
                     headerName: "슈퍼리워드 시작일", field: "superRewardStart", sort:"desc",
                     suppressSizeToFit: true,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 180,
                     cellRenderer: "formatDatesRenderer",
                     valueGetter: function(params) {
@@ -63,7 +63,7 @@ export default class B2cSuperRewardList extends Component {
                 {
                     headerName: "슈퍼리워드 종료일", field: "superRewardEnd",
                     suppressSizeToFit: true,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 180,
                     cellRenderer: "formatDatesRenderer",
                     valueGetter: function(params) {
@@ -95,12 +95,12 @@ export default class B2cSuperRewardList extends Component {
                 },
                 {
                     headerName: "생산자No", field: "producerNo",
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 80
                 },
                 {
                     headerName: "생산자명", field: "producerFarmNm",
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 100
                 },
                 {
@@ -108,13 +108,13 @@ export default class B2cSuperRewardList extends Component {
                     field: "goodsImages",
                     suppressFilter: true,   //no filter
                     suppressSorting: true,  //no sort
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer:"goodsImageRenderer",
                     width: 120
                 },
                 {
                     headerName: "상품No", field: "goodsNo",
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 80
                 },
                 {
@@ -124,7 +124,7 @@ export default class B2cSuperRewardList extends Component {
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'left'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'left'}),
                     cellRenderer: "titleRenderer",
                     width: 250
                 },
@@ -136,7 +136,7 @@ export default class B2cSuperRewardList extends Component {
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer: "superRewardConsumerPriceRenderer",
                     width: 100
                 },
@@ -147,13 +147,13 @@ export default class B2cSuperRewardList extends Component {
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer: "superRewardCurrentPriceRenderer",
                     width: 100
                 },
                 {
                     headerName: "정산가", field: "currentPrice",
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer: "settlementPriceRenderer",
                     width: 100
                 },
@@ -164,19 +164,19 @@ export default class B2cSuperRewardList extends Component {
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer: "superRewardRewardRenderer",
                     width: 120
                 },
 
                 {
                     headerName: "수수료",
-                   field: "superRewardFeeRate",
+                    field: "superRewardFeeRate",
                     suppressSizeToFit: true,
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer: "superRewardFeeRateRenderer",
                     width: 100
                 },
@@ -188,7 +188,7 @@ export default class B2cSuperRewardList extends Component {
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer: "superRewardAdjustPriceRenderer",
                     width: 120
                 },
@@ -198,7 +198,7 @@ export default class B2cSuperRewardList extends Component {
                     //suppressFilter: true,   //no filter
                     //suppressSorting: true,  //no sort
                     suppressSizeToFit: true,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 100,
                     cellRenderer: "superRewardStateRenderer",
                     filterParams: {
@@ -212,7 +212,7 @@ export default class B2cSuperRewardList extends Component {
                     headerName: "비고",
                     suppressFilter: true,   //no filter
                     suppressSorting: true,  //no sort
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 100,
                     cellRenderer: "delButtonRenderer"
                 },
@@ -222,7 +222,7 @@ export default class B2cSuperRewardList extends Component {
                 resizable: true,
                 filter: true,
                 sortable: true,
-                floatingFilter: false,
+                floatingFilter: true,
                 filterParams: {
                     newRowsAction: 'keep'
                 }
@@ -245,7 +245,6 @@ export default class B2cSuperRewardList extends Component {
                 superRewardStateRenderer:this.superRewardStateRenderer,
                 delButtonRenderer:this.delButtonRenderer
             },
-            rowHeight: 75,
             superRewardGoodsNo:"",
             superRewardModalTitle:"",
             isSuperRewardModalOpen:false
@@ -271,21 +270,8 @@ export default class B2cSuperRewardList extends Component {
     //     this.gridColumnApi = params.columnApi;
     // }
 
-    // Ag-Grid Cell 스타일 기본 적용 함수
-    getCellStyle ({cellAlign,color,textDecoration,whiteSpace, fontWeight}){
-        if(cellAlign === 'left') cellAlign='flex-start';
-        else if(cellAlign === 'center') cellAlign='center';
-        else if(cellAlign === 'right') cellAlign='flex-end';
-        else cellAlign='flex-start';
-        return {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: cellAlign,
-            color: color,
-            textDecoration: textDecoration,
-            whiteSpace: whiteSpace,
-            fontWeight: fontWeight
-        }
+    getRowHeight(params) {
+        return 75;
     }
 
     //Ag-Grid Cell 숫자콤마적용 렌더러
@@ -320,19 +306,22 @@ export default class B2cSuperRewardList extends Component {
 
     titleRenderer = ({value, data:rowData}) => {
         const stateNm = B2cSuperRewardList.getSuperRewardStateNm(rowData);
+
+        //2022.05 googNm-> 관리자용 goodsEventOptionNm    (예전상품이면 goodsNm, eventFlag상품이면 + eventOptionName.)
+        const goodsEventOptionNm = (rowData.eventOptionName && rowData.eventOptionName!==rowData.goodsNm)? rowData.goodsNm + ' [' + rowData.eventOptionName + ']': rowData.goodsNm;
         return (
             <Cell textAlign="left">
                 {
                     stateNm=="종료" && (
                         <div style={{color: 'dark'}}>
-                            {rowData.goodsNm}
+                            {goodsEventOptionNm}
                         </div>
                     )
                 }
                 {
                     stateNm!="종료" && (
                         <div onClick={this.regSuperReward.bind(this, rowData.goodsNo)} style={{color: 'blue'}}>
-                            <u>{rowData.goodsNm}</u>
+                            <u>{goodsEventOptionNm}</u>
                         </div>
                     )
                 }
@@ -349,18 +338,18 @@ export default class B2cSuperRewardList extends Component {
 
     //판매가
     superRewardCurrentPriceRenderer = ({value, data:rowData}) => {
-        return (
-            <span>
-                {ComUtil.addCommas(rowData.defaultCurrentPrice)}원({Math.round(rowData.defaultDiscountRate,0)}%)<br/>
-            </span>
-        );
+        if(rowData.goodsNm === rowData.eventOptionName){
+            return (<span>{ComUtil.addCommas(rowData.defaultCurrentPrice)}원({Math.round(rowData.defaultDiscountRate,0)}%)</span>);
+        }else {
+            return (<span>{ComUtil.addCommas(rowData.eventOptionPrice)}원</span>);
+        }
     };
 
     //정산가
     settlementPriceRenderer = ({value, data:rowData}) => {
         return (
             <span>
-                {ComUtil.addCommas(rowData.currentPrice * ((100 - rowData.superRewardFeeRate) / 100))}원
+                {ComUtil.addCommas(MathUtil.multipliedBy(rowData.currentPrice, MathUtil.dividedBy((100 - rowData.superRewardFeeRate),100)))}원
             </span>
         )
     }
@@ -447,7 +436,13 @@ export default class B2cSuperRewardList extends Component {
 
 
     search = async () => {
-        this.setState({loading: true});
+
+        const {api} = this.gridRef.current;
+
+        if (api) {
+            //ag-grid 레이지로딩중 보이기
+            api.showLoadingOverlay();
+        }
 
         const searchInfo = this.state.search;
         const params = {
@@ -460,9 +455,14 @@ export default class B2cSuperRewardList extends Component {
             return
         }
         this.setState({
-            data: data,
-            loading: false
+            data: data
         });
+
+        //ag-grid api
+        if(api) {
+            //ag-grid 레이지로딩중 감추기
+            api.hideOverlay()
+        }
     };
 
     deleteSuperReward = async(goodsNo, isConfirmed) => {
@@ -508,69 +508,62 @@ export default class B2cSuperRewardList extends Component {
 
     render() {
         const ExampleCustomDateInput = ({ value, onClick }) => (
-            <Button
-                color="secondary"
-                active={true}
-                onClick={onClick}>슈퍼리워드 {value} 년</Button>
+            <MenuButton onClick={onClick}>슈퍼리워드 {value} 년</MenuButton>
         );
         return (
-            <div>
-                <div className="d-flex align-items-center p-1">
-                    <div className="pl-1">
-                        <span className="text-success">{this.state.data.length}</span>개의 슈퍼리워드
-                    </div>
-                    <div className='ml-2'>
-                        <DatePicker
-                            selected={new Date(moment().set('year',this.state.search.year))}
-                            onChange={this.onSearchDateChange}
-                            showYearPicker
-                            dateFormat="yyyy"
-                            customInput={<ExampleCustomDateInput />}
-                        />
-                    </div>
-                    <div className='ml-2'>
-                        <Button color={'info'} onClick={this.search}>검색</Button>
-                    </div>
-                    <div className="flex-grow-1 text-right">
-                        <Span>* 동일 슈퍼리워드 상품은 종료 후 3일 이후에 등록해 주세요 !!</Span>
-                        <Button outline size='sm' color={'info'} onClick={this.regSuperReward.bind(this,'')} className='m-2'>슈퍼리워드 등록</Button>
-                    </div>
-                </div>
-                <div className="p-1">
-                    <div
-                        className="ag-theme-balham"
-                        style={{
-                            height: '550px'
-                        }}
-                    >
-                        <AgGridReact
-                            // enableSorting={true}                //정렬 여부
-                            // enableFilter={true}                 //필터링 여부
-                            floatingFilter={true}               //Header 플로팅 필터 여부
-                            columnDefs={this.state.columnDefs}  //컬럼 세팅
-                            defaultColDef={this.state.defaultColDef}
-                            rowHeight={this.state.rowHeight}
-                            // enableColResize={true}              //컬럼 크기 조정
-                            overlayLoadingTemplate={this.state.overlayLoadingTemplate}
-                            overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
-                            // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
-                            rowData={this.state.data}
-                            components={this.state.components}
-                            frameworkComponents={this.state.frameworkComponents}
-                        >
-                        </AgGridReact>
+            <Div p={16}>
+                <Flex mb={10}>
+                    <Div>
+                        <Space>
+                            <MenuButton bg={'green'} onClick={this.regSuperReward.bind(this,'')}>슈퍼리워드 등록</MenuButton>
+                            <DatePicker
+                                selected={new Date(moment().set('year',this.state.search.year))}
+                                onChange={this.onSearchDateChange}
+                                showYearPicker
+                                dateFormat="yyyy"
+                                customInput={<ExampleCustomDateInput />}
+                            />
+                            <MenuButton onClick={this.search}>검색</MenuButton>
+                        </Space>
+                    </Div>
+                    <Right>
+                        <Space>
+                            <Span>* 동일 슈퍼리워드 상품은 종료 후 3일 이후에 등록해 주세요 !!</Span>
+                            <Span fg={'green'} >{this.state.data.length}</Span>개의 슈퍼리워드
+                        </Space>
+                    </Right>
+                </Flex>
 
-                    </div>
-                    <AdminModalWithNav
-                        show={this.state.isSuperRewardModalOpen}
-                        title={this.state.superRewardModalTitle}
-                        onClose={this.onSuperRewardPopupClose}>
-                        <B2cSuperRewardReg
-                            superRewardGoodsNo={this.state.superRewardGoodsNo}
-                        />
-                    </AdminModalWithNav>
+                <div
+                    className="ag-theme-balham"
+                    style={{
+                        height: '550px'
+                    }}
+                >
+                    <AgGridReact
+                        ref={this.gridRef}
+                        columnDefs={this.state.columnDefs}  //컬럼 세팅
+                        defaultColDef={this.state.defaultColDef}
+                        getRowHeight={this.getRowHeight}
+                        overlayLoadingTemplate={this.state.overlayLoadingTemplate}
+                        overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
+                        // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
+                        rowData={this.state.data}
+                        components={this.state.components}
+                        frameworkComponents={this.state.frameworkComponents}
+                    >
+                    </AgGridReact>
+
                 </div>
-            </div>
+                <AdminModalWithNav
+                    show={this.state.isSuperRewardModalOpen}
+                    title={this.state.superRewardModalTitle}
+                    onClose={this.onSuperRewardPopupClose}>
+                    <B2cSuperRewardReg
+                        superRewardGoodsNo={this.state.superRewardGoodsNo}
+                    />
+                </AdminModalWithNav>
+            </Div>
         )
     }
 }

@@ -1,17 +1,28 @@
 import React, { Component, Fragment } from 'react'
-import { updateOrderTrackingInfo, producerCancelOrder, partialRefundOrder, getProducerByProducerNo, getOrderDetailByOrderSeq, getTransportCompany, reqProducerOrderCancel } from '~/lib/producerApi'
+import {
+    updateOrderTrackingInfo,
+    producerCancelOrder,
+    partialRefundOrder,
+    getProducerByProducerNo,
+    getOrderGroupByOrderGroupNo,
+    getOrderDetailByOrderSeq,
+    getTransportCompany,
+    reqProducerOrderCancel,
+    getProducer
+} from '~/lib/producerApi'
 import { getGoodsByGoodsNo } from '~/lib/goodsApi'
-import { getLoginAdminUser } from '~/lib/loginApi'
+import {getLoginAdminUser, getLoginProducerUser} from '~/lib/loginApi'
 import { Container, ListGroup, ListGroupItem, FormGroup, Label, Input, Button, Alert, Modal, ModalBody, ModalHeader, ModalFooter } from 'reactstrap';
 import Style from './Order.module.scss'
-import ComUtil from '../../../../util/ComUtil'
-
+import ComUtil from '~/util/ComUtil'
+import MathUtil from '~/util/MathUtil'
 import { ModalWithNav } from '../../../common'
-import { ToastContainer, toast } from 'react-toastify'                              //토스트
-import 'react-toastify/dist/ReactToastify.css'
+import { toast } from 'react-toastify'                              //토스트
 import Select from 'react-select'
 import 'react-dates/initialize';
-import { Flex } from "~/styledComponents/shared/Layouts";
+import {Div, Flex, Right, Span} from "~/styledComponents/shared/Layouts";
+import {getCardPgName, getPgProviderNm, getTransportCarrierId} from "~/util/bzLogic";
+import {FaGift} from "react-icons/fa";
 
 export default class Order extends Component{
     constructor(props){
@@ -19,11 +30,13 @@ export default class Order extends Component{
         this.state = {
             transportationCompanies: [],
             trackingUrl: '',    //배송조회용 운송장번호와 조합된 url
+            orderGroup: null,
             order: null,
             //consumer: null,
             goods: null,
             isOpen: false,
             isTrackingUrl: false,   //택배사 링크 존재여부
+            producerNo: null,
             tempProducerAdmin: false,
             orderCancelModal: false,
         }
@@ -41,6 +54,7 @@ export default class Order extends Component{
         if (adminUser && adminUser.email === 'tempProducer@ezfarm.co.kr') {
             tempProducerAdmin = true;
         }
+
         this.setState({
             tempProducerAdmin: tempProducerAdmin
         })
@@ -51,7 +65,7 @@ export default class Order extends Component{
 
         const { status, data } = await getTransportCompany()
         if(status !== 200){
-            alert('택배사 목록 조회가 실패하였습니다')
+            toast.error('택배사 목록 조회가 실패하였습니다');
             return
         }
 
@@ -59,19 +73,21 @@ export default class Order extends Component{
     }
     search = async () => {
         const { data: order } = await getOrderDetailByOrderSeq(this.props.orderSeq)
-        //const { data: consumer } = await getConsumerByConsumerNo(order.consumerNo)
+        const { data: orderGroup } = await getOrderGroupByOrderGroupNo(order.orderGroupNo)
         const { data: goods } = await getGoodsByGoodsNo(order.goodsNo)
         const { data: producer} = await getProducerByProducerNo(order.producerNo)
 
         console.log(order);
 
         this.setState({
+            orderGroup,
             order,
             //consumer,
             goods,
             trackingUrl: this.getTraceUrl(order),
             originalTrackingNumber: order.trackingNumber,
-            producerPayoutBlctFlag: producer.payoutBlct
+            producerPayoutBlctFlag: producer.payoutBlct,
+            producerNo: producer.producerNo
         })
     }
     onChange = (e) => {
@@ -90,12 +106,12 @@ export default class Order extends Component{
         const orderInfo = Object.assign({}, this.state.order)
 
         if(!orderInfo.transportCompanyCode){
-            this.notify('택배사를 선택해 주십시오!', toast.warn)
+            toast.warn('택배사를 선택해 주십시오!')
             return
         }
 
         if(!orderInfo.trackingNumber){
-            this.notify('송장번호를 입력해 주십시오!', toast.warn)
+            toast.warn('송장번호를 입력해 주십시오!')
             return
         }
 
@@ -107,27 +123,22 @@ export default class Order extends Component{
         const { status, result } = await updateOrderTrackingInfo(orderInfo)
 
         if(status !== 200){
-            this.notify('저장중 에러가 발생하였습니다.', toast.error)
+            toast.error('저장중 에러가 발생하였습니다.')
             return
         }
 
         if(result == false)
         {
-            this.notify('주문이 취소되었거나 미배송 처리되어서 송장 정보를 저장할 수 없습니다.', toast.error)
+            toast.error('주문이 취소되었거나 미배송 처리되어서 송장 정보를 저장할 수 없습니다.')
             return
         }
 
         alert('저장이 완료되었습니다.');
-        this.notify('저장되었습니다.', toast.success)
+        toast.success('저장되었습니다.')
 
         //푸시알림
 
         this.props.onClose(true) //부모(OrderList.js) callback
-    }
-    notify = (msg, toastFunc) => {
-        toastFunc(msg, {
-            position: toast.POSITION.TOP_CENTER
-        })
     }
 
     toggle = () => {
@@ -137,6 +148,10 @@ export default class Order extends Component{
             this.setState({orderCancelModal: !this.state.orderCancelModal})
         }
     }
+    onTransportModal = () => {
+        this.setState({isOpen: !this.state.isOpen})
+    }
+
     onClose = () => {
         this.toggle()
     }
@@ -158,19 +173,13 @@ export default class Order extends Component{
 
             let trackingUrl = transportCompany.url.replace('[number]', order.trackingNumber);
             let track_id = order.trackingNumber;
-            let carrier_id = "";
             const v_TransportCompanyCd = order.transportCompanyCode;
-            if(v_TransportCompanyCd === '01') carrier_id = 'kr.logen';
-            else if(v_TransportCompanyCd === '02') carrier_id = 'kr.cjlogistics';
-            else if(v_TransportCompanyCd === '03') carrier_id = 'kr.epost';
-            else if(v_TransportCompanyCd === '04') carrier_id = 'kr.lotte';
-            else if(v_TransportCompanyCd === '05') carrier_id = 'kr.cupost';
-            else if(v_TransportCompanyCd === '07') carrier_id = 'kr.hanjin';
+
+            const carrier_id = getTransportCarrierId(v_TransportCompanyCd);
+
             // carrier_id = "kr.cjlogistics";
             // track_id = "639823384653";
-            if(
-                v_TransportCompanyCd !== '06' ||
-                v_TransportCompanyCd !== '99') {
+            if(v_TransportCompanyCd !== '06' && v_TransportCompanyCd !== '98' && v_TransportCompanyCd !== '99') { //세방, 기타
                 trackingUrl = `https://tracker.delivery/#/${carrier_id}/${track_id}`;
             }
 
@@ -185,43 +194,80 @@ export default class Order extends Component{
     }
 
     onCancel = async () => {
-        // 배송 전 주문취소
+
+        const {status, data: producer} = await getProducer()
+
+        if (status !== 200 || !producer) {
+            alert('로그인 세션이 만료 되었습니다.')
+            return
+        }
+
+        //로컬푸드 생산자 일 경우는 어드민 취소와 동일하게 처리 함
+        // if (producer.localfoodFlag) {
+        //
+        //     if(this.state.order.csRefundFlag){
+        //         toast.warn('전표는 주문취소를 하실수 없습니다.')
+        //         return
+        //     }
+        //
+        //     if(!this.state.order.producerCancelReason) {
+        //         toast.warn('주문취소 사유를 입력해주세요.')
+        //         return
+        //     }
+        //
+        //     await this.cancelByAdmin({dpCancelReason: this.state.order.producerCancelReason})
+        //     return
+        // }
+
         const orderDetail = Object.assign({},this.state.order);
 
+        if(orderDetail.csRefundFlag){
+            toast.warn('전표는 주문취소를 하실수 없습니다.')
+            return
+        }
+        if(!orderDetail.producerCancelReason) {
+            toast.warn('주문취소 사유를 입력해주세요.')
+            return
+        }
+
+        //생산자일 경우
         if(!this.state.tempProducerAdmin) {
-            if(orderDetail.producerCancelReason === '' || orderDetail.producerCancelReason === null) {
-                alert('주문취소 사유를 입력해주세요.')
-                return
-            }
-
             orderDetail.reqProducerCancel = 1;
+            orderDetail.cancelType = 2;
             reqProducerOrderCancel(orderDetail);
-
             this.toggle();
-            this.notify('주문취소요청이 완료되었습니다.', toast.info);
-        } else {
-            if(!window.confirm('해당 주문을 취소하시겠습니까?')) return
-            this.setState({chainLoading: true});
-            this.toggle();
-            this.notify('주문취소중.', toast.info);
-            let {data} = await producerCancelOrder(orderDetail);
-
-            // console.log('producerCancelOrder', data);
-            this.notify('주문취소가 완료되었습니다.', toast.info);
-
-            this.setState({
-                order: data,
-                chainLoading: false  //블록체인스피너 chainLoading=false
-            });
+            toast.success('주문취소요청이 완료되었습니다.');
+        } else { //어드민일 경우
+            await this.cancelByAdmin({dpCancelReason: this.state.order.producerCancelReason})
         }
     }
 
+
+    //어드민 취소
+    cancelByAdmin = async ({dpCancelReason}) => {
+        if(!window.confirm('해당 주문을 취소하시겠습니까?')) return
+        this.setState({chainLoading: true});
+        this.toggle();
+        toast.info('주문취소중.');
+        const orderDetail = {...this.state.order, dpCancelReason}
+        orderDetail.cancelType = 2;
+        let {data} = await producerCancelOrder(orderDetail);
+        toast.success('주문취소가 완료되었습니다.');
+        this.setState({
+            order: data,
+            chainLoading: false  //블록체인스피너 chainLoading=false
+        });
+    }
 
     onRefund = async () => {
         // 배송 전 주문취소
         if(!window.confirm('해당 주문을 환불하시겠습니까?')) return
 
         const orderDetail = Object.assign({},this.state.order);
+        if(orderDetail.csRefundFlag){
+            toast.warn('전표는 주문취소를 하실수 없습니다.')
+            return
+        }
 
         //superReward일 경우 알림.
         if (orderDetail.superRewardGoods) {
@@ -230,19 +276,17 @@ export default class Order extends Component{
 
         if(!this.state.tempProducerAdmin) {
             orderDetail.reqProducerCancel = 2;
+            orderDetail.cancelType = 2;
             reqProducerOrderCancel(orderDetail);
-            this.notify('주문환불요청이 완료되었습니다.', toast.info);
+            toast.success('주문환불요청이 완료되었습니다.');
 
         } else {
             orderDetail.refundFlag = true;
+            orderDetail.cancelType = 2;
             this.setState({chainLoading: true});
-            this.notify('환불중.', toast.info);
-
+            toast.info('환불중.');
             let {data} = await producerCancelOrder(orderDetail);
-
-            // console.log('producerCancelOrder', data);
-            this.notify('환불이 완료되었습니다.', toast.info);
-
+            toast.success('환불이 완료되었습니다.');
             this.setState({
                 order: data,
                 chainLoading: false  //블록체인스피너 chainLoading=false
@@ -254,23 +298,26 @@ export default class Order extends Component{
         if(!window.confirm('부분환불은 주문개수를 감소시킵니다. 주문1건을 환불하시겠습니까?')) return;
 
         const orderDetail = Object.assign({},this.state.order);
-
+        if(orderDetail.csRefundFlag){
+            toast.warn('전표는 주문취소를 하실수 없습니다.')
+            return
+        }
         if(orderDetail.orderCnt < 2) return;
 
         this.setState({chainLoading: true});
-        this.notify('환불중.', toast.info);
-
+        toast.info('환불중.');
+        orderDetail.cancelType = 2;
         let {data} = await partialRefundOrder(orderDetail);
         console.log(data);
 
         if('' === data) {
-            this.notify('환불에 실패했습니다. 다시 시도해주세요.', toast.warn);
+            toast.error('환불에 실패했습니다. 다시 시도해주세요.');
             this.setState({
                 chainLoading: false  //블록체인스피너 chainLoading=false
             });
 
         } else {
-            this.notify('환불이 완료되었습니다.', toast.info);
+            toast.success('환불이 완료되었습니다.');
             this.setState({
                 order: data,
                 chainLoading: false  //블록체인스피너 chainLoading=false
@@ -278,30 +325,56 @@ export default class Order extends Component{
         }
     }
 
-    //Ag-Grid Cell 주문금액 렌더러
+    //주문금액 렌더러
     orderAmtRenderer = (rowData) => {
 
-        let orderAmount = ComUtil.addCommas(rowData.cardPrice) + "원";
-        let orderblctwon = "";
-        switch (rowData.payMethod) {
-            case "blct":
-                orderAmount = ComUtil.addCommas(rowData.blctToken) + "BLY";
-                break;
+        let cardPrice = "";
+        let orderBlyVal = "";
+        let orderBly = "";
+        let orderBlyWon = "";
+        let orderCouponWon = "";
 
+        let orderAmtText = "";
+        switch (rowData.payMethod) {
+            case "card":
+                cardPrice = ComUtil.addCommas(rowData.adminCardPrice) + "원";
+
+                orderCouponWon = rowData.usedCouponNo !== 0 ? " / 쿠폰:"+ComUtil.addCommas(rowData.usedCouponBlyAmount)+"BLY"+"("+ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(rowData.usedCouponBlyAmount,rowData.orderBlctExchangeRate))) + "원)":"";
+                orderAmtText = "결제:"+cardPrice + " " + orderCouponWon;
+                break;
+            case "blct":
+                orderBlyVal = MathUtil.minusBy(rowData.adminBlctToken,rowData.usedCouponBlyAmount) > 0 ? MathUtil.minusBy(rowData.adminBlctToken,rowData.usedCouponBlyAmount):0;
+                orderBly = ComUtil.addCommas(orderBlyVal) + "BLY";
+                orderBlyWon = ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(orderBlyVal,rowData.orderBlctExchangeRate))) + "원";
+                orderCouponWon = rowData.usedCouponNo !== 0 ? " / 쿠폰:"+ComUtil.addCommas(rowData.usedCouponBlyAmount)+"BLY"+"("+ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(rowData.usedCouponBlyAmount,rowData.orderBlctExchangeRate))) + "원)":"";
+
+                orderAmtText = "결제:"+orderBly+"("+orderBlyWon+") " + " " + orderCouponWon;
+                break;
             case "cardBlct":
-                orderblctwon = "("+ComUtil.addCommas(ComUtil.roundDown(rowData.blctToken*rowData.orderBlctExchangeRate, 1)) + "원)";
-                orderAmount = ComUtil.addCommas(rowData.cardPrice) + "원 + " + ComUtil.addCommas(rowData.blctToken) + "BLY";
+                cardPrice = ComUtil.addCommas(rowData.adminCardPrice) + "원";
+                orderBlyVal = MathUtil.minusBy(rowData.adminBlctToken,rowData.usedCouponBlyAmount) > 0 ? MathUtil.minusBy(rowData.adminBlctToken,rowData.usedCouponBlyAmount):0;
+                orderBly = ComUtil.addCommas(orderBlyVal) + "BLY";
+                orderBlyWon = ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(orderBlyVal,rowData.orderBlctExchangeRate))) + "원";
+                orderCouponWon = rowData.usedCouponNo !== 0 ? "/ 쿠폰:"+ComUtil.addCommas(rowData.usedCouponBlyAmount)+"BLY"+"("+ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(rowData.usedCouponBlyAmount,rowData.orderBlctExchangeRate))) + "원)":"";
+
+                orderAmtText = "결제:"+cardPrice +" / "+ orderBly+"("+orderBlyWon+") " + " " + orderCouponWon;
                 break;
         }
 
-        return (<span>{orderAmount}<small>{orderblctwon}</small></span>);
+        return (
+            <div>
+                <div>
+                    [<small>{orderAmtText}</small>]
+                </div>
+            </div>
+        );
     }
 
     render(){
 
         if(!this.state.order) return null;
 
-        const { order, consumer, goods  } = this.state;
+        const { orderGroup, order, consumer, goods  } = this.state;
 
         return(
             <Fragment>
@@ -311,60 +384,77 @@ export default class Order extends Component{
                         order.consumerOkDate && <div className='text-danger text-center'>구매확정 되었습니다<small>[ {ComUtil.utcToString(order.consumerOkDate)} ]</small></div>
                     }
                     {
-                        (order.notDeliveryDate)
-                            ? <div className='text-danger text-center'>미배송 처리 되었습니다<small>[ {ComUtil.utcToString(order.notDeliveryDate)} ]</small></div>
-                            : (order.payStatus === "cancelled")
-                            ? <div className='text-danger text-center'>주문취소 되었습니다<small>[ {ComUtil.utcToString(order.orderCancelDate)} ]</small></div>
-                            : null
+                        order.payStatus === "revoked" && <div className='text-danger text-center'>주문예약취소 되었습니다</div>
+                    }
+                    {
+                        order.payStatus === "cancelled" &&
+                        <div className='text-danger text-center'>
+                            주문취소 되었습니다 [ {ComUtil.utcToString(order.orderCancelDate)} ]  {order.dpCancelReason && <span>({order.dpCancelReason})</span>}
+                        </div>
                     }
                     <div className={Style.orderBox}>
+                        <div>
+                            {/*{order.subGroupListSize && order.subGroupListSize > 1 ? <span>주문그룹번호 : {Math.abs(order.orderSubGroupNo).toString(16).toUpperCase()}</span>:""}*/}
+                            주문그룹번호 : {order.orderSubGroupNo}
+                        </div>
                         <div>
                             주문번호 : {order.orderSeq}
                         </div>
                         <div>
-                            {goods.goodsNm}
+                            {order.goodsOptionNm}
                         </div>
                         <div>
-                            {`${order.packAmount}${order.packUnit} × ${order.orderCnt}`}
+                            {/*{`${order.packAmount}${order.packUnit} × ${order.orderCnt}`}*/}
+                            {`수량 ${order.orderCnt}`}
                         </div>
                         <div>
-                            {this.orderAmtRenderer(order)}
+                            {ComUtil.addCommas(order.adminOrderPrice)} 원
                         </div>
                     </div>
                     {
-                        !order.notDeliveryDate && order.payStatus !== "cancelled" ?
+                        order.payStatus !== "cancelled" && order.payStatus !== "revoked" ?
                             <div>
-                                <Flex>
-                                    {
-                                        //order.directGoods && !this.state.originalTrackingNumber ?  //즉시상품만 주문취소 있음. (예약상품은 위약금+취소로 => (개발을 할필요 존재)현재는 미배송을 통해 미배송배치로 처리됨..  )
-                                        !this.state.originalTrackingNumber ?  //예약상품도 취소 노출. (20200203 - 상추동결 문제로 노출)
-                                            this.state.tempProducerAdmin ?
-                                                <div className="mb-2">
-                                                    <Button color={'info'} onClick={this.onCancelModal}>배송 전 주문취소</Button>
-                                                </div>
-                                                :
+                                {
+                                    order.payStatus !== "scheduled" &&
+                                    <Flex>
+                                        {
+                                            !this.state.originalTrackingNumber ?  //예약상품도 취소 노출. (20200203 - 상추동결 문제로 노출)
+                                                this.state.tempProducerAdmin ?
+                                                    <div className="mb-2">
+                                                        <Button color={'info'} onClick={this.onCancelModal}>[관리자]배송 전 주문취소</Button>
+                                                    </div>
+                                                    :
+                                                    <div className="mb-2">
+                                                        <Button color={'info'} onClick={this.onCancelModal}>{!order.producerCancelReason?'배송 전 주문취소요청':'취소요청 처리중'}</Button>
+                                                    </div>
+                                                : null
+                                        }
+                                        {
+                                            ( this.state.originalTrackingNumber &&  //예약상품도 환불 가능하도록 수정 20200902, payoutBlct인 생산자(팜토리)는 제외
+                                                (!this.state.producerPayoutBlctFlag || !order.consumerOkDate))   && //20210203 구매확정 전이면 추가로 노출해봄 (팜토리 예약상품 상추동결 때문에)
+
                                             <div className="mb-2">
-                                                <Button color={'info'} onClick={this.onCancelModal}>{!order.producerCancelReason?'배송 전 주문취소요청':'취소요청 처리중'}</Button>
+                                                <Button color={'danger'} onClick={this.onRefund}>
+                                                    {this.state.tempProducerAdmin && "[관리자]"}환불
+                                                </Button>
                                             </div>
-                                            : null
-                                    }
-                                    {
-                                        ( this.state.originalTrackingNumber &&  //예약상품도 환불 가능하도록 수정 20200902, payoutBlct인 생산자(팜토리)는 제외
-                                          (!this.state.producerPayoutBlctFlag || !order.consumerOkDate))   && //20210203 구매확정 전이면 추가로 노출해봄 (팜토리 예약상품 상추동결 때문에)
+                                        }
+                                        {
+                                            (order.orderCnt > 1 &&
+                                                (!this.state.producerPayoutBlctFlag || !order.consumerOkDate )) &&  // payoutBlct인 생산자(팜토리)는 일단 제외 //20210203 구매확정 전이면 추가로 노출해봄 (팜토리 예약상품 상추동결 때문에)
+                                            <>
+                                            {
+                                                // 옥천로컬푸드일경우 부분환불 안보이게
+                                                (order.producerNo != 157) &&
+                                                        <div className="mb-2 ml-2">
+                                                            <Button color={'warning'} onClick={this.onPartialRefund}>{this.state.tempProducerAdmin && "[관리자]"}1건 부분환불</Button>
+                                                        </div>
+                                            }
+                                            </>
 
-                                        <div className="mb-2">
-                                            <Button color={'danger'} onClick={this.onRefund}>환불</Button>
-                                        </div>
-                                    }
-                                    {
-                                        (order.orderCnt > 1 &&
-                                            (!this.state.producerPayoutBlctFlag || !order.consumerOkDate )) &&  // payoutBlct인 생산자(팜토리)는 일단 제외 //20210203 구매확정 전이면 추가로 노출해봄 (팜토리 예약상품 상추동결 때문에)
-                                        <div className="mb-2 ml-2">
-                                            <Button color={'warning'} onClick={this.onPartialRefund}>1건 부분환불</Button>
-                                        </div>
-
-                                    }
-                                </Flex>
+                                        }
+                                    </Flex>
+                                }
                                 <div className={Style.invoiceBox}>
                                     <FormGroup>
                                         <Label><h6>택배사</h6></Label>
@@ -381,16 +471,19 @@ export default class Order extends Component{
 
                                     {
                                         !order.consumerOkDate  ?
-                                            <Button color={'warning'} block onClick={this.onSave}>저장</Button>
+                                            order.payStatus !== "scheduled" ?
+                                                <Button color={'warning'} block onClick={this.onSave}>저장</Button>
+                                                :
+                                                null
                                             : null
                                     }
 
 
                                     {
                                         order.transportCompanyCode && order.trackingNumber && this.state.trackingUrl.length > 0 ? (
-                                            <Button outline block onClick={this.toggle}>배송조회</Button>
+                                            <Button outline block onClick={this.onTransportModal}>배송조회</Button>
                                         ) : (
-                                            <Button outline block onClick={this.toggle} disabled={true}>배송조회 미지원</Button>
+                                            <Button outline block onClick={this.onTransportModal} disabled={true}>배송조회 미지원</Button>
                                         )
                                     }
                                 </div>
@@ -400,22 +493,37 @@ export default class Order extends Component{
                     <br/>
                     <h6>배송정보</h6>
                     <ListGroup>
+                        {
+                            order.payStatus === "scheduled" ?
+                                <ListGroupItem action>
+                                    <div><small>주문예약결제</small></div>
+                                    <div><b>주문예약결제 {orderGroup.scheduleAtTime > 0 ? "일시 "+ComUtil.longToDateTime(orderGroup.scheduleAtTime):""}</b></div>
+                                </ListGroupItem>
+                                :
+                                null
+                        }
                         <ListGroupItem action>
                             <div><small>결재방법</small></div>
-                            <div><b>{order.payMethod === "card" ? "카드결제" : order.payMethod === "cardBlct" ? "카드+BLY결제":"BLY결제"}</b></div>
+                            <div><b>{order.payMethod === "card" ? getCardPgName(orderGroup.pgProvider) : order.payMethod === "cardBlct" ? getCardPgName(orderGroup.pgProvider)+"+BLY결제":"BLY결제"}</b></div>
                             <div><b>{order.payMethod==='card' ? order.cardName:''}</b></div>
                         </ListGroupItem>
                         <ListGroupItem action>
                             <div><small>상품정보</small></div>
-                            <div><b>{goods.goodsNm}</b></div>
-                            <div>상품가격 : <b> {`${ComUtil.addCommas(order.currentPrice)}`} 원 </b></div>
-                            <div>수량 : <b> {`${order.packAmount}${order.packUnit} × ${order.orderCnt}`} </b></div>
-                            <div>배송비 : <b> {`${ComUtil.addCommas(order.deliveryFee)}`} 원 </b></div>
-                            <div>주문금액 : {ComUtil.addCommas(order.orderPrice)} 원</div>
-                            <div>결제금액 : {this.orderAmtRenderer(order)}</div>
+                            <div><b>{order.goodsOptionNm}</b></div>
+                            <div>상품가격 : <b> {`${ComUtil.addCommas(order.currentPrice)}`} </b></div>
+                            <div>주문수량 : <b> {`${ComUtil.addCommas(order.orderCnt)}`} </b></div>
+                            <div>주문가격 : <b> {`${ComUtil.addCommas(MathUtil.minusBy(order.mypageOrderPrice,order.adminDeliveryFee))}`} 원 </b></div>
+                            <div>배송비 : <b> {`${ComUtil.addCommas(order.adminDeliveryFee)}`} 원 </b></div>
+                            <Div bold fontSize={20}>주문금액 : <b> {ComUtil.addCommas(order.mypageOrderPrice)} 원 </b></Div>
+                            <div>{this.orderAmtRenderer(order)}</div>
                         </ListGroupItem>
                         <ListGroupItem action>
-                            <div><small>받는사람</small></div>
+                            <div>
+                                <small>받는사람</small>
+                                {
+                                    order.gift && <Span ml={2}><FaGift className={'text-danger'} /></Span>
+                                }
+                            </div>
                             <b>{order.receiverName}</b>
                         </ListGroupItem>
                         <ListGroupItem action>
@@ -435,6 +543,14 @@ export default class Order extends Component{
                             )
                         }
                         {
+                            order.commonEnterPwd && (
+                                <ListGroupItem action>
+                                    <div><small>공동현관 출입번호</small></div>
+                                    <b>{order.commonEnterPwd}</b>
+                                </ListGroupItem>
+                            )
+                        }
+                        {
                             order.hopeDeliveryFlag &&
                             (<ListGroupItem action>
                                 <div>
@@ -445,95 +561,96 @@ export default class Order extends Component{
                         }
                     </ListGroup>
                     {/* 취소시 환불정보 */}
-                    {!order.notDeliveryDate && order.payStatus === "cancelled" ? <br /> : null}
-                    {!order.notDeliveryDate && order.payStatus === "cancelled" ? <h6>취소(환불)정보</h6> : null}
+                    {((order.payStatus === "cancelled") || (order.payStatus === "revoked")) ? <br /> : null}
+                    {((order.payStatus === "cancelled") || (order.payStatus === "revoked")) ? <h6>취소(환불)정보</h6> : null}
                     {
-                        !order.notDeliveryDate && order.payStatus === "cancelled" ?
+                        ((order.payStatus === "cancelled") || (order.payStatus === "revoked")) ?
                             <ListGroup>
                                 <ListGroupItem action>
                                     <div><small>취소일시</small></div>
-                                    <b>{ComUtil.utcToString(order.orderCancelDate,'YYYY-MM-DD HH:MM')}</b>
+                                    <b>{ComUtil.utcToString(order.orderCancelDate,'YYYY-MM-DD HH:mm')}</b>
                                 </ListGroupItem>
-                                <ListGroupItem action>
-                                    <div><small>취소사유</small></div>
-                                    <b>{order.cancelReason}</b>
-                                </ListGroupItem>
-                                <ListGroupItem action>
-                                    <div><small>취소사유상세</small></div>
-                                    <b>{order.cancelReasonDetail}</b>
-                                </ListGroupItem>
-                                <ListGroupItem action>
-                                    <div><small>취소수수료</small></div>
-                                    {
-                                        order.payMethod === "blct" ?
-                                            <b>(-){ComUtil.addCommas(ComUtil.toNum(order.cancelBlctTokenFee))}</b>
-                                            :
-                                            <b>(-){ComUtil.addCommas(ComUtil.toNum(order.cancelFee))}</b>
-                                    }
-                                    {order.payMethod === "blct" ? ' BLY' : ' 원'}
-                                </ListGroupItem>
-                                <ListGroupItem action>
-                                    <div><small>신용카드</small></div>
-                                    <b>{ComUtil.addCommas(ComUtil.toNum(order.cardPrice)-ComUtil.toNum(order.cancelFee))}원</b>
-                                </ListGroupItem>
-                                <ListGroupItem action>
-                                    <div><small>BLY</small></div>
-                                    {
-                                        order.payMethod === "blct" ?
-                                            <b>
-                                                {ComUtil.addCommas(ComUtil.toNum(order.blctToken)-ComUtil.toNum(order.cancelBlctTokenFee))} BLY &nbsp;
-                                                <small>({ComUtil.addCommas(ComUtil.roundDown((order.blctToken-order.cancelBlctTokenFee)*order.orderBlctExchangeRate,1))}원)</small>
-                                            </b>
-                                            :
-                                            order.payMethod === "cardBlct" ?
-                                                <b>
-                                                    {ComUtil.addCommas(ComUtil.toNum(order.blctToken))} BLY &nbsp;
-                                                    <small>({ComUtil.addCommas(ComUtil.roundDown(order.blctToken*order.orderBlctExchangeRate, 1))}원)</small>
-                                                </b>
-                                                :
-                                                <b>-</b>
-                                    }
-                                </ListGroupItem>
-                                <ListGroupItem action>
-                                    <div><small>총 환불금액</small></div>
-                                    {
-                                        order.payMethod === "blct" ?
-                                            ComUtil.addCommas(ComUtil.toNum(order.blctToken)-ComUtil.toNum(order.cancelBlctTokenFee)) :
-                                            ComUtil.addCommas(ComUtil.toNum(order.orderPrice)-ComUtil.toNum(order.cancelFee))
-                                    }
-                                    { order.payMethod === "blct" ? ' BLY' : ' 원' }
-                                </ListGroupItem>
+                                {
+                                    order.dpCancelReason &&
+                                    <ListGroupItem action>
+                                        <div><small>[생산자(관리자)]취소사유</small></div>
+                                        <b>{order.dpCancelReason}</b>
+                                    </ListGroupItem>
+                                }
+                                {
+                                    order.cancelReason &&
+                                    <ListGroupItem action>
+                                        <div><small>[소비자]취소사유</small></div>
+                                        <b>{order.cancelReason}</b>
+                                    </ListGroupItem>
+                                }
+                                {
+                                    order.cancelReasonDetail &&
+                                    <ListGroupItem action>
+                                        <div><small>[소비자]취소사유상세</small></div>
+                                        <b>{order.cancelReasonDetail}</b>
+                                    </ListGroupItem>
+                                }
+
+                                {
+                                    (order.payMethod === "blct" && order.cancelBlctTokenFee > 0) &&
+                                    <ListGroupItem action>
+                                        <div><small>취소수수료</small></div>
+                                        <b>(-){ComUtil.addCommas(ComUtil.toNum(order.cancelBlctTokenFee))}</b> BLY
+                                    </ListGroupItem>
+                                }
+                                {
+                                    (order.payMethod !== "blct" && order.cancelFee > 0) &&
+                                    <ListGroupItem action>
+                                        <div><small>취소수수료</small></div>
+                                        <b>(-){ComUtil.addCommas(ComUtil.toNum(order.cancelFee))}</b> 원
+                                    </ListGroupItem>
+                                }
+                                {
+                                    (order.mypageCardPrice != null && order.mypageCardPrice != 0) &&
+                                    <ListGroupItem action>
+                                        <div><small>환불금액</small></div>
+                                        <Flex>
+                                            <Div bold fg={'danger'} fontSize={20}>{ComUtil.addCommas(order.mypageCardPrice) + '원'}</Div>
+                                        </Flex>
+                                    </ListGroupItem>
+                                }
+                                {
+                                    (MathUtil.minusBy(order.mypageBlctToken,order.usedCouponBlyAmount) > 0) &&
+                                    <ListGroupItem action>
+                                        <div><small>환불BLY</small></div>
+                                        <Flex>
+                                            <Div fg={'bly'}>{ComUtil.addCommas(MathUtil.minusBy(order.mypageBlctToken,order.usedCouponBlyAmount).toFixed(2))} BLY</Div> &nbsp;
+                                            <Div fg={'danger'}>({ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(MathUtil.minusBy(order.mypageBlctToken,order.usedCouponBlyAmount),order.orderBlctExchangeRate)))}원)</Div>
+                                        </Flex>
+                                    </ListGroupItem>
+                                }
                             </ListGroup>
                             :
                             null
                     }
                     {
-                        //미배송 보상금
-                        (order.notDeliveryDate) ?
+                        order.gift && <>
+                            <br/>
+                            <h6>보내는사람 정보</h6>
                             <ListGroup>
                                 <ListGroupItem action>
-                                    <div><small>미배송 보상금</small></div>
-                                    <b>
-                                        {
-                                            ComUtil.addCommas(ComUtil.toNum(order.depositBlct))
-                                        }
-                                        {' BLY'}
-                                    </b>
+                                    <div><small>보내는사람</small></div>
+                                    <b>{order.senderName}</b>
                                 </ListGroupItem>
                             </ListGroup>
-                            :
-                            null
+                        </>
                     }
                     <br />
-                    <h6>주문자정보</h6>
+                    <h6>계정정보</h6>
                     <ListGroup>
                         <ListGroupItem action>
                             <div><small>일자</small></div>
-                            <b>{ComUtil.utcToString(order.orderDate,'YYYY-MM-DD HH:MM')}</b>
+                            <b>{ComUtil.utcToString(order.orderDate,'YYYY-MM-DD HH:mm')}</b>
                         </ListGroupItem>
                         <ListGroupItem action>
-                            <div><small>보내는사람</small></div>
-                            <b>{order.consumerNm}</b>
+                            <div><small>회원명 (소비자번호)</small></div>
+                            <b>{order.originConsumerNm} ({order.consumerNo})</b>
                         </ListGroupItem>
                         <ListGroupItem action>
                             <div><small>연락처</small></div>
@@ -544,12 +661,14 @@ export default class Order extends Component{
                             <b>{order.consumerEmail}</b>
                         </ListGroupItem>
                     </ListGroup>
+
+
                 </Container>
                 {
                     this.state.isOpen &&(
                         <ModalWithNav show={this.state.isOpen} title={'배송조회'} onClose={this.onClose} noPadding={true}>
                             <div className='p-1' style={{width: '100%',minHeight: '350px'}}>
-                                <h6>운송장번호 : {order.trackingNumber}</h6>
+                                <h6>{order.transportCompanyName} 운송장번호 : {order.trackingNumber}</h6>
                                 <iframe src={this.state.trackingUrl} width={'100%'} style={{minHeight:'350px', border: '0'}}></iframe>
                             </div>
                         </ModalWithNav>
@@ -565,7 +684,7 @@ export default class Order extends Component{
                             style={{maxWidth: '800px', width: '80%'}}
                             centered
                         >
-                            <ModalHeader toggle={this.toggle}>주문취소요청</ModalHeader>
+                            <ModalHeader toggle={this.toggle}>{this.state.tempProducerAdmin ? "[관리자]주문취소":"주문취소요청"}</ModalHeader>
                             <ModalBody>
                                 <FormGroup>
                                     <Label className={'font-weight-bold text-secondary small'}>
@@ -594,7 +713,6 @@ export default class Order extends Component{
                         </Modal>
                     )
                 }
-                <ToastContainer />  {/* toast 가 그려질 컨테이너 */}
             </Fragment>
         )
     }

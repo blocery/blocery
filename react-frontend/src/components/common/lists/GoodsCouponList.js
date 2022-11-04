@@ -11,6 +11,8 @@ const GoodsCouponList = ({goodsNo}) => {
 
     if (loading) return null
 
+    if (coupons.length === 0) return null
+
     return(
         <Flex flexDirection={'column'} alignItems={'center'} py={20}>
             {

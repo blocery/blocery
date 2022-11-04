@@ -8,8 +8,8 @@ import { SingleDatePicker } from 'react-dates';
 import {FaSearchPlus} from 'react-icons/fa'
 import { BlocerySpinner, B2cGoodsSelSearch } from '~/components/common'
 import ComUtil from '~/util/ComUtil'
+import MathUtil from "~/util/MathUtil";
 import { getTimeSaleAdmin, setSuperRewardRegist, setSuperRewardUpdate } from '~/lib/adminApi'
-import Style from './B2cSuperRewardReg.module.scss'
 import {Div, Flex, Span, Input} from '~/styledComponents/shared'
 
 const mb = 10
@@ -64,6 +64,9 @@ export default class B2cSuperRewardReg extends Component {
                 currentPrice:0,             // 판매가
                 discountRate:0,             // 할인율
 
+                eventRemainedCnt:0,         //eventFlag버전: remainedCnt->eventRemainedCnt로 변경
+                eventOptionPrice:0,         //eventFlag버전: currentPrice->eventOptionPrice 변경
+
                 superRewardReward:70,       // 소비자 보상비율(70% default)
                 superRewardFeeRate:5,       // 수퍼리워드 수수료 최소 5%
 
@@ -104,8 +107,12 @@ export default class B2cSuperRewardReg extends Component {
         superRewardGoods.discountRate = obj.discountRate;
         superRewardGoods.superRewardFeeRate = obj.feeRate;
         superRewardGoods.superRewardReward = obj.superRewardReward||70;
-
         superRewardGoods.remainedCnt = obj.remainedCnt
+
+        //eventFlag추가
+        superRewardGoods.eventRemainedCnt = obj.eventRemainedCnt
+        superRewardGoods.eventOptionPrice = obj.eventOptionPrice
+        superRewardGoods.eventOptionName = obj.eventOptionName
 
         console.log({superRewardGoods})
 
@@ -172,6 +179,10 @@ export default class B2cSuperRewardReg extends Component {
             return false;
         }
 
+        if(!superRewardGoods.eventGoodsNm) {
+            alert("이벤트용 상품명은 필수 입니다.");
+            return false;
+        }
 
         return true;
 
@@ -199,11 +210,20 @@ export default class B2cSuperRewardReg extends Component {
             superRewardGoods.currentPrice = data.defaultCurrentPrice;
             superRewardGoods.discountRate = data.defaultDiscountRate;
             superRewardGoods.superRewardReward = data.superRewardReward;
-            //superRewardGoods.superRewardDiscountRate = data.superRewardDiscountRate;
+
             superRewardGoods.superRewardFeeRate = data.superRewardFeeRate;
             superRewardGoods.remainedCnt = data.remainedCnt;
             superRewardGoods.superRewardTotalCount = data.superRewardTotalCount;
             superRewardGoods.superRewardBackupCount = data.superRewardBackupCount;
+
+            //eventFlag추가 :2022.05
+            superRewardGoods.eventRemainedCnt = data.eventRemainedCnt
+            superRewardGoods.eventOptionPrice = data.eventOptionPrice
+            superRewardGoods.eventOptionName = data.eventOptionName
+            superRewardGoods.eventGoodsNm = data.eventGoodsNm; //2022.05추가
+
+
+            console.log('superRewardGoods', superRewardGoods)
 
             let v_startDateTime =  moment(data.superRewardStart);
             let v_endDateTime = moment(data.superRewardEnd);
@@ -223,7 +243,7 @@ export default class B2cSuperRewardReg extends Component {
         }else{
 
             let v_startDate = moment().format('YYYY-MM-DD');
-            let v_endDate = moment(v_startDate).add("days", 1).format('YYYY-MM-DD');
+            let v_endDate = moment(v_startDate).add(1,"days").format('YYYY-MM-DD');
             this.setState({
                 superRewardStart: v_startDate, superRewardEnd: v_endDate
             });
@@ -347,6 +367,8 @@ export default class B2cSuperRewardReg extends Component {
         let { name, value } = e.target;
         const superRewardGoods = Object.assign([], this.state.superRewardGoods);
         superRewardGoods[name] = value;
+
+        //console.log(name, value, superRewardGoods)
         this.setState({
             superRewardGoods
         });
@@ -434,7 +456,10 @@ export default class B2cSuperRewardReg extends Component {
 
 
         return (
-            <div className={Style.wrap}>
+            <Div custom={`
+                position: relative;
+                z-index:1019 !important;
+            `}>
 
                 <div className='pt-0 pl-2 pr-2 pb-1'>
                     <FormGroup>
@@ -444,86 +469,103 @@ export default class B2cSuperRewardReg extends Component {
                         </Alert>
                     </FormGroup>
 
-                    <FormGroup>
-                        <Label className={'font-weight-bold text-secondary small'}>기간 {star}</Label>
-                        <div className="d-flex align-items-center">
-                            <SingleDatePicker
-                                placeholder="시작일"
-                                date={this.state.superRewardStart ? moment(this.state.superRewardStart) : null}
-                                onDateChange={this.onCalendarDatesChange.bind(this,'start')}
-                                focused={this.state['superRewardStartDateFocused']}
-                                onFocusChange={({ focused }) => this.setState({ ['superRewardStartDateFocused']:focused })}
-                                id={"superRewardStartDate"}
-                                numberOfMonths={1}
-                                withPortal
-                                small
-                                readOnly
-                                calendarInfoPosition="top"
-                                enableOutsideDays
-                                // daySize={45}
-                                verticalHeight={700}
-                                renderCalendarInfo={this.renderStartCalendarInfo.bind(this)}
-                            />
-                            <div className="pl-1" style={{width: '100px'}}>
-                                <Select
-                                    name={'superRewardStartHH'}
-                                    options={this.state.hourOptions}
-                                    value={this.state.superRewardStartHH ? this.state.hourOptions.find(itemHH => itemHH.value === this.state.superRewardStartHH) : '00'}
-                                    onChange={this.onStartHHChange}
-                                    //isDisabled={true}
+                    <Flex>
+                        <FormGroup>
+                            <Label className={'font-weight-bold text-secondary small'}>기간 {star}</Label>
+                            <div className="d-flex align-items-center">
+                                <SingleDatePicker
+                                    placeholder="시작일"
+                                    date={this.state.superRewardStart ? moment(this.state.superRewardStart) : null}
+                                    onDateChange={this.onCalendarDatesChange.bind(this,'start')}
+                                    focused={this.state['superRewardStartDateFocused']}
+                                    onFocusChange={({ focused }) => this.setState({ ['superRewardStartDateFocused']:focused })}
+                                    id={"superRewardStartDate"}
+                                    numberOfMonths={1}
+                                    withPortal
+                                    small
+                                    readOnly
+                                    calendarInfoPosition="top"
+                                    enableOutsideDays
+                                    // daySize={45}
+                                    verticalHeight={700}
+                                    renderCalendarInfo={this.renderStartCalendarInfo.bind(this)}
                                 />
-                            </div>
-                            <div className="pl-1" style={{width: '100px'}}>
-                                <Select
-                                    name={'superRewardStartMM'}
-                                    options={this.state.minuteOptions}
-                                    value={this.state.superRewardStartMM ? this.state.minuteOptions.find(itemMM => itemMM.value === this.state.superRewardStartMM) : '00'}
-                                    onChange={this.onStartMMChange}
-                                    //isDisabled={true}
+                                <div className="pl-1" style={{width: '100px'}}>
+                                    <Select
+                                        name={'superRewardStartHH'}
+                                        options={this.state.hourOptions}
+                                        value={this.state.superRewardStartHH ? this.state.hourOptions.find(itemHH => itemHH.value === this.state.superRewardStartHH) : '00'}
+                                        onChange={this.onStartHHChange}
+                                        //isDisabled={true}
+                                    />
+                                </div>
+                                <div className="pl-1" style={{width: '100px'}}>
+                                    <Select
+                                        name={'superRewardStartMM'}
+                                        options={this.state.minuteOptions}
+                                        value={this.state.superRewardStartMM ? this.state.minuteOptions.find(itemMM => itemMM.value === this.state.superRewardStartMM) : '00'}
+                                        onChange={this.onStartMMChange}
+                                        //isDisabled={true}
+                                    />
+                                </div>
+                                <div className="pl-1 pr-1"><span>~</span></div>
+                                <SingleDatePicker
+                                    placeholder="종료일"
+                                    date={this.state.superRewardEnd ? moment(this.state.superRewardEnd) : null}
+                                    onDateChange={this.onCalendarDatesChange.bind(this,'end')}
+                                    focused={this.state['superRewardEndDateFocused']}
+                                    onFocusChange={({ focused }) => this.setState({ ['superRewardEndDateFocused']:focused })}
+                                    id={"superRewardEndDate"}
+                                    numberOfMonths={1}
+                                    withPortal
+                                    small
+                                    readOnly
+                                    //disabled={true}
+                                    calendarInfoPosition="top"
+                                    enableOutsideDays
+                                    // daySize={45}
+                                    verticalHeight={700}
+                                    renderCalendarInfo={this.renderEndCalendarInfo.bind(this)}
                                 />
+                                <div className="pl-1" style={{width: '100px'}}>
+                                    <Select
+                                        name={'superRewardEndHH'}
+                                        options={this.state.hourOptions}
+                                        value={this.state.superRewardEndHH ? this.state.hourOptions.find(itemHH => itemHH.value === this.state.superRewardEndHH) : '00'}
+                                        onChange={this.onEndHHChange}
+                                        //isDisabled={true}
+                                    />
+                                </div>
+                                <div className="pl-1" style={{width: '100px'}}>
+                                    <Select
+                                        name={'superRewardEndMM'}
+                                        options={this.state.minuteOptions}
+                                        value={this.state.superRewardEndMM ? this.state.minuteOptions.find(itemMM => itemMM.value === this.state.superRewardEndMM) : '00'}
+                                        onChange={this.onEndMMChange}
+                                        //isDisabled={true}
+                                    />
+                                </div>
                             </div>
-                            <div className="pl-1 pr-1"><span>~</span></div>
-                            <SingleDatePicker
-                                placeholder="종료일"
-                                date={this.state.superRewardEnd ? moment(this.state.superRewardEnd) : null}
-                                onDateChange={this.onCalendarDatesChange.bind(this,'end')}
-                                focused={this.state['superRewardEndDateFocused']}
-                                onFocusChange={({ focused }) => this.setState({ ['superRewardEndDateFocused']:focused })}
-                                id={"superRewardEndDate"}
-                                numberOfMonths={1}
-                                withPortal
-                                small
-                                readOnly
-                                //disabled={true}
-                                calendarInfoPosition="top"
-                                enableOutsideDays
-                                // daySize={45}
-                                verticalHeight={700}
-                                renderCalendarInfo={this.renderEndCalendarInfo.bind(this)}
-                            />
-                            <div className="pl-1" style={{width: '100px'}}>
-                                <Select
-                                    name={'superRewardEndHH'}
-                                    options={this.state.hourOptions}
-                                    value={this.state.superRewardEndHH ? this.state.hourOptions.find(itemHH => itemHH.value === this.state.superRewardEndHH) : '00'}
-                                    onChange={this.onEndHHChange}
-                                    //isDisabled={true}
-                                />
+                            <span className={'small text-secondary'}>
+                                * 슈퍼리워드가 APP에 노출되는 기간을 선택해 주세요.
+                            </span>
+                        </FormGroup>
+                        <FormGroup>
+                            <Label className={'font-weight-bold text-secondary small'}>이벤트 상품명 {star}</Label>
+                            <div className="input-group">
+                                <input type="text"
+                                       name={'eventGoodsNm'}
+                                       className="ml-1"
+                                       style={{width:'300px'}}
+                                       value={superRewardGoods.eventGoodsNm||""}
+                                       placeholder={'이벤트기간에만 누출(필수 입력)'}
+                                       onChange={this.onInputSuperRewardGoodsChange} />
                             </div>
-                            <div className="pl-1" style={{width: '100px'}}>
-                                <Select
-                                    name={'superRewardEndMM'}
-                                    options={this.state.minuteOptions}
-                                    value={this.state.superRewardEndMM ? this.state.minuteOptions.find(itemMM => itemMM.value === this.state.superRewardEndMM) : '00'}
-                                    onChange={this.onEndMMChange}
-                                    //isDisabled={true}
-                                />
-                            </div>
-                        </div>
-                        <span className={'small text-secondary'}>
-                            * 슈퍼리워드가 APP에 노출되는 기간을 선택해 주세요.
-                        </span>
-                    </FormGroup>
+                            <span className={'small text-secondary'}>
+                                * 설정된 시간동안 상품명에 적용됩니다.
+                            </span>
+                        </FormGroup>
+                    </Flex>
 
                     <FormGroup>
                         <Label className={'font-weight-bold text-secondary small'}>슈퍼리워드 상품등록 {star}</Label>
@@ -577,7 +619,9 @@ export default class B2cSuperRewardReg extends Component {
 
                             </div>
                         </div>
-
+                        {superRewardGoods.goodsNm &&
+                            <div> 선택된 이벤트옵션: {superRewardGoods.eventOptionName} </div>
+                        }
 
                         {
                             (superRewardGoods.goodsNo) && (
@@ -589,9 +633,9 @@ export default class B2cSuperRewardReg extends Component {
                                         </Div>
                                     </Flex>
                                     <Flex mb={mb}>
-                                        <Div width={150} mr={20}>판매가</Div>
+                                        <Div width={150} mr={20}>이벤트옵션 판매가</Div>
                                         <Div>
-                                            {ComUtil.addCommas(superRewardGoods.currentPrice)} 원 ({ComUtil.addCommas(Math.round(superRewardGoods.discountRate,0))}%)
+                                            {ComUtil.addCommas(superRewardGoods.eventOptionPrice)} 원 ({ComUtil.addCommas(Math.round(superRewardGoods.discountRate,0))}%)
                                         </Div>
                                     </Flex>
 
@@ -624,17 +668,26 @@ export default class B2cSuperRewardReg extends Component {
                                     <Flex mb={mb}>
                                         <Div width={150} mr={20}>정산가</Div>
                                         <Div>
-                                            {ComUtil.addCommas(superRewardGoods.currentPrice * ((100 - superRewardGoods.superRewardFeeRate) / 100))}원
+                                            {
+                                                ComUtil.addCommas(
+                                                    MathUtil.multipliedBy(
+                                                        superRewardGoods.eventOptionPrice,
+                                                        MathUtil.dividedBy(
+                                                            (100 - superRewardGoods.superRewardFeeRate), 100
+                                                        )
+                                                    )
+                                                )
+                                            }원
                                         </Div>
                                     </Flex>
                                     <Flex>
                                         <Div width={150} mr={20}>번호표 수량</Div>
                                         <Div>
-                                            <Span mr={10}>현 재고수량 <Span fg={'danger'} bold>{superRewardGoods.remainedCnt}</Span>개 </Span>
+                                            <Span mr={10}>현 재고수량 <Span fg={'danger'} bold>{superRewardGoods.eventRemainedCnt}</Span>개 </Span>
                                             <Span><Input name={'superRewardTotalCount'} underLine value={superRewardGoods.superRewardTotalCount}
                                                          onChange={this.onInputChange}
                                                          placeholder={'현 재고수량과 같이 입력 추천'}
-                                            />개 적용</Span>
+                                            />개 적용 (재고수량과 동일하게 입력 추천)</Span>
                                         </Div>
                                     </Flex>
 
@@ -671,7 +724,7 @@ export default class B2cSuperRewardReg extends Component {
                 <Modal size="lg" isOpen={this.state.goodsSearchModal}
                        toggle={this.goodsSearchModalToggle} >
                     <ModalHeader toggle={this.goodsSearchModalToggle}>
-                        상품 검색
+                        슈퍼리워드 상품검색
                     </ModalHeader>
                     <ModalBody>
                         <B2cGoodsSelSearch onChange={this.goodsSearchModalOnChange} />
@@ -682,7 +735,7 @@ export default class B2cSuperRewardReg extends Component {
                     </ModalFooter>
                 </Modal>
 
-            </div>
+            </Div>
         )
     }
 }

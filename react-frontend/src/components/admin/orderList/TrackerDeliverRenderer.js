@@ -1,5 +1,9 @@
 import React, {useEffect, useState} from 'react';
 import { getTrackerDeliverTrace } from '~/lib/deliveryOpenApi'
+
+import {getTransportCarrierId} from "~/util/bzLogic";
+import {getTransportCompany} from "~/lib/shopApi";
+
 const TrackerDeliverRenderer = (props) => {
 
     const [status, setStatus] = useState("");
@@ -10,26 +14,24 @@ const TrackerDeliverRenderer = (props) => {
         if (transportCompanyCode && trackingNumber) {
             if (trackingNumber.toString().length > 10) {
                 setStatus("배송추적");
-                // api 부하로 인해 안부름
-                // getTrackerDeliverTrace(transportCompanyCode, trackingNumber).then(({data}) => {
-                //     //console.log("getTrackerDeliverTrace",data)
-                //     setStatus(data.stateText);
-                // })
             }
         }
     }, []);
 
-    const onClickTrackDeliverInfo = () => {
+    // 통합배송조회 링크
+    const onClickTrackDeliverInfo = async () => {
         let track_id = props.data.trackingNumber;
-        let carrier_id = "";
         const v_TransportCompanyCd = props.data.transportCompanyCode;
-        if(v_TransportCompanyCd === '01') carrier_id = 'kr.logen';
-        else if(v_TransportCompanyCd === '02') carrier_id = 'kr.cjlogistics';
-        else if(v_TransportCompanyCd === '03') carrier_id = 'kr.epost';
-        else if(v_TransportCompanyCd === '04') carrier_id = 'kr.lotte';
-        else if(v_TransportCompanyCd === '05') carrier_id = 'kr.cupost';
-        else if(v_TransportCompanyCd === '07') carrier_id = 'kr.hanjin';
-        let trackingUrl = `https://tracker.delivery/#/${carrier_id}/${track_id}`;
+        const carrier_id = getTransportCarrierId(v_TransportCompanyCd);
+
+        let { data:transportCompanies } = await getTransportCompany();
+        let transportCompany = transportCompanies.find(transportCompany=>transportCompany.transportCompanyCode === v_TransportCompanyCd);
+        let trackingUrl = transportCompany.transportCompanyUrl.replace('[number]', track_id);
+
+        // if(v_TransportCompanyCd !== '07' && v_TransportCompanyCd !== '98' && v_TransportCompanyCd !== '99') {
+        //     trackingUrl = `https://tracker.delivery/#/${carrier_id}/${track_id}`;
+        // }
+
         window.open(trackingUrl,'_blank')
     }
 
@@ -37,7 +39,9 @@ const TrackerDeliverRenderer = (props) => {
         <div>
             {
                 (props.data.trackingNumber && props.data.transportCompanyCode) ?
-                    <span className='text-primary' onClick={onClickTrackDeliverInfo} style={{textColor:'blue'}}>{status}</span>
+                    <span className='text-primary'
+                          onClick={onClickTrackDeliverInfo}
+                          style={{textColor:'blue'}}>{status}</span>
                     :
                     <span>{status}</span>
             }

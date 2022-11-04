@@ -6,6 +6,7 @@ import { getConsumer } from '~/lib/shopApi'
 import { ModalConfirm } from '~/components/common/index'
 import { doLogout } from '~/lib/loginApi'
 import { setConsumerStop } from "~/lib/adminApi"
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 export default class ApplySecession extends Component {
     constructor(props) {
@@ -55,11 +56,12 @@ export default class ApplySecession extends Component {
     render() {
         return (
             <Fragment>
-                <ShopXButtonNav underline historyBack>회원탈퇴</ShopXButtonNav>
+                {/*<ShopXButtonNav underline historyBack>회원탈퇴</ShopXButtonNav>*/}
+                <BackNavigation>회원탈퇴</BackNavigation>
                 <Div m={16} height='100%'>
                     <Div fontSize={18}>
-                        <Span>마켓블리(MarketBly)를 이용해 주셔서 감사합니다.</Span><br/>
-                        <Span bold>마켓블리를 탈퇴하시면</Span><br/>
+                        <Span>샵블리(ShopBly)를 이용해 주셔서 감사합니다.</Span><br/>
+                        <Span bold>샵블리를 탈퇴하시면</Span><br/>
                         <Span bold><Span fg={'danger'}>회원님의 모든 정보가 삭제</Span>됩니다.</Span>
                     </Div>
                     <br/>
@@ -72,7 +74,7 @@ export default class ApplySecession extends Component {
                         <Span>- 거래정보가 있는 경우, 전자상거래 등에서의 소비자 보호에 관한 법률에 따라 계약 또는 청약철회에 관한 기록, 대금결제 및 재화 등의
                             공급에 관한 기록은 <Span bold>5년 동안 보존</Span>됩니다.</Span><br/>
                         <Span>- 보유하셨던 블리(BLY)토큰과 유효기간이 남은 쿠폰은 탈퇴와 함께 삭제되며 환불되지 않습니다.</Span><br/>
-                        <Span>- 회원탈퇴 후 마켓블리 서비스에 입력하신 후기 등은 삭제되지 않습니다.</Span><br/>
+                        <Span>- 회원탈퇴 후 샵블리 서비스에 입력하신 후기 등은 삭제되지 않습니다.</Span><br/>
                         <Span>- 이미 결제가 완료된 건은 탈퇴로 취소되지 않습니다.</Span><br/>
                     </Div>
                 </Div>

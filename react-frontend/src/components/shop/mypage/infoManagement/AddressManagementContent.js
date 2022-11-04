@@ -3,7 +3,6 @@ import {Button} from '~/styledComponents/shared/Buttons'
 import axios from 'axios'
 import { Link } from 'react-router-dom'
 import {getConsumer} from "~/lib/shopApi";
-
 export default class AddressManagementContent extends Component {
     constructor(props) {
         super(props);
@@ -109,6 +108,15 @@ export default class AddressManagementContent extends Component {
         this.modalToggle();
     }
 
+    addressInsert = () => {
+        const params = {
+            pathname: '/mypage/addressModify',
+            search: '?flag=mypage',
+            state: null
+        }
+        this.props.history.push(params)
+    }
+
     addressModify = (i) => {
         const params = {
             pathname: '/mypage/addressModify',
@@ -131,7 +139,7 @@ export default class AddressManagementContent extends Component {
                                         <div className='mr-2'>
                                             {
                                                 basicAddress == 1?
-                                                    <div className='p-1 f6 border bg-light mb-2 d-inline-block'>기본배송지</div> : ''
+                                                    <div className='p-1 f6 border bg-light mb-2 d-inline-block'><b>기본배송지</b></div> : ''
                                             }
                                             <div className='f5 textBoldLarge text-secondary'>{addrName} ({receiverName})</div>
                                             <div className='f6'>{addr} {addrDetail}({zipNo})</div>
@@ -149,9 +157,9 @@ export default class AddressManagementContent extends Component {
                         <div className='w-100 h-100 bg-light d-flex justify-content-center align-items-center p-5 text-dark'>등록된 주소록이 없습니다.</div>
                 }
                 <div className='m-3'>
-                    <Link to={'/mypage/addressModify?flag=mypage'}>
-                        <Button block bg={'green'} fg={'white'} py={16}>+ 배송지 추가</Button>
-                    </Link>
+                    {/*<Link to={'/mypage/addressModify?flag=mypage'}>*/}
+                        <Button block bg={'green'} fg={'white'} py={16} onClick={this.addressInsert}>+ 배송지 추가</Button>
+                    {/*</Link>*/}
                 </div>
 
 

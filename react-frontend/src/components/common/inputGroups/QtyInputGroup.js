@@ -16,8 +16,15 @@ const QtyInputGroup = (props) => {
     }
 
     const onDecreaseClick = () => {
-        const val = ComUtil.toNum(props.value) <= 1 ? 1 : ComUtil.toNum(props.value) -1
-        changeState(val)
+
+        if(props.dealGoods){ //공동구매 옵션은 0도 허용.
+            const val = ComUtil.toNum(props.value) <= 0 ? 0 : ComUtil.toNum(props.value) - 1
+            changeState(val)
+
+        }else { //일반
+            const val = ComUtil.toNum(props.value) <= 1 ? 1 : ComUtil.toNum(props.value) - 1
+            changeState(val)
+        }
     }
 
     const onIncreaseClick = (e) => {
@@ -28,7 +35,8 @@ const QtyInputGroup = (props) => {
     const changeState = (_value) => {
         props.onChange({
             name: props.name,
-            value: _value
+            value: _value,
+            idx: props.idx //공동구매 옵션번호 추가.
         })
     }
 

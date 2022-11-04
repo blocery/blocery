@@ -9,14 +9,11 @@ import classNames from 'classnames';
 import Style from './WebRegularShopList.module.scss'
 //ag-grid
 import { AgGridReact } from 'ag-grid-react';
-// import 'ag-grid-community/dist/styles/ag-grid.css';
-// import 'ag-grid-community/dist/styles/ag-theme-balham.css';
 
 export default class WebRegularShopList extends Component {
     constructor(props) {
         super(props);
         this.serverToday=null;
-        this.rowHeight=50;
         this.state = {
             data: null,
             columnDefs: this.getColumnDefs(),
@@ -58,6 +55,10 @@ export default class WebRegularShopList extends Component {
         this.gridApi.resetRowHeights();
     }
 
+    getRowHeight(params) {
+        return 50;
+    }
+
     // Ag-Grid column Info
     getColumnDefs () {
 
@@ -67,7 +68,7 @@ export default class WebRegularShopList extends Component {
             {
                 headerName: "No.",
                 width: 100,
-                cellStyle:this.getCellStyle,
+                cellStyle:ComUtil.getCellStyle,
                 filterParams: {
                     clearButton: true //클리어버튼
                 },
@@ -79,7 +80,7 @@ export default class WebRegularShopList extends Component {
             {
                 headerName: "이름", field: "consumerName",
                 width: 120,
-                cellStyle:this.getCellStyle,
+                cellStyle:ComUtil.getCellStyle,
                 filterParams: {
                     clearButton: true //클리어버튼
                 }
@@ -87,7 +88,7 @@ export default class WebRegularShopList extends Component {
             {
                 headerName: "이메일아이디", field: "consumerEmail",
                 width: 200,
-                cellStyle:this.getCellStyle,
+                cellStyle:ComUtil.getCellStyle,
                 filterParams: {
                     clearButton: true //클리어버튼
                 }
@@ -95,7 +96,7 @@ export default class WebRegularShopList extends Component {
             {
                 headerName: "휴대전화번호", field: "consumerPhone",
                 width: 200,
-                cellStyle:this.getCellStyle,
+                cellStyle:ComUtil.getCellStyle,
                 filterParams: {
                     clearButton: true //클리어버튼
                 }
@@ -111,13 +112,13 @@ export default class WebRegularShopList extends Component {
                 valueGetter: function(params) {
                     //console.log("params",params);
                     //기공된 필터링 데이터로 필터링 되게 적용 (UTCDate 변환)
-                    return ComUtil.utcToString(params.data.shopRegDate,'YYYY-MM-DD HH:MM');
+                    return ComUtil.utcToString(params.data.shopRegDate,'YYYY-MM-DD HH:mm');
                 }
             },
             {
                 headerName: "구매건수", field: "consumerBuyCnt",
                 width: 100,
-                cellStyle:this.getCellStyle({cellAlign: 'right'}),
+                cellStyle:ComUtil.getCellStyle({cellAlign: 'right'}),
                 cellRenderer: 'formatCurrencyRenderer',
                 filterParams: {
                     clearButton: true //클리어버튼
@@ -126,7 +127,7 @@ export default class WebRegularShopList extends Component {
             {
                 headerName: "구매금액", field: "consumerBuyAmt",
                 width: 150,
-                cellStyle:this.getCellStyle({cellAlign: 'right'}),
+                cellStyle:ComUtil.getCellStyle({cellAlign: 'right'}),
                 cellRenderer: 'formatCurrencyRenderer',
                 filterParams: {
                     clearButton: true //클리어버튼
@@ -137,21 +138,6 @@ export default class WebRegularShopList extends Component {
         return columnDefs
     }
 
-    // Ag-Grid Cell 스타일 기본 적용 함수
-    getCellStyle ({cellAlign,color,textDecoration,whiteSpace}){
-        if(cellAlign === 'left') cellAlign='flex-start';
-        else if(cellAlign === 'center') cellAlign='center';
-        else if(cellAlign === 'right') cellAlign='flex-end';
-        else cellAlign='flex-start';
-        return {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: cellAlign,
-            color: color,
-            textDecoration: textDecoration,
-            whiteSpace: whiteSpace
-        }
-    }
     //Ag-Grid Cell 숫자콤마적용 렌더러
     formatCurrencyRenderer = ({value, data:rowData}) => {
         //console.log("rowData",rowData);
@@ -274,16 +260,10 @@ export default class WebRegularShopList extends Component {
                     className={classNames('ag-theme-balham',Style.agGridDivCalc)}
                 >
                     <AgGridReact
-                        // enableSorting={true}                //정렬 여부
-                        // enableFilter={true}                 //필터링 여부
-                        floatingFilter={true}               //Header 플로팅 필터 여부
                         columnDefs={this.state.columnDefs}  //컬럼 세팅
                         defaultColDef={this.state.defaultColDef}
                         rowSelection={this.state.rowSelection}  //멀티체크 가능 여부
-                        rowHeight={this.rowHeight}
-                        //gridAutoHeight={true}
-                        //domLayout={'autoHeight'}
-                        // enableColResize={true}              //컬럼 크기 조정
+                        getRowHeight={this.getRowHeight}
                         overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                         overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
                         onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
@@ -292,10 +272,6 @@ export default class WebRegularShopList extends Component {
                         frameworkComponents={this.state.frameworkComponents}
                         suppressMovableColumns={true} //헤더고정시키
                         onFilterChanged={this.onGridFilterChanged.bind(this)} //필터온체인지 이벤트
-                        // onRowClicked={this.onSelectionChanged.bind(this)}
-                        // onRowSelected={this.onRowSelected.bind(this)}
-                        // onSelectionChanged={this.onSelectionChanged.bind(this)}
-                        // suppressRowClickSelection={true}    //true : 셀 클릭시 체크박스 체크 안됨, false : 셀 클릭시 로우 단위로 선택되어 체크박스도 자동 체크됨 [default 값은 false]
                     >
                     </AgGridReact>
                 </div>

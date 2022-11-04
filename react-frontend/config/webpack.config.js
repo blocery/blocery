@@ -481,6 +481,9 @@ module.exports = function(webpackEnv) {
     },
     plugins: [
       new webpack.ProvidePlugin({
+          $: "jquery",
+          jQuery: "jquery",
+          'window.jQuery': 'jquery',
           'window.Quill': ['react-quill', 'Quill'],
           'Quill': 'quill'
       }),

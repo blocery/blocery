@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, Fragment} from 'react';
 import {Button, Div, Flex, Img, Input, Span} from "~/styledComponents/shared";
 import {ShopXButtonNav} from "~/components/common";
 import certApi from "~/lib/certApi";
@@ -14,6 +14,7 @@ import {useModal} from "~/util/useModal";
 import {toast, ToastContainer} from 'react-toastify'                              //토스트
 import KakaoPayment from '~/images/icons/sns/kakao_nobg_payment_icon_yellow_large.png'
 import SecureApi from "~/lib/secureApi";
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 const AgreeItem = ({onChange, disabled}) => {
 
@@ -75,7 +76,7 @@ const AgreeItem = ({onChange, disabled}) => {
     )
 }
 
-const KakaoCert = ({history, refresh}) => {
+const KakaoCert = ({history, refresh, type}) => {
 
     const [consumer, setConsumer] = useState({
         name: '',
@@ -93,13 +94,6 @@ const KakaoCert = ({history, refresh}) => {
     }, [])
 
     const init = async () => {
-        // 혹시나 CSRF 세팅이 안될 경우 대비 한번더 넣게 처리
-        SecureApi.setCsrf().then(()=>{
-            SecureApi.getCsrf().then(({data})=>{
-                localStorage.setItem('xToken',data);
-            });
-        });
-
         const {data} = await getConsumer()
         if (data) {
             setConsumer({
@@ -112,15 +106,18 @@ const KakaoCert = ({history, refresh}) => {
     const checkValidation = () => {
         const {name, birthday} = consumer
         if (!name || name.trim().length <= 0) {
-            alert('이름을 입력하여 주시기 바랍니다.')
+            //alert('이름을 입력하여 주시기 바랍니다.')
+            notify('이름을 입력하여 주시기 바랍니다.', toast.warn);
             return false;
         }
         else if (!birthday || birthday.trim().length <= 0) {
-            alert('생년월일을 입력하여 주시기 바랍니다.')
+            //alert('생년월일을 입력하여 주시기 바랍니다.')
+            notify('생년월일을 입력하여 주시기 바랍니다.', toast.warn);
             return false;
         }
         else if (birthday.trim().length !== 8) {
-            alert('생년월일은 8자리(예: 19930101)로 입력하여 주시기 바랍니다.')
+            //alert('생년월일은 8자리(예: 19930101)로 입력하여 주시기 바랍니다.')
+            notify('생년월일은 8자리(예: 19930101)로 입력하여 주시기 바랍니다.', toast.warn);
             return false;
         }
 
@@ -136,7 +133,8 @@ const KakaoCert = ({history, refresh}) => {
 
         const {data} = await certApi.requestAuth({
             name: consumer.name,
-            birthday: consumer.birthday
+            birthday: consumer.birthday,
+            type: type
         })
 
         // long code;              /* 200이면정상적인 처리, 아니면 메시지 확인 */
@@ -158,7 +156,8 @@ const KakaoCert = ({history, refresh}) => {
             setRequested(true)
 
         }else { //에러
-            alert(message)
+            //alert(message)
+            notify(message, toast.error);
             return
         }
     }
@@ -173,12 +172,14 @@ const KakaoCert = ({history, refresh}) => {
                 //부모 페이지 재 조회
                 refresh()
             }else{
-                alert(message)
+                //alert(message)
+                notify(message, toast.error);
             }
             return
         }
 
-        alert('다시 로그인 해 주세요')
+        //alert('다시 로그인 해 주세요')
+        notify('다시 로그인 해 주세요.', toast.info);
         refresh()
     }
 
@@ -206,13 +207,15 @@ const KakaoCert = ({history, refresh}) => {
 
     return (
         <Div>
-            <ShopXButtonNav underline>성인 인증</ShopXButtonNav>
+            {/*<ShopXButtonNav underline>성인 인증</ShopXButtonNav>*/}
+            <BackNavigation>본인 인증</BackNavigation>
             <Div p={16}>
-
                 <Div px={13} fontSize={13} fw={200} lineHeight={20}>
-                    <Flex dot alignItems={'flex-start'}>정부의 암호화폐 관련 정책에 근거하여, 출금 등 디지털 자산의 이용은 성년만 가능합니다. (만 19세 이상, 미성년자는 이용 불가)</Flex>
-                    <Flex dot alignItems={'flex-start'}>아래에서 인증 후 이용해 주시기 바랍니다.</Flex>
-                    <Flex dot alignItems={'flex-start'}><u>최초 1회만 인증</u></Flex>
+                    <Flex dot alignItems={'flex-start'}>회원정보 보호를 위한 최초 1회 본인확인입니다.</Flex>
+                    <Flex dot alignItems={'flex-start'}>샵블리 본인인증은 샵블리 적립금 이용자 모두를 대상으로 하며, 본인 명의의 가입 계정이 아닌 경우 이용에 제한이 있을 수 있습니다.</Flex>
+                    <Flex dot alignItems={'flex-start'}>샵블리 적립금은 이용자 본인이 직접 사용해야 하며, 샵블리의 사전 동의 없이 타인에게 대여하거나 양도 또는 담보의 목적으로 이용할 수 없습니다.</Flex>
+                    <Flex dot alignItems={'flex-start'}>인증 절차를 통해 등록된 개인 정보는 인증 당사자 동의 없이 제3자에게 제공되지 않으며, 개인정보취급방침을 준수합니다.</Flex>
+                    <Flex dot alignItems={'flex-start'}>정부의 암호화폐 관련 정책에 근거하여 디지털 자산의 출금은 성년만 가능합니다. (만 19세 이상, 미성년자는 이용 불가)</Flex>
                 </Div>
 
                 <Div my={25}>
@@ -254,7 +257,7 @@ const KakaoCert = ({history, refresh}) => {
             </Div>
 
 
-            <ToastContainer/>
+            {/*<ToastContainer/>*/}
 
         </Div>
     );

@@ -13,7 +13,10 @@ import
 } from '~/components/common'
 import ComUtil from '~/util/ComUtil'
 import { getMdPick, setMdPickSave } from '~/lib/adminApi'
-import Style from './B2cMdPickReg.module.scss'
+import GoodsSearchView from "~/components/common/contents/GoodsSearchView";
+import AdminLayouts from "~/styledComponents/shared/AdminLayouts";
+import {Div, Space} from "~/styledComponents/shared";
+import {BsCaretDownFill, BsCaretUpFill} from "react-icons/bs";
 
 export default class B2cMdPickReg extends Component{
     constructor(props) {
@@ -46,6 +49,7 @@ export default class B2cMdPickReg extends Component{
             },
 
             goodsSearchModal:false,
+            goodsSearchByNoModal:false,
             currentGoodsIdx:null,
         };
     }
@@ -72,6 +76,11 @@ export default class B2cMdPickReg extends Component{
     goodsSearchModalToggle = () => {
         this.setState(prevState => ({
             goodsSearchModal: !prevState.goodsSearchModal
+        }));
+    };
+    goodsSearchByNoModalToggle = () => {
+        this.setState(prevState => ({
+            goodsSearchByNoModal: !prevState.goodsSearchByNoModal
         }));
     };
 
@@ -173,7 +182,7 @@ export default class B2cMdPickReg extends Component{
             })
 
         }else{
-            this.addRowMdPickGoods();
+            // this.addRowMdPickGoods();
         }
 
         this.setState({isDidMounted:true})
@@ -307,6 +316,34 @@ export default class B2cMdPickReg extends Component{
         });
     };
 
+    //상품 일괄 추가
+    addGoodsListClick = (goodsList) => {
+        console.log({goodsList: goodsList})
+        if (goodsList.length > 0) {
+            const mdPick = Object.assign({}, this.state.mdPick);
+
+            const newGoodsList = []
+
+            goodsList.map(goods => {
+                if (mdPick.mdPickGoodsList.filter(g => g.goodsNo === goods.goodsNo).length === 0) {
+                    newGoodsList.push({
+                        idx: 1,
+                        producerNo: goods.producerNo,
+                        producerFarmNm: goods.producerFarmNm,
+                        goodsNo: goods.goodsNo,
+                        goodsNm: goods.goodsNm
+                    })
+                }
+            })
+
+            mdPick.mdPickGoodsList = mdPick.mdPickGoodsList.concat(newGoodsList)
+            console.log({'mdPick.mdPickGoodsList': mdPick.mdPickGoodsList})
+            this.setState({mdPick})
+
+            this.goodsSearchByNoModalToggle()
+        }
+    }
+
     delRowMdPickGoods = (e) => {
         const mdPick = Object.assign({}, this.state.mdPick);
         let v_idx = e.target.getAttribute("data-index");
@@ -359,6 +396,26 @@ export default class B2cMdPickReg extends Component{
         }
     };
 
+    //위치소팅
+    onSortClick = (index, moveIndex) => {
+        const mdPick = Object.assign({}, this.state.mdPick);
+        const list = Object.assign([], mdPick.mdPickGoodsList)
+
+        if (moveIndex < 0 || moveIndex >= list.length) return
+
+        //잘라내기
+        const item = list.splice(index, 1)[0]
+
+        console.log({item,  index,  moveIndex})
+
+        list.splice(moveIndex, 0, item)
+
+        mdPick.mdPickGoodsList=list;
+        this.setState({
+            mdPick
+        });
+    }
+
     render() {
 
         if(!this.state.isDidMounted) return <BlocerySpinner/>;
@@ -371,7 +428,9 @@ export default class B2cMdPickReg extends Component{
         const btnSave = <Button onClick={this.onConfirmClick} block color={'info'}>저장</Button>;
 
         return (
-            <div className={Style.wrap}>
+            <Div custom={`
+              position: relative;
+            `}>
 
                 <div className='pt-0 pl-2 pr-2 pb-1'>
                     <FormGroup>
@@ -434,7 +493,7 @@ export default class B2cMdPickReg extends Component{
                                 defaultCount={1}
                                 isShownMainText={false}
                                 onChange={this.onMdPickMainImagesChange}
-                                isNoResizing={true}
+                                quality={1}
                             />
                         </div>
                         <span className={'small text-secondary'}>
@@ -450,7 +509,7 @@ export default class B2cMdPickReg extends Component{
                                 defaultCount={1}
                                 isShownMainText={false}
                                 onChange={this.onMdPickDetailImagesChange}
-                                isNoResizing={true}
+                                quality={1}
                             />
                         </div>
                         <span className={'small text-secondary'}>
@@ -511,6 +570,11 @@ export default class B2cMdPickReg extends Component{
 
                     <FormGroup>
                         <Label className={'font-weight-bold text-secondary small'}>상품등록 {star}</Label>
+                        <Space spaceGap={16} mb={1}>
+                            <AdminLayouts.MenuButton onClick={this.addRowMdPickGoods}><FaPlusCircle style={{marginRight:4}}/>상품 행 추가</AdminLayouts.MenuButton>
+                            <AdminLayouts.MenuButton onClick={this.goodsSearchByNoModalToggle}>상품번호로 일괄 등록</AdminLayouts.MenuButton>
+                        </Space>
+
                         <div className="d-flex">
                             <div className="d-flex flex-column align-items-center mb-1">
                                 {
@@ -568,18 +632,24 @@ export default class B2cMdPickReg extends Component{
                                                     data-index={index}
                                                     onClick={this.delRowMdPickGoods}><FaMinusCircle /> 삭제</Button>
 
+                                                <Div ml={10} fg={'white'}>
+                                                    <Button
+                                                        onClick={this.onSortClick.bind(this,index,index-1)}>
+                                                        <BsCaretUpFill/>
+                                                    </Button>
+                                                    <Button
+                                                        className="ml-2"
+                                                        onClick={this.onSortClick.bind(this,index,index+1)}>
+                                                        <BsCaretDownFill/>
+                                                    </Button>
+                                                </Div>
+
                                             </div>
 
                                         </div>
 
                                     ))
                                 }
-                                <div>
-                                    <Button
-                                        className="m-2"
-                                        color={'info'}
-                                        onClick={this.addRowMdPickGoods}><FaPlusCircle /> 상품 행 추가</Button>
-                                </div>
                             </div>
 
                         </div>
@@ -610,8 +680,22 @@ export default class B2cMdPickReg extends Component{
                                 onClick={this.goodsSearchModalToggle}>취소</Button>
                     </ModalFooter>
                 </Modal>
+                {/*일괄 상품등록 모달 */}
+                <Modal size="xl" isOpen={this.state.goodsSearchByNoModal}
+                       toggle={this.goodsSearchByNoModalToggle} >
+                    <ModalHeader toggle={this.goodsSearchByNoModalToggle}>
+                        상품 검색
+                    </ModalHeader>
+                    <ModalBody>
+                        <GoodsSearchView onApply={this.addGoodsListClick} />
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="secondary"
+                                onClick={this.goodsSearchByNoModalToggle}>취소</Button>
+                    </ModalFooter>
+                </Modal>
 
-            </div>
+            </Div>
         )
     }
 }

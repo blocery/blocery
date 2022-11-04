@@ -7,18 +7,20 @@ import proj4 from 'proj4';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/dist/styles/ag-grid.css';
 import 'ag-grid-community/dist/styles/ag-theme-balham.css';
+import styled from "styled-components";
+import {color} from "~/styledComponents/Properties";
+import DaumPostcode from "react-daum-postcode";
+import {Fixed} from "~/styledComponents/shared";
+import ShopNav from "~/components/common/navs/ShopNav";
+import {getValue} from "~/styledComponents/Util";
 
-
-
+//TODO 주소검색시 위.경도는 쓰이지 않기 때문에 나머지 불필요 소스 제거 필요 (21.12.07)
 export default class AddressSearchButton extends Component {
 
     constructor(props){
         super(props)
-
         this.state = {
             isOpen: false,
-
-
             // region ===== 주소검색용 ag-grid =====
             columnDefs: [
                 {headerName: "주소", cellRenderer: "jusoAddressRenderer", width: 500}
@@ -38,7 +40,6 @@ export default class AddressSearchButton extends Component {
             frameworkComponents: {
                 jusoAddressRenderer:this.jusoAddressRenderer
             },
-            rowHeight: 50,
             rowSelection: 'single',
             overlayLoadingTemplate: '<span class="ag-overlay-loading-center">...로딩중입니다...</span>',
             overlayNoRowsTemplate: '<span class="ag-overlay-loading-center">조회된 내역이 없습니다</span>',
@@ -52,9 +53,6 @@ export default class AddressSearchButton extends Component {
         }
     }
 
-    componentDidMount(){
-    }
-
     toggle = () => {
         const isOpen = !this.state.isOpen
         this.setState({isOpen: isOpen})
@@ -65,6 +63,10 @@ export default class AddressSearchButton extends Component {
         //API init
         this.gridApi = params.api;
         this.gridColumnApi = params.columnApi;
+    }
+
+    getRowHeight(params) {
+        return 50;
     }
 
     //Ag-Grid Cell 주소검색 주소렌더러
@@ -81,10 +83,47 @@ export default class AddressSearchButton extends Component {
     }
 
     // 주소검색용 검색 온체인지
-    jusoInputSearchHandleChange = (e) => {
-        this.setState({
-            [e.target.name]: e.target.value
+    jusoInputSearchHandleChange = (data) => {
+
+
+        console.log({data})
+
+        let fullAddress = data.address;
+        let roadFullAddress = data.roadAddress;
+        let extraAddress = '';
+
+        if (data.userSelectedType === 'R') { // 사용자가 도로명 주소를 선택했을 경우
+            fullAddress = data.roadAddress;
+        } else { // 사용자가 지번 주소를 선택했을 경우(J)
+            fullAddress = data.jibunAddress;
+        }
+        if (data.bname !== '') {
+            extraAddress += data.bname;
+        }
+        if (data.buildingName !== '') {
+            extraAddress += (extraAddress !== '' ? `, ${data.buildingName}` : data.buildingName);
+        }
+        if (data.addressType === 'R') {
+            fullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
+        }
+        roadFullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
+
+        let zipNo = data.zonecode
+        let address = fullAddress
+        // zipNo.setValue(data.zonecode)
+        // addr.setValue(fullAddress)
+
+
+        this.props.onChange({
+            zipNo: zipNo,
+            address: fullAddress,
+            location : {
+                type:'Point',
+                coordinates:[0, 0]
+            }
         })
+
+        this.toggle()
     }
 
     jusoAddressModalPopup = (whichJuso) => {
@@ -248,59 +287,60 @@ export default class AddressSearchButton extends Component {
                 innerRef={this.props.buttonRef}
                 >주소검색</Button>
 
+
                 <Modal isOpen={this.state.isOpen} toggle={this.toggle}>
                     <ModalHeader toggle={this.toggle}> 주소 검색 </ModalHeader>
-                    <ModalBody >
-                        <Container fluid>
-                            <Row>
-                                <Col xs={9}>
-                                    <Input name="jusoInputAddress" type="text" placeholder="도로명 주소 입력" onChange={this.jusoInputSearchHandleChange}
-                                    />
-                                </Col>
-                                <Col xs={3}>
-                                    {' '}<Button block outline color="secondary" onClick={this.jusoSearchAPIcall}>검색</Button>
-                                </Col>
-                            </Row>
-                            <p/>
-                            {
-                                this.state.jusoResults.length <= 0 && (
-                                    <p className="text-muted text-center">검색된 내용이 없습니다</p>
-                                )
-                            }
-                            {
-                                this.state.jusoResults.length > 0 && (
-                                    <Row>
-                                        <Col xs={12}>
-                                            <small className="text-muted">검색결과 : <Badge color={'warning'}>{this.state.jusoTotalCount}</Badge> 건{this.state.jusoTotalCount >100 && '(100건 초과 - 필요시 재검색 요망)'}</small>
-                                            <div
-                                                id="myGrid"
-                                                className={"ag-theme-balham"}
-                                                style={{height:"300px"}}
-                                            >
-                                                <AgGridReact
-                                                    // enableSorting={false}                //정렬 여부
-                                                    // enableFilter={false}                 //필터링 여부
-                                                    floatingFilter={false}               //Header 플로팅 필터 여부
-                                                    columnDefs={this.state.columnDefs}  //컬럼 세팅
-                                                    defaultColDef={this.state.defaultColDef}
-                                                    rowSelection={false}  //멀티체크 가능 여부
-                                                    rowHeight={this.state.rowHeight}
-                                                    // enableColResize={true}              //컬럼 크기 조정
-                                                    overlayLoadingTemplate={this.state.overlayLoadingTemplate}
-                                                    overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
-                                                    onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
-                                                    rowData={this.state.jusoResults}
-                                                    components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
-                                                    frameworkComponents={this.state.frameworkComponents}
-                                                    suppressMovableColumns={true} //헤더고정시키
-                                                >
-                                                </AgGridReact>
-                                            </div>
-                                        </Col>
-                                    </Row>
-                                )
-                            }
-                        </Container>
+                    <ModalBody className={'p-0'}>
+
+                        <PostCode onComplete={this.jusoInputSearchHandleChange}/>
+
+
+                        {/*<Container fluid>*/}
+                        {/*    <Row>*/}
+                        {/*        <Col xs={9}>*/}
+                        {/*            <Input name="jusoInputAddress" type="text" placeholder="도로명 주소 입력" onChange={this.jusoInputSearchHandleChange}*/}
+                        {/*            />*/}
+                        {/*        </Col>*/}
+                        {/*        <Col xs={3}>*/}
+                        {/*            {' '}<Button block outline color="secondary" onClick={this.jusoSearchAPIcall}>검색</Button>*/}
+                        {/*        </Col>*/}
+                        {/*    </Row>*/}
+                        {/*    <p/>*/}
+                        {/*    {*/}
+                        {/*        this.state.jusoResults.length <= 0 && (*/}
+                        {/*            <p className="text-muted text-center">검색된 내용이 없습니다</p>*/}
+                        {/*        )*/}
+                        {/*    }*/}
+                        {/*    {*/}
+                        {/*        this.state.jusoResults.length > 0 && (*/}
+                        {/*            <Row>*/}
+                        {/*                <Col xs={12}>*/}
+                        {/*                    <small className="text-muted">검색결과 : <Badge color={'warning'}>{this.state.jusoTotalCount}</Badge> 건{this.state.jusoTotalCount >100 && '(100건 초과 - 필요시 재검색 요망)'}</small>*/}
+                        {/*                    <div*/}
+                        {/*                        id="myGrid"*/}
+                        {/*                        className={"ag-theme-balham"}*/}
+                        {/*                        style={{height:"300px"}}*/}
+                        {/*                    >*/}
+                        {/*                        <AgGridReact*/}
+                        {/*                            columnDefs={this.state.columnDefs}  //컬럼 세팅*/}
+                        {/*                            defaultColDef={this.state.defaultColDef}*/}
+                        {/*                            rowSelection={false}  //멀티체크 가능 여부*/}
+                        {/*                            getRowHeight={this.getRowHeight}*/}
+                        {/*                            overlayLoadingTemplate={this.state.overlayLoadingTemplate}*/}
+                        {/*                            overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}*/}
+                        {/*                            onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)*/}
+                        {/*                            rowData={this.state.jusoResults}*/}
+                        {/*                            components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음*/}
+                        {/*                            frameworkComponents={this.state.frameworkComponents}*/}
+                        {/*                            suppressMovableColumns={true} //헤더고정시키*/}
+                        {/*                        >*/}
+                        {/*                        </AgGridReact>*/}
+                        {/*                    </div>*/}
+                        {/*                </Col>*/}
+                        {/*            </Row>*/}
+                        {/*        )*/}
+                        {/*    }*/}
+                        {/*</Container>*/}
                     </ModalBody>
                     <ModalFooter>
                         <Button color="secondary" onClick={this.toggle}>취소</Button>
@@ -310,4 +350,16 @@ export default class AddressSearchButton extends Component {
         )
     }
 
+}
+
+const StyledDaumPostcode = styled(DaumPostcode)`
+    #__daum__layer_1, #__daum__layer_2 {
+        height: 78vh!important;
+    }    
+`
+
+function PostCode({onComplete}) {
+    return(
+        <StyledDaumPostcode style={{height: `78vh`}} onComplete={onComplete} />
+    )
 }

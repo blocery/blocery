@@ -3,6 +3,87 @@ import XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import ComUtil from '~/util/ComUtil';
 
+//array 잘라서 리턴
+function sliceData(data, sliceTo) {
+    if (data.length > sliceTo) {
+        return data.slice(0, sliceTo)
+    }else{
+        return data
+    }
+}
+
+//헤더의 컬럼 길이 반환 [{wch: 10}, {wch: 23}...]
+function formatExcelHeaderCols(headers) {
+    return headers.map(key => {
+        return { wch: ComUtil.getTextLength(key) } // plus 2 to account for short object keys
+    })
+}
+
+
+/** 
+    셀의 길이 자동계산하여 반환 : data 가 array ['', ''] 일 경우 사용    
+**/
+function getExcelColsByArray(
+    //한글 헤더 ['', '']
+    headers,
+    //데이터 ['', '']
+    data,
+    //셀의 최대길이 제한
+    maxCellLength = 50
+) {
+
+    //헤더의 컬럼 길이
+    let widthArr = formatExcelHeaderCols(headers)
+
+    //데이터를 loop 를 통해 가장 긴 길이 측정
+    for (let i = 0; i < data.length; i++) {
+        let value = Object.values(data[i]);
+
+        for (let j = 0; j < value.length; j++) {
+
+            //셀별 길이 측정
+            const len = ComUtil.getTextLength(value[j])
+
+            // console.log({key: value[j], keyLength: len})
+
+            if (value[j] !== null && len > widthArr[j].wch) {
+                widthArr[j].wch = len > maxCellLength ? maxCellLength : len
+            }
+        }
+    }
+    return widthArr
+}
+
+/**
+ 셀의 길이 자동계산하여 반환 : data 가 object in array [{obj}, {obj}...] 인 경우 사용
+ **/
+function getExcelColsByArrayObject(
+    //한글 헤더 ['', '']
+    headers,
+    //컬럼명 ['', '']
+    columns,
+    //데이터 [{}, {}]
+    data,
+    //셀의 최대길이 제한
+    maxCellLength = 50) {
+
+    const widthArr = formatExcelHeaderCols(headers)
+
+    Object.values(data).map(obj => {
+        columns.map((column, index) => {
+            //헤더에서 지정된 가로값
+            const col = widthArr[index]
+            const value = obj[column]
+            const len = ComUtil.getTextLength(value)
+            if (len > col.wch) {
+                col.wch = len > maxCellLength ? maxCellLength : len
+            }
+        })
+    })
+
+    return widthArr;
+}
+
 const ExcelUtil = {
     s2ab(s) {
         var buf = new ArrayBuffer(s.length); //convert s to arrayBuffer
@@ -21,20 +102,32 @@ const ExcelUtil = {
     },
 
     downloadForAoa: function(fileName, headers, data){
-
+        console.log("================downloadForJson============")
+        console.log({headers, data})
         // workbook 생성
         let wb = XLSX.utils.book_new();
 
         // 시트 만들기
         let v_SheetName = "sheet1";
 
-        if(headers) data.unshift(headers);
+        // if(headers) data.unshift(headers);
+
+        const copiedData = Object.assign([], data)
+        copiedData.unshift(headers)
 
         // aoa 데이터 삽입
-        let ws = XLSX.utils.aoa_to_sheet(data);
+        let ws = XLSX.utils.aoa_to_sheet(copiedData);
 
         // workbook에 새로만든 워크시트에 이름을 주고 붙인다.
         XLSX.utils.book_append_sheet(wb, ws, v_SheetName);
+
+        //컬럼 가로길이 지정
+        //wch : width charactor
+
+        // const checkingData = data.length > 30 ? data.slice(1, data.length) : data
+        let excelCols = getExcelColsByArray(headers, sliceData(data, 20))
+        ws['!cols'] = excelCols
+
 
         // 엑셀 파일 만들기
         let wbout = XLSX.write(wb, {bookType:'xlsx',  type: 'array'});
@@ -46,6 +139,8 @@ const ExcelUtil = {
         saveAs(new Blob([wbout],{type:"application/octet-stream"}), v_ExcelFileName);
     },
     downloadForJson: function(fileName, headers, columns, data){
+        console.log("================downloadForJson============")
+        console.log({headers, columns, data})
         //let v_order_data_list = this.state.data;
 
         // step 1. workbook 생성
@@ -70,6 +165,8 @@ const ExcelUtil = {
         }
 
         let ws = XLSX.utils.aoa_to_sheet(Heading);
+
+        ws['!cols'] = getExcelColsByArrayObject(headers, columns, sliceData(data, 20))
 
         // append to bottom of worksheet starting on first column
         let v_origin_position = "A1";

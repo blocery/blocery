@@ -2,10 +2,9 @@ import React, { Component, Fragment } from 'react';
 import { Col, Button, Form, FormGroup, Label, Input, Container, InputGroup, Table, Badge, Row, Fade } from 'reactstrap'
 import ComUtil from "~/util/ComUtil"
 import {getConsumer, updateValword} from "~/lib/shopApi";
-import { updValword } from "~/lib/producerApi"
 import { doLogout } from "~/lib/loginApi"
-import { ShopXButtonNav } from '~/components/common'
 import { Redirect } from 'react-router-dom'
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 export default class ModifyValword extends Component {
 
@@ -13,7 +12,7 @@ export default class ModifyValword extends Component {
         super(props)
         this.state = {
             consumerNo: 0,
-            producerNo: 0,
+            producerFlag: false,
             newValword: '',
             fadeValword: false,
             fadeValwordCheck: false,
@@ -27,8 +26,10 @@ export default class ModifyValword extends Component {
             this.props.history.replace('/mypage');
             return;
         }
+
         this.setState({
-            consumerNo: loginUser.consumerNo
+            consumerNo: loginUser.consumerNo,
+            producerFlag: loginUser.producerFlag
         })
     }
 
@@ -72,42 +73,22 @@ export default class ModifyValword extends Component {
             alert('비밀번호를 다시 확인해주세요.')
             return;
         }
-
-        let data = {};
-        data.valword = this.state.newValword;
-
-        // consumerNo=0이면 producer, producerNo=0이면 consumer
-        // 생산자 마이페이지 기획 확정시 변경 예정
-        if (this.state.producerNo === 0 || this.state.producerNo == null) {
-            data.consumerNo = this.state.consumerNo;
-            let modified = await updateValword(data);
-            if(modified.data === 1) {
-                alert('비밀번호 변경이 완료되었습니다. 다시 로그인해주세요.')
-                //this.props.history.push('/myPage');
-                await this.doLogout();
-                this.setState({
-                    redirect: '/mypage'
-                })
-            } else {
-                alert('회원정보 수정 실패. 다시 시도해주세요.')
-                return false;
-            }
+        const data = {
+            valword:this.state.newValword,
+            consumerNo:this.state.consumerNo
+        };
+        const modified = await updateValword(data);
+        if(modified.data === 1) {
+            alert('비밀번호 변경이 완료되었습니다. 다시 로그인해주세요.')
+            //this.props.history.push('/myPage');
+            await this.doLogout();
+            this.setState({
+                redirect: this.state.producerFlag ? '/mypage/producer':'/mypage'
+            })
         } else {
-            data.producerNo = this.state.producerNo;
-            let modified = await updValword(data);
-            if(modified.data === 1) {
-                alert('비밀번호 변경이 완료되었습니다. 다시 로그인해주세요.')
-                //this.props.history.push('/myPage');
-                await this.doLogout();
-                this.setState({
-                    redirect: '/producer/mypage'
-                })
-            } else {
-                alert('회원정보 수정 실패. 다시 시도해주세요.')
-                return false;
-            }
+            alert('회원정보 수정 실패. 다시 시도해주세요.')
+            return false;
         }
-
     }
 
     // 비밀번호 변경 후 자동 로그아웃
@@ -121,7 +102,7 @@ export default class ModifyValword extends Component {
         if(this.state.redirect) return <Redirect to={this.state.redirect} />
         return(
             <Fragment>
-                <ShopXButtonNav underline historyBack>비밀번호 변경</ShopXButtonNav>
+                <BackNavigation>비밀번호 변경</BackNavigation>
                 <Container fluid>
                     <p></p>
                     <Row>

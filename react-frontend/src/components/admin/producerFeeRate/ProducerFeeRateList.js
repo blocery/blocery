@@ -8,6 +8,8 @@ import { AgGridReact } from 'ag-grid-react';
 // import "ag-grid-community/src/styles/ag-grid.scss";
 // import "ag-grid-community/src/styles/ag-theme-balham.scss";
 import { Cell } from '~/components/common'
+import {Div, Flex, Space} from "~/styledComponents/shared";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
 
 const ProducerFeeRateList = (props) => {
 
@@ -133,37 +135,39 @@ const ProducerFeeRateList = (props) => {
     }
 
     return (
-        <div
-            className="ag-theme-balham"
-            style={{
-                height: '700px'
-            }}
-        >
-            <Button outline size='sm' color={'info'} onClick={regProducerFee} className='m-2'>생산자 수수료 등록</Button>
+        <Div p={16}>
 
-            <AgGridReact
-                // enableSorting={true}
-                // enableFilter={true}
-                columnDefs={agGrid.columnDefs}
-                defaultColDef={agGrid.defaultColDef}
-                rowSelection={'single'}  //멀티체크 가능 여부
-                // enableColResize={true}
-                rowHeight={40}
-                overlayLoadingTemplate={agGrid.overlayLoadingTemplate}
-                overlayNoRowsTempalte={agGrid.overlayNoRowsTemplate}
-                rowData={producerFeeRateList}
-                // onRowClicked={selectFeeRate}
-                frameworkComponents={agGrid.frameworkComponents}
-            />
+            <Flex mb={10}>
+                <Space >
+                    <MenuButton bg={'green'} onClick={regProducerFee}>생산자 수수료 등록</MenuButton>
+                </Space>
+            </Flex>
+            <div
+                className="ag-theme-balham"
+                style={{
+                    height: '700px'
+                }}
+            >
+                <AgGridReact
+                    columnDefs={agGrid.columnDefs}
+                    defaultColDef={agGrid.defaultColDef}
+                    rowSelection={'single'}  //멀티체크 가능 여부
+                    getRowHeight={40}
+                    overlayLoadingTemplate={agGrid.overlayLoadingTemplate}
+                    overlayNoRowsTempalte={agGrid.overlayNoRowsTemplate}
+                    rowData={producerFeeRateList}
+                    frameworkComponents={agGrid.frameworkComponents}
+                />
 
-            <Modal isOpen={isOpen} toggle={toggle} className={''} centered>
-                <ModalHeader toggle={toggle}>생산자 수수료 등록</ModalHeader>
-                <ModalBody>
-                    <ProducerFeeRateReg feeRateData={feeRateData} onClose={regFeeRateFinished}/>
-                </ModalBody>
-            </Modal>
+                <Modal isOpen={isOpen} toggle={toggle} className={''} centered>
+                    <ModalHeader toggle={toggle}>생산자 수수료 등록</ModalHeader>
+                    <ModalBody>
+                        <ProducerFeeRateReg feeRateData={feeRateData} onClose={regFeeRateFinished}/>
+                    </ModalBody>
+                </Modal>
 
-        </div>
+            </div>
+        </Div>
     )
 
 }

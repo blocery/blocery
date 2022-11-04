@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import {Span} from "~/styledComponents/shared";
 
 /*
 * 사용법 :
@@ -21,7 +22,7 @@ const ViewButton = ({icons, selectedIndex = 0, onChange}) => {
         onChange(idx)//부모에게 바뀐 아이콘 인덱스를 넘겨줍니다
     }
     return(
-        icons.map((icon, idx) => idx === index && <span key={'viewButton_'+idx} onClick={onClick.bind(this, idx)}>{icon}</span>)
+        icons.map((icon, idx) => idx === index && <Span bg={'white'} doActive key={'viewButton_'+idx} cursor={1} onClick={onClick.bind(this, idx)}>{icon}</Span>)
     )
 }
 export default ViewButton

@@ -109,8 +109,10 @@ const CheckboxFilter = ({gridApi, field, name, data}) => {
 
     return (
         <Flex fontSize={12} mr={10} mb={10} bc={'light'}
-              // p={5}
-              rounded={5} >
+            // p={5}
+              rounded={5}
+              overflow={'hidden'}
+        >
             <Flex py={5} pl={10}>
                 <Div bold>{name}</Div>
                 <Flex ml={10}>

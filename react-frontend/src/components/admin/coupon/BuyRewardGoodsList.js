@@ -163,20 +163,15 @@ export default class BuyRewardGoodsList extends Component{
                     }}
                 >
                     <AgGridReact
-                        // enableSorting={true}                //정렬 여부
-                        // enableFilter={true}                 //필터링 여부
                         columnDefs={this.state.columnDefs}  //컬럼 세팅
                         rowSelection={'multiple'}
                         suppressRowClickSelection={true}   //false : 셀 클릭시 체크박스도 체크 true: 셀클릭시 체크박스 체크 안함
                         defaultColDef={this.state.defaultColDef}
-                        // components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
-                        // enableColResize={true}              //컬럼 크기 조정
                         overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                         overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
                         onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
                         rowData={this.state.data}
                         frameworkComponents={this.state.frameworkComponents}
-                        // onRowClicked={this.onSelectionChanged.bind(this)}       // 클릭된 row
                         onSelectionChanged={this.onSelectionChanged.bind(this)}
                     >
                     </AgGridReact>

@@ -14,6 +14,7 @@ import {color} from "~/styledComponents/Properties";
 import Checkbox from '~/components/common/checkboxes/Checkbox'
 import {getConsumer} from "~/lib/shopApi";
 import {isAbuser} from "~/lib/donAirDropApi";
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 const Card = styled(Div)`
     background: ${color.white};
@@ -181,7 +182,8 @@ export default class Deposit extends Component {
                 {
                     this.state.chainLoading && <BlockChainSpinner/>
                 }
-                <ShopXButtonNav fixed underline historyBack>입금</ShopXButtonNav>
+                {/*<ShopXButtonNav fixed underline historyBack>입금</ShopXButtonNav>*/}
+                <BackNavigation>입금</BackNavigation>
                 <Div p={15} bg={'background'} fg={'darkBlack'} fontSize={12} lineHeight={20}>
                     <Span>블록체인 네트워크 상태에 따라 자산이 해당 지갑에 완전히 전송되기까지 상당시간 소요될 수 있습니다.</Span>
                 </Div>
@@ -224,7 +226,7 @@ export default class Deposit extends Component {
                         {/*<Div fw={500}>최소 입금 금액 : 3,000 BLY</Div>  /!* TODO donAirDrop 임시 금액*!/*/}
                         {/*<Div fontSize={12} mt={20}>3,000 BLY 이상 입금시에 자동 처리됩니다.</Div>*/}
                         <Div fontSize={12} mt={20}>입금 주소가 바뀔 수 있으므로, 입금하실 때마다 지갑주소를 확인해 주세요.</Div>
-                        <Div fontSize={12} mt={20}>BLY 외에 다른 토큰을 송금하면 유실되며, 마켓블리에서 책임지지 않으니 유의하시기 바랄게요!</Div>
+                        <Div fontSize={12} mt={20}>BLY 외에 다른 토큰을 송금하면 유실되며, 샵블리에서 책임지지 않으니 유의하시기 바랄게요!</Div>
                     </Card>
 
 

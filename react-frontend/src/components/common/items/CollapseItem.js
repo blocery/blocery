@@ -8,23 +8,23 @@ const CollapseItem = ({title, children}) => {
     const [isOpen, setModalOpen, selected, setSelected, setIsOpen] = useModal()
 
     const handleClick = () => {
-        setIsOpen(!isOpen)
+        // setIsOpen(!isOpen)
     }
     return (
         <>
-        <Div block bg={'background'} rounded={3} p={16} cursor onClick={handleClick}>
+        <Div block bg={'background'} rounded={15} p={16} cursor onClick={handleClick}>
             <Flex>
                 <Div fw={500}>{title}</Div>
-                <Right>
-                    <Div pb={2}>
-                        {
-                            !isOpen ? <IoIosArrowDown/> : <IoIosArrowUp/>
-                        }
-                    </Div>
-                </Right>
+                {/*<Right>*/}
+                {/*    <Div pb={2}>*/}
+                {/*        {*/}
+                {/*            !isOpen ? <IoIosArrowDown/> : <IoIosArrowUp/>*/}
+                {/*        }*/}
+                {/*    </Div>*/}
+                {/*</Right>*/}
             </Flex>
         </Div>
-           <Collapse isOpen={isOpen}>
+           <Collapse isOpen={true}>
                {children}
            </Collapse>
         </>

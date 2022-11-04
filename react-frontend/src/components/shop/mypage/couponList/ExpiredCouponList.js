@@ -1,17 +1,32 @@
 import React from 'react'
-import { Div } from '~/styledComponents/shared'
+import {Div, Hr} from '~/styledComponents/shared'
 
 import CouponCard from '~/components/common/cards/CouponCard'
+import styled from "styled-components";
+import ComUtil from "~/util/ComUtil";
+import {FaTicketAlt} from "react-icons/fa";
 
 const ExpiredCouponList = ({data: expiredCoupons}) => {
-
     if (!expiredCoupons) return null
 
+    // const findItem = expiredCoupons.find(item => item.minOrderBlyAmount === 0)
+    // const idx = expiredCoupons.indexOf(findItem)
+    // expiredCoupons.splice(idx, 1)
+
+    const expiredCouponsList = expiredCoupons.filter(item => item.wonCoupon || ComUtil.toNum(item.minOrderBlyAmount) > 0);
     return (
         <Div p={20}>
             <Div>
                 {
-                    expiredCoupons.map((item, index) => <CouponCard key={'coupon'+index} coupon={item} isExpired={true} />)
+                    expiredCouponsList.map((item, index) => <CouponCard key={'coupon'+index} coupon={item} isExpired={true} />)
+                }
+                {
+                    expiredCouponsList && expiredCouponsList.length == 0 &&
+                    <Div textAlign={'center'}>
+                        <FaTicketAlt className={'ml-auto text-secondary'} size={50}/>
+                        <Div mb={30}>쿠폰이 없습니다.</Div>
+                        <Hr/>
+                    </Div>
                 }
             </Div>
             <Div mt={30}>

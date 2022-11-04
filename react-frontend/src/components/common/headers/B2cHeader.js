@@ -5,6 +5,7 @@ import { IconSearch, IconNotification, IconSearchWhite, IconNotificationWhite, I
 import Css from './B2cHeader.module.scss'
 import {Link} from '~/styledComponents/shared'
 import { isNewNotifiation } from "~/lib/shopApi";
+import {RiSearchLine} from 'react-icons/ri'
 
 import classNames from 'classnames'
 const B2cHeader = (props) => {
@@ -31,19 +32,14 @@ const B2cHeader = (props) => {
                     mypage ? <span className={Css.myPage}>마이페이지</span> :
                         category ? <span className={Css.category}>카테고리</span> :
                             mdPick ? <span className={Css.category}>기획전</span> :(
-                        <Link to={'/'} className={'text-dark f1'} >
-                            <MarketBlyMainLogo style={{height: 40}} />
-                        </Link>
-                    )
+                                <Link to={'/'} className={'text-dark f1'} >
+                                    <MarketBlyMainLogo style={{height: 40}} />
+                                </Link>
+                            )
 
                 }
             </div>
             <div>
-                {
-                    (mypage)?  <CartLink white/>
-                        // <Link to={'/cartList'}><IconShoppingCartWhite /> </Link>
-                        : <CartLink />
-                }
 
                 <div>
                     <Link to={'/search'}>
@@ -62,6 +58,7 @@ const B2cHeader = (props) => {
                         }
                     </Link>
                 </div>
+                <CartLink />
             </div>
 
         </div>

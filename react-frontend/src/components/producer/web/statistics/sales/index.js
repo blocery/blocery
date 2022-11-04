@@ -16,14 +16,10 @@ export default class GiganSalesSttList extends Component {
     constructor(props) {
         super(props);
         this.serverToday=null;
-
-        this.rowHeight=50;
         this.isPcWeb=false;
         this.state = {
-
             orderStartDate:null,
             orderEndDate:null,
-
             data: null,
             columnDefs: this.getColumnDefs(),
             defaultColDef: {
@@ -44,7 +40,6 @@ export default class GiganSalesSttList extends Component {
                 //goodsQnaStatRenderer: this.goodsQnaStatRenderer,
                 //goodsQnaMobileRenderer: this.goodsQnaMobileRenderer
             },
-            rowHeight: this.rowHeight,
             rowSelection: 'single',
             overlayLoadingTemplate: '<span class="ag-overlay-loading-center">...로딩중입니다...</span>',
             overlayNoRowsTemplate: '<span class="ag-overlay-loading-center">조회된 내역이 없습니다</span>',
@@ -63,6 +58,10 @@ export default class GiganSalesSttList extends Component {
         //console.log("onGridReady");
 
         this.gridApi.resetRowHeights();
+    }
+
+    getRowHeight(params) {
+        return 30;
     }
 
     // Ag-Grid column Info
@@ -291,13 +290,8 @@ export default class GiganSalesSttList extends Component {
         }
 
         //PC용으로 화면을 크게 그릴때 사용
-        let isPcWeb = ComUtil.isPcWeb();//window.innerWidth > 760// ComUtil.isPcWeb();
-
-        let rowHeight = this.rowHeight; //(isPcWeb?this.rowHeight:220);
+        let isPcWeb = ComUtil.isPcWeb();
         this.isPcWeb = isPcWeb;
-        this.rowHeight = rowHeight;
-        //console.log('isPcWeb', isPcWeb);
-        //console.log('rowHeight ', this.rowHeight);
 
         this.setState({
             orderStartDate: orderStartDate,
@@ -305,7 +299,6 @@ export default class GiganSalesSttList extends Component {
             data: data,
             totalListCnt: data.length,
             isPcWeb:isPcWeb,
-            rowHeight:rowHeight,
             columnDefs: this.getColumnDefs()
         })
 
@@ -359,16 +352,10 @@ export default class GiganSalesSttList extends Component {
                     className={classNames('ag-theme-balham',Style.agGridDivCalc)}
                 >
                     <AgGridReact
-                        //enableSorting={true}                //정렬 여부
-                        //enableFilter={true}                 //필터링 여부
-                        //floatingFilter={true}               //Header 플로팅 필터 여부
                         columnDefs={this.state.columnDefs}  //컬럼 세팅
                         defaultColDef={this.state.defaultColDef}
                         rowSelection={this.state.rowSelection}  //멀티체크 가능 여부
-                        rowHeight={this.state.rowHeight}
-                        //gridAutoHeight={true}
-                        //domLayout={'autoHeight'}
-                        // enableColResize={true}              //컬럼 크기 조정
+                        getRowHeight={this.getRowHeight}
                         overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                         overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
                         onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
@@ -377,10 +364,6 @@ export default class GiganSalesSttList extends Component {
                         frameworkComponents={this.state.frameworkComponents}
                         suppressMovableColumns={true} //헤더고정시키
                         onFilterChanged={this.onGridFilterChanged.bind(this)} //필터온체인지 이벤트
-                        // onRowClicked={this.onSelectionChanged.bind(this)}
-                        // onRowSelected={this.onRowSelected.bind(this)}
-                        // onSelectionChanged={this.onSelectionChanged.bind(this)}
-                        // suppressRowClickSelection={true}    //true : 셀 클릭시 체크박스 체크 안됨, false : 셀 클릭시 로우 단위로 선택되어 체크박스도 자동 체크됨 [default 값은 false]
                     >
                     </AgGridReact>
                 </div>

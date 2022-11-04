@@ -8,9 +8,9 @@ import { GoodsDetailBannerReg } from '~/components/admin/goodsDetailBanner'
 import ComUtil from '~/util/ComUtil'
 
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
 import { Server } from '~/components/Properties'
+import {Div, Flex, Right, Space} from "~/styledComponents/shared";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
 
 export default class GoodsDetailBannerList extends Component{
     constructor(props){
@@ -134,7 +134,7 @@ export default class GoodsDetailBannerList extends Component{
                 resizable: true,
                 filter: true,
                 sortable: true,
-                floatingFilter: false,
+                floatingFilter: true,
                 filterParams: {
                     newRowsAction: 'keep'
                 }
@@ -150,7 +150,6 @@ export default class GoodsDetailBannerList extends Component{
                 titleRenderer:this.titleRenderer,
                 delButtonRenderer:this.delButtonRenderer
             },
-            rowHeight: 75,
             goodsBannerId:"",
             goodsBannerModalTitle:"",
             isGoodsBannerRegModalOpen:false
@@ -277,15 +276,13 @@ export default class GoodsDetailBannerList extends Component{
     render() {
         console.log(this.state.data)
         return(
-            <div>
-                <div className="d-flex p-1">
-                    <div className="d-flex align-items-center pl-1">
-                        <span className="text-success">{this.state.data.length}</span>개의 상품배너
-                    </div>
-                    <div className="flex-grow-1 text-right">
-                        <Button outline size='sm' color={'info'} onClick={this.regGoodsBanner.bind(this,'')} className='m-2'>상품배너 등록</Button>
-                    </div>
-                </div>
+            <Div p={16}>
+                <Flex mb={10}>
+                    <Space>
+                        <MenuButton bg={'green'} onClick={this.regGoodsBanner.bind(this,'')}>상품배너 등록</MenuButton>
+                    </Space>
+                    <Right><span fg={'green'}>총 {this.state.data.length}</span>건</Right>
+                </Flex>
 
                 <div
                     className="ag-theme-balham"
@@ -294,13 +291,9 @@ export default class GoodsDetailBannerList extends Component{
                     }}
                 >
                     <AgGridReact
-                        // enableSorting={true}                //정렬 여부
-                        // enableFilter={true}                 //필터링 여부
-                        floatingFilter={true}               //Header 플로팅 필터 여부
                         columnDefs={this.state.columnDefs}  //컬럼 세팅
                         defaultColDef={this.state.defaultColDef}
-                        rowHeight={this.state.rowHeight}
-                        // enableColResize={true}              //컬럼 크기 조정
+                        getRowHeight={75}
                         overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                         overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
                         // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
@@ -322,7 +315,7 @@ export default class GoodsDetailBannerList extends Component{
                         />
                     </AdminModalFullPopupWithNav>
                 </div>
-            </div>
+            </Div>
         )
     }
 

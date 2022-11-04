@@ -12,109 +12,6 @@ Quill.register("modules/resize", ResizeModule);
 const Delta = Quill.import("delta");
 const Break = Quill.import("blots/break");
 const Embed = Quill.import("blots/embed");
-// const lineBreakMatcher = () => {
-//     let newDelta = new Delta();
-//     newDelta.insert({ break: "" });
-//     return newDelta;
-// };
-//
-// class SmartBreak extends Break {
-//     length() {
-//         return 1;
-//     }
-//     value() {
-//         return '\n';
-//     }
-//     insertInto(parent, ref) {
-//         Embed.prototype.insertInto.call(this, parent, ref);
-//     }
-// }
-// SmartBreak.blotName = 'break';
-// SmartBreak.tagName = 'br';
-//
-// class SmartBreaker {
-//     static register() {
-//         Quill.register(SmartBreak, true);
-//     }
-//
-//     constructor(quill, options) {
-//         this.quill = quill;
-//         this.options = options;
-//
-//         quill.keyboard.addBinding(
-//             {
-//                 key: 13,
-//                 shiftKey: true
-//             },
-//             this.enterHandler.bind(this)
-//         );
-//         quill.keyboard.bindings[13].unshift(quill.keyboard.bindings[13].pop());
-//         quill.clipboard.addMatcher('br', function () {
-//             let newDelta = new Delta();
-//             newDelta.insert({'break': ''});
-//             return newDelta;
-//         });
-//
-//         let length = quill.getLength();
-//         let text = quill.getText(length - 2, 2);
-//         if (text === '\n\n') {
-//             quill.deleteText(quill.getLength() - 2, 2);
-//         }
-//     }
-//
-//     enterHandler(range) {
-//         let currentLeaf = this.quill.getLeaf(range.index)[0]
-//         let nextLeaf = this.quill.getLeaf(range.index + 1)[0]
-//
-//         this.quill.insertEmbed(range.index, 'break', true, 'user');
-//
-//         // Insert a second break if:
-//         // At the end of the editor, OR next leaf has a different parent (<p>)
-//         if (nextLeaf === null || (currentLeaf.parent !== nextLeaf.parent)) {
-//             this.quill.insertEmbed(range.index, 'break', true, 'user');
-//         }
-//
-//         // Now that we've inserted a line break, move the cursor forward
-//         this.quill.setSelection(range.index + 1, Quill.sources.SILENT);
-//     }
-// }
-// Quill.register('modules/smartBreaker', SmartBreaker);
-//
-// class SmartBreak extends Break {
-//     length() {
-//         if(this.domNode.nodeName === "BR") {
-//             return 1;
-//         }else{
-//             return 0;
-//         }
-//     }
-//     value() {
-//         if(this.domNode.nodeName === "BR") {
-//             return "\n";
-//         }else{
-//             return "";
-//         }
-//     }
-//
-//     insertInto(parent, ref) {
-//         console.log("parent=",parent);
-//         try {
-//             if(parent) {
-//                 Embed.prototype.insertInto.call(this, parent, ref);
-//             }
-//         }catch{}
-//     }
-// }
-//
-// SmartBreak.blotName = "break";
-// SmartBreak.tagName = "br";
-// Quill.register(SmartBreak);
-
-
-//Quill.register(Break);
-
-
-
 const BlockEmbed = Quill.import('blots/block/embed');
 class ImageBlot extends BlockEmbed {
     static create(value) {
@@ -137,7 +34,7 @@ Quill.register(ImageBlot,true);
 // Specify Quill fonts
 const fontList= [
     'noto-sans-kr',
-    'seoul-hangang-l','seoul-hangang-m','seoul-hangang-b','seoul-hangang-eb',
+    //'seoul-hangang-l','seoul-hangang-m','seoul-hangang-b','seoul-hangang-eb',
     'arial',
     'sans-serif'
 ];
@@ -174,6 +71,7 @@ Quill.register(SpanBlockClass, true);
 const icons = Quill.import('ui/icons');
 icons['span-block'] = 'sb';
 icons['quote'] = 'st';
+
 
 class Editor extends React.Component {
 
@@ -225,7 +123,7 @@ class Editor extends React.Component {
                     } else {
                         this.quill.removeFormat(range.index, range.length);
                     }
-                },
+                }
             }
         },
         imageUpload: {
@@ -267,31 +165,9 @@ class Editor extends React.Component {
             }
         },
         clipboard: {
-            //matchers: [["br", lineBreakMatcher]],
             // toggle to add extra line breaks when pasting HTML:
-            matchVisual: false,
+            matchVisual: false
         },
-        // keyboard: {
-        //     bindings: {
-        //         linebreak: {
-        //             key: 13,
-        //             shiftKey: true,
-        //             handler: function(range) {
-        //                 const currentLeaf = this.quill.getLeaf(range.index)[0];
-        //                 const nextLeaf = this.quill.getLeaf(range.index + 1)[0];
-        //                 this.quill.insertEmbed(range.index, "break", true, "user");
-        //                 // Insert a second break if:
-        //                 // At the end of the editor, OR next leaf has a different parent (<p>)
-        //                 if (nextLeaf === null || currentLeaf.parent !== nextLeaf.parent) {
-        //                     this.quill.insertEmbed(range.index, "break", true, "user");
-        //                 }
-        //                 // Now that we've inserted a line break, move the cursor forward
-        //                 this.quill.setSelection(range.index + 1, Quill.sources.SILENT);
-        //
-        //             }
-        //         }
-        //     }
-        // },
         resize: {
             locale: {
                 altTip: "리사이징",
@@ -300,9 +176,7 @@ class Editor extends React.Component {
                 center: "중앙",
                 restore: "복원"
             }
-        },
-        //smartBreaker: true
-
+        }
     };
 
     /*
@@ -323,6 +197,16 @@ class Editor extends React.Component {
         this.handleChange = this.handleChange.bind(this);
     }
 
+    // toolbar 클릭시 포커스 상위로 가는 버그 방지
+    componentDidMount() {
+        document.querySelectorAll(".ql-picker").forEach(tool => {
+            tool.addEventListener("mousedown", function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+        });
+    }
+
     checkFileSize = (file) => {
         const maxFileSizeMB = this.props.maxFileSizeMB || 10;
         const limitedSize = maxFileSizeMB * 1024;
@@ -338,7 +222,6 @@ class Editor extends React.Component {
     }
 
     render() {
-        {/*  </div>*/}
         return (
             <ReactQuill
                 theme={'snow'}

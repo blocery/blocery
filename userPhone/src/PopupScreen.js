@@ -4,7 +4,7 @@ import { Server } from './Properties';
 import WebView from 'react-native-webview';
 import ComUtil from "./ComUtil";
 import queryString from 'query-string';
-import KakaoLogins, {KAKAO_AUTH_TYPES} from '@react-native-seoul/kakao-login';
+import KakaoLogins, {KAKAO_AUTH_TYPES, KakaoOAuthToken, login} from '@react-native-seoul/kakao-login';
 
 export default class PopupScreen extends React.Component {
 
@@ -75,22 +75,12 @@ export default class PopupScreen extends React.Component {
         }
     }
 
-    doIamportUpdateCerti = async (type, response) => {
-        //let type =  this.props.navigation.getParam('type');
-        //let response = this.props.navigation.getParam('response');
-
-        console.log('-----> DoImportUpdate:', type, response); //undefined ERROR
-        //let response = this.state.response;
-
-        if (response) {
-
-            const query = queryString.stringify(response);
+    doIamportUpdateCerti = async (rsp) => {
+        console.log('-----> doIamportUpdateCerti:', rsp.type, typeof rsp, rsp); //undefined ERROR
+        if (rsp) {
+            const query = 'imp_uid='+rsp.imp_uid+'&imp_success='+rsp.success+'&merchant_uid='+rsp.merchant_uid+'&error_msg='+rsp.error_msg+'&error_code='+rsp.error_code;
             console.log('query', query);
-
-            //인증 후 xxFinish로 이동. buyFinish?imp_uid=&imp_success=true&merchant_uid='+this.state.orderNo+'&error_msg='+''
-            //let newUrl = Server.getServerURL() + '/certiFinish?' + query; //frontEnd 경유 방식.(컴포넌트 없는 상태)
-            let newUrl = Server.getServerURL() + '/iamport/certification?' + query;  //백엔드 직접가는 방식. - 미테스트.(백엔드 파라미터 받는방식 수정필요)
-            //alert(newUrl);
+            let newUrl = Server.getServerURL() + '/' + rsp.callbackUrl + '?' + query;  //백엔드 직접가는 방식. - 미테스트.(백엔드 파라미터 받는방식 수정필요)
 
             this.setState({
                 url:newUrl
@@ -108,10 +98,12 @@ export default class PopupScreen extends React.Component {
 
     //IamPort 결제완료 후에 호출되는 함수.
     onCertificationResult = (data) => {
-        const { type, response } = JSON.parse(data)
 
-        console.log('-----> onCertificationResult:'); //undefined ERROR
-        this.doIamportUpdateCerti(type, response);
+        console.log('-----> onCertificationResult: '); //undefined ERROR
+        console.log({data});
+        // { data: '{"success":true,"imp_uid":"imp_034286532505","merchant_uid":"DANAL-20220210100804","pg_provider":"danal",
+        // "pg_type":"certification","error_code":null,"error_msg":null,"type":"certification"}' }
+        this.doIamportUpdateCerti(data);
 
     }
 
@@ -158,11 +150,11 @@ export default class PopupScreen extends React.Component {
 
             return;
         }
-        //Iamport 본인인증 호출되는 경우 - 19.11.12 현재 미테스트:코드만 추가
+        //Iamport 본인인증 호출되는 경우
         if (type ==='certification') {
-            const { userCode, data, type } = JSON.parse(event.nativeEvent.data);
+            const { userCode, data, callbackUrl } = JSON.parse(event.nativeEvent.data);
             console.log('###################### PopupScreen : Certification',  data);
-            const params = { userCode, data, onCertificationResult:this.onCertificationResult };
+            const params = { userCode, data, onCertificationResult:this.onCertificationResult, callbackUrl };
 
             this.props.navigation.navigate('Certification', params);  //Certification은 추가 - iamport의 exampleForWebView의 Home.js 참고
 
@@ -171,7 +163,7 @@ export default class PopupScreen extends React.Component {
 
         if(type === 'KAKAO_LOGIN') {
             let self = this;
-            KakaoLogins.login([KAKAO_AUTH_TYPES.Talk])
+            login()
                 .then(result => {
                     console.log("KAKAO_SUCCESS : ", result);
                     let url = '/login?accessToken=' + result.accessToken + '&refreshToken=' + result.refreshToken;
@@ -182,11 +174,7 @@ export default class PopupScreen extends React.Component {
                         key: self.state.key + 1,  //새로고침을 위해
                         url: serverUrl
                     })
-
                 })
-                .catch(err => {
-                    console.log("KAKAO_ERROR : ", err);
-                });
 
         } else if(type === 'NEW_POPUP') {
 

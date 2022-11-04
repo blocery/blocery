@@ -2,10 +2,11 @@ import React, {useState, useEffect} from 'react'
 import ComUtil from '../util/ComUtil'
 import axios from 'axios'
 import { Server } from "../components/Properties";
+import MathUtil from "~/util/MathUtil";
 
 /* 향후 환전관련 추가예정 */
 
-export const BLCT_TO_WON = () => axios(Server.getRestAPIHost() + '/ont/blctToWon', { method: "get", withCredentials: true, credentials: 'same-origin' }); //won
+export const BLCT_TO_WON = (signal) => axios.get(Server.getRestAPIHost() + '/ont/blctToWon', { withCredentials: true, credentials: 'same-origin', signal }); //won
 
 //시간과 함께 BLCT_TO_WON 가져오기:
 // @return {
@@ -17,7 +18,7 @@ export const blctToWonWithTime = () => axios(Server.getRestAPIHost() + '/ont/blc
 export const CREDIT_COMMISSION = 0.035;   // 신용카드 수수료 3.5% (3.102% + 부가세 10%)
 export const ORDER_DEPOSIT = 0.1;           // 주문시 미배송보증금인데 현재는 개수비례로 하고있어서 사용 안함
 export const ORDER_BLOCERY_ONLY_FEE = 0.01;      // blocery fee
-export const ORDER_CONSUMER_REWARD = 0.0048;  // 소비자 구매보상 0.48%
+//pivot:미사용 -백엔드 이용필요 export const ORDER_CONSUMER_REWARD = 0.0048;  // 소비자 구매보상 0.48%
 export const ORDER_PRODUCER_REWARD = 0.0002;  // 생산자 판매보상 0.02%
 
 export const GOODS_TOTAL_DEPOSIT_RATE = 0.1;  // 생산자 물품등록시 전체 보증금 비율
@@ -36,7 +37,7 @@ export const exchangeWon2BLCTHome = async(won) => {
         blctToWon = data;
         sessionStorage.setItem('blctToWon', blctToWon);
     }
-    return ComUtil.roundDown(won/blctToWon, 0);
+    return MathUtil.roundHalf(MathUtil.dividedBy(won,blctToWon));
 }
 {/*<exchangeWon2BlctHom.Tag won={222} />*/}
 exchangeWon2BLCTHome.Tag = ({won}) => {
@@ -60,7 +61,7 @@ export const calcBlyToWon = (bly, blyUnitPrice) => {
     if (!unitPrice)
         return null
 
-    return ComUtil.roundDown(bly * parseFloat(unitPrice), 0)
+    return MathUtil.roundHalf(MathUtil.multipliedBy(bly,parseFloat(unitPrice)))
 }
 
 ////B2B_ADDED//////////////////
@@ -72,7 +73,7 @@ export const B2B_DEAL_BLOCERY_ONLY_FEE = 0.00;      // blocery fee
  */
 export const exchangeWon2BLCT = async (won) =>  {
     let {data:blctToWon} = await BLCT_TO_WON();
-    return ComUtil.roundDown(won/blctToWon, 2);          //BLCT 소수점 2자리까지로 잘라서 버리기
+    return ComUtil.roundDown(MathUtil.dividedBy(won,blctToWon), 2);          //BLCT 소수점 2자리까지로 잘라서 버리기
 }
 
 export const exchangeWon2BLCTComma = async (won) =>  {
@@ -82,7 +83,7 @@ export const exchangeWon2BLCTComma = async (won) =>  {
 
 export const exchangeBLCT2Won = async (blct) =>  {
     let {data:blctToWon} = await BLCT_TO_WON();
-    return ComUtil.roundDown(blct * blctToWon, 0); //BLCT 원화로 변환 (원단위 미만 버림)
+    return MathUtil.roundHalf(MathUtil.multipliedBy(blct,blctToWon)); //BLCT 원화로 변환 (원단위 미만 버림)
 }
 
 //BLCT 적립금
@@ -100,7 +101,7 @@ export const exchangeWon2BLCTPoint = (won) =>  {
     // blctToWon = blctToWon * 0.0048
 
     //return (won/blctToWon).toFixed(2);
-    return ComUtil.roundDown(won/blctToWon, 2);
+    return ComUtil.roundDown(MathUtil.dividedBy(won,blctToWon), 2);
 }
 
 //BlyTime 진행중일 때 적립금
@@ -112,6 +113,6 @@ export const exchangeWon2BlctBlyTime = (won, reward) => {
         blctToWon = 40.0; //default 40원
     }
 
-    return ComUtil.roundDown(won/blctToWon, 2);
+    return ComUtil.roundDown(MathUtil.dividedBy(won,blctToWon), 2);
 }
 

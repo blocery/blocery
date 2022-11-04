@@ -1,12 +1,15 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Swiper from 'react-id-swiper'
 import {Server} from '~/components/Properties'
-
+import {Flex, Img} from "~/styledComponents/shared";
+import Zoomable from "react-instagram-zoom";
+import {responsive} from "~/styledComponents/Properties";
 const ImageSwiper = (props) => {
-    const { images, initialSlide = 0 } = props
-    const [slideIndex, setSlideIndex] = useState(initialSlide)
+    const { images, initialSlide} = props
+    const [slideIndex, setSlideIndex = 0] = useState(initialSlide)
+
     const swipeOptions = {
-        lazy: false,
+        lazy: true,
         // centeredSlides: true,   //중앙정렬
         slidesPerView: 'auto',
         initialSlide: initialSlide, //디폴트 0
@@ -24,51 +27,47 @@ const ImageSwiper = (props) => {
         // },
         on: {
             init: function(){
-                // console.log('swiper init')
-                // const { activeIndex } = this
-                // const seller = data[activeIndex]
-                // init(seller.sellerNo)
-
-
             },
             slideChange: function(){
                 const { activeIndex } = this
-                // const seller = data[activeIndex]
-                // slideChange(seller.sellerNo)
-                // console.log({activeIndex})
                 setSlideIndex(activeIndex)
             },
             slideChangeTransitionEnd: function(){
-
             },
             click: function(){
-                // const { activeIndex } = this
-                // const seller = data[activeIndex]
-                // onClick(seller.sellerNo)
             }
         }
     }
 
     if(images.length <= 0) return null
-    return <div>
+    return <>
+        <Flex absolute zIndex={2} top={'5vmin'} left={'50%'} xCenter height={40} fg={'white'} >{`${slideIndex + 1} / ${images.length}`}</Flex>
         <Swiper {...swipeOptions}>
             {
                 images.map( (image, index) => (
-                    <div key={'imageSwiper_'+index} className={'vh-100 d-flex align-items-center'}>
-                        <img src={ Server.getImageURL() + image.imageUrl} alt="img" className='w-100'/>
+                    <div key={'imageSwiper_'+index}
+                         className={'vh-100 d-flex align-items-center justify-content-center'}>
+                        <Zoomable releaseAnimationTimeout={200}>
+                            <Img
+                                width={'100%'}
+                                height={'unset'}
+                                maxWidth={responsive.maxWidth}
+                                className={'swiper-lazy'}
+                                src={
+                                    !image.imageUrlPath ?
+                                        image.imageUrl ? Server.getImageURL() + image.imageUrl : ''
+                                        :
+                                        image.imageUrl ? Server.getImgTagServerURL() + image.imageUrlPath + image.imageUrl:''
+                                }
+                                alt="img"/>
+                        </Zoomable>
+                        <div className="swiper-lazy-preloader swiper-lazy-preloader-white" />
                     </div>
                 ))
             }
         </Swiper>
-        <div className={'text-white text-center position-fixed'} style={{
-            padding: '1rem',
-            left: '50%',
-            top: '0%',
-            transform: 'translate(-50%, 0%)',
-            zIndex: 11
-        }}>
-            {slideIndex +1} / {images.length}
-        </div>
-    </div>
+    </>
 }
 export default ImageSwiper
+
+

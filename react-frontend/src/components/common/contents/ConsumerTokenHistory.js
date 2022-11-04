@@ -52,7 +52,11 @@ const typeStore = {
     in: {
         code: 'in',
         name: '입금'
-    }
+    },
+    goodsReviewReward: {
+        code: 'goodsReviewReward',
+        name: '상품리뷰'
+    },
 }
 
 const Item = (props) => {
@@ -131,6 +135,8 @@ const ConsumerTokenHistory = ({consumerNo}) => {
                 sum = rejectedOutSum
             else if (selectedType === typeStore.in.code)
                 sum = inSum
+            else if (selectedType === typeStore.goodsReviewReward.code)
+                sum = goodsReviewSum
         }
 
         setSelected({
@@ -157,6 +163,7 @@ const ConsumerTokenHistory = ({consumerNo}) => {
         notDeliverDepositSum,    //미배송 보상금 (플러스)
         deliverPenaltySum,       //지연배송 보상금 (플러스)
         goodsConfirmRewardSum,   //구매보상금 (플러스)
+        goodsReviewSum,    //리뷰보상금 (플러스)
         missionEventSum,         //미션 이벤트 보상금 (플러스)
         bountySum,               //바운티 히스토리 (플러스)
         outSum,                  // swap 출금 (마이너스)
@@ -216,6 +223,10 @@ const ConsumerTokenHistory = ({consumerNo}) => {
                 <Div onClick={onHistoryClick.bind(this,  'goodsConfirmReward')} cursor>
                     <Div fontSize={12} fg={'dark'} mb={5}>구매보상</Div>
                     <Div textAlign={'center'} fg={'primary'}>{ComUtil.roundDown(goodsConfirmRewardSum, 0)}</Div>
+                </Div>
+                <Div onClick={onHistoryClick.bind(this,  'goodsReviewReward')} cursor>
+                    <Div fontSize={12} fg={'dark'} mb={5}>리뷰보상</Div>
+                    <Div textAlign={'center'} fg={'primary'}>{ComUtil.roundDown(goodsReviewSum, 0)}</Div>
                 </Div>
                 <Div onClick={onHistoryClick.bind(this,  'missionEvent')} cursor>
                     <Div fontSize={12} fg={'dark'} mb={5}>미션이벤트</Div>

@@ -5,14 +5,15 @@ import ComUtil from '~/util/ComUtil'
 import { ExcelDownload } from '~/components/common'
 import {Button, Modal, ModalBody, ModalFooter, ModalHeader} from 'reactstrap'
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
-import {Div, Flex, Span} from "~/styledComponents/shared";
+import {Div, FilterGroup, Flex, Right, Space, Span} from "~/styledComponents/shared";
 import ConsumerDetail from "~/components/common/contents/ConsumerDetail";
 import AbuserRenderer from "~/components/common/agGridRenderers/AbuserRenderer";
 import {useModal} from "~/util/useModal";
 import moment from "moment-timezone";
 import SearchDates from "~/components/common/search/SearchDates";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
+import FilterContainer from "~/components/common/gridFilter/FilterContainer";
+import InputFilter from "~/components/common/gridFilter/InputFilter";
 
 const RecommendAbuserRenderer = (props) => {
     const data = {
@@ -35,6 +36,7 @@ const FriendAbuserRenderer = (props) => {
 const RecommendFriendList = (props) => {
 
     const [gridApi, setGridApi] = useState(null);
+    const [columnApi, setColumnApi] = useState(null);
 
     const [modalOpen, setModalOpen, selected, setSelected, setModalState] = useModal()
 
@@ -50,12 +52,12 @@ const RecommendFriendList = (props) => {
 
     const agGrid = {
         columnDefs: [
-            {headerName: "추천인번호", field: "recommenderNo",width: 80},
+            {headerName: "추천인번호", field: "recommenderNo",width: 100},
             {headerName: "추천인이름", field: "recommenderName", width: 100, cellRenderer: "recommenderNameRenderer"},
             {headerName: "어뷰저", field: "recommenderAbuser", width: 100, cellRenderer: "recommenderAbuserRenderer"},
             {headerName: "추천인email", field: "recommenderEmail", width: 180},
             {headerName: "추천인phone", field: "recommenderPhone", width: 120},
-            {headerName: "친구번호", field: "friendNo",width: 80},
+            {headerName: "친구번호", field: "friendNo",width: 100},
             {headerName: "친구이름", field: "friendName",width: 100, cellRenderer: "friendNameRenderer"},
             {headerName: "어뷰저", field: "friendAbuser", width: 100, cellRenderer: "friendAbuserRenderer"},
             {headerName: "친구email", field: "friendEmail", width: 180},
@@ -86,6 +88,7 @@ const RecommendFriendList = (props) => {
     //[이벤트] 그리드 로드 후 callback 이벤트 API init
     const onGridReady = params => {
         setGridApi(params.api);
+        setColumnApi(params.columnApi);
     };
 
     function dateRenderer ({data:rowData}) {
@@ -209,35 +212,55 @@ const RecommendFriendList = (props) => {
     }
 
     return (
-        <div>
+        <Div p={16}>
 
-            <div className="ml-2 mt-2 mr-2">
-                <Flex bc={'secondary'} m={3} p={7}>
-                    <Div pl={10} pr={20} py={1}> 기 간 (가입일) </Div>
-                    <Div ml={10} >
-                        <Flex>
-                            <SearchDates
-                                gubun={search.selectedGubun}
-                                startDate={search.startDate}
-                                endDate={search.endDate}
-                                onChange={onDatesChange}
-                            />
-                            <Button className="ml-3" color="primary" onClick={() => getSearch(true)}> 검 색 </Button>
-                        </Flex>
-                    </Div>
-                </Flex>
-            </div>
+            <Flex p={10} mb={10} bc={'secondary'}>
+                <Space>
+                    <Div>기 간 (가입일)</Div>
+                    <SearchDates
+                        isHiddenAll={true}
+                        isCurrenYeartHidden={true}
+                        gubun={search.selectedGubun}
+                        startDate={search.startDate}
+                        endDate={search.endDate}
+                        onChange={onDatesChange}
+                    />
+                    <MenuButton onClick={() => getSearch(true)}> 검 색 </MenuButton>
+                </Space>
+            </Flex>
 
-            <div className="d-flex p-1">
-                <div  className="d-flex">
+            {/* filter START */}
+            <FilterContainer gridApi={gridApi} columnApi={columnApi} excelFileName={'추천친구목록'}>
+                <FilterGroup>
+                    <InputFilter
+                        gridApi={gridApi}
+                        columns={[
+                            {field: 'recommenderNo', name: '추천인번호'},
+                            {field: 'recommenderName', name: '추천인이름'},
+                            {field: 'recommenderEmail', name: '추천인이메일'},
+                            {field: 'recommenderPhone', name: '추천인연락처'},
+                            {field: 'friendNo', name: '친구번호'},
+                            {field: 'friendName', name: '친구이름'},
+                            {field: 'friendEmail', name: '친구이메일'},
+                            {field: 'friendPhone', name: '친구연락처'},
+                        ]}
+                        isRealTime={true}
+                    />
+                </FilterGroup>
+            </FilterContainer>
+            {/* filter END */}
+
+            <Flex mb={10}>
+                <Space>
                     <ExcelDownload data={excelData}
                                    fileName="추천친구조회"
                                    buttonName = "Excel 다운로드"
                     />
-                </div>
-                <div className="flex-grow-1 text-right">총 {dataList.length}명</div>
-            </div>
-
+                </Space>
+                <Right>
+                    총 {dataList.length}명
+                </Right>
+            </Flex>
 
             <div
                 className="ag-theme-balham"
@@ -273,7 +296,7 @@ const RecommendFriendList = (props) => {
                     <Button color="secondary" onClick={toggle}>닫기</Button>
                 </ModalFooter>
             </Modal>
-        </div>
+        </Div>
     )
 }
 export default RecommendFriendList

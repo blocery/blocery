@@ -5,7 +5,7 @@ import { Modal, ModalHeader, ModalBody, Button, ModalFooter } from 'reactstrap'
 
 import Notice from '~/components/admin/notice'
 
-import { getNoticeList } from '~/lib/adminApi'
+import { getNoticeList } from '~/lib/shopApi'
 
 function NoticeList(props) {
 
@@ -18,20 +18,20 @@ function NoticeList(props) {
     }, [])
 
     async function search() {
-        const {status, data} = await getNoticeList('producer')
 
-
+        let params = {userType: 'producer', isPaging: true, limit: 5, page: 1}
+        const {status, data} = await getNoticeList(params)
 
         if (status === 200) {
 
             let items = []
 
-            // ComUtil.sortNumber(data, 'orderNo', true)
+            ComUtil.sortDate(data.noticeList, 'regDate', true);
 
-            if(data.length <= 5)
-                items = data
+            if(data.noticeList && data.noticeList.length <= 5)
+                items = data.noticeList;
             else
-                items = data.slice(0,5)
+                items = data.noticeList.slice(0,5);
 
             items = items.map(item => {
                 return {
@@ -76,11 +76,14 @@ function NoticeList(props) {
               onBadgeClick={onClick}
         />
 
-        <Modal isOpen={isOpen} toggle={toggle} className={''} centered>
+        <Modal size={'xl'} isOpen={isOpen} toggle={toggle} className={''} centered>
             <ModalHeader toggle={toggle}>공지사항</ModalHeader>
             <ModalBody>
                 <Notice noticeNo={noticeNo} />
             </ModalBody>
+            <ModalFooter>
+                <Button size='sm' color='secondary' onClick={toggle}>확인</Button>
+            </ModalFooter>
         </Modal>
         </>
     )

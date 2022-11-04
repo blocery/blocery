@@ -1,23 +1,24 @@
-import { Event, EventAppReview } from './event'
+import { Event, EventList, EventAppReview } from './event'
 import { ConsumerJoin, ProducerJoin } from './join'
 import { JoinComplete } from './joinComplete'
 import { Login } from './login'
 import Goods from './goods'
-import { DirectBuy, CartBuy, BuyFinish, InputAddress, MultiGiftBuy } from './buy'
+import { DirectBuy, CartBuy, BuyFinish, InputAddress, MultiGiftBuy } from './goodsBuy/directGoodsBuy'
 
 import FarmersDetailActivity from './farmersDetailActivity'
-import { Mypage, Index, Deposit, Withdraw } from './mypage'
+import { Mypage, TokenHistory, Deposit, Withdraw } from './mypage'
 import { CartList } from './cartList'
 import GoodsReview from './goodsReview'
 import GoodsReviewList from './goodsReviewList'
 import ProducersGoodsList from './producersGoodsList'
 import ProducersFarmDiaryList from './producersFarmDiaryList'
-import ProducersFarmDiary from './producersFarmDiary'
+import ProducerFollowerList from './producerFollowerList'
 import NotificationList from './mypage/notificationList'
-import ZzimList from './zzimList'
+// import ZzimList from './zzimGoodsList'
 
 export {
     Event,
+    EventList,
     EventAppReview,
     ConsumerJoin,
     ProducerJoin,
@@ -31,7 +32,7 @@ export {
     InputAddress,
     MultiGiftBuy,
     Mypage,
-    Index,
+    TokenHistory,
     Deposit,
     Withdraw,
     CartList,
@@ -39,7 +40,7 @@ export {
     GoodsReviewList,
     ProducersGoodsList,
     ProducersFarmDiaryList,
-    ProducersFarmDiary,
+    ProducerFollowerList,
     NotificationList,
-    ZzimList
+    // ZzimList
 }

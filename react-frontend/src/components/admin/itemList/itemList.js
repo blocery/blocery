@@ -186,7 +186,7 @@ class ItemList extends Component {
                             Cell: props => {
                                 const { value, original } = props
                                 // return <Button size={'sm'} color='info' onClick={this.openTransportCompanyPop.bind(this, original.transportCompanyNo)}>{value}</Button>
-                                return <Cell><a className='text-primary btn' onClick={this.openItemPop.bind(this, original.itemNo)}>{value}</a></Cell>
+                                return <Cell textAlign="left"><a className='text-primary btn' onClick={this.openItemPop.bind(this, original.itemNo)}>{value}</a></Cell>
                             },
                             filterMethod: (filter, rows) => matchSorter(rows, filter.value, { keys: [filter.id] }),
                             filterAll: true,
@@ -206,10 +206,10 @@ class ItemList extends Component {
                             Header: '품종명 (,로 분리)',
                             //accessor: d => JSON.stringify(d.itemKinds).replace(/"|null|\[|\]/g, ''), //버터헤드로메인 붙어나오는 현상이 있어서 stringify 추가하고 null,",[,] 제거.
                             accessor: d => {let kinds=''; d.itemKinds.map( oneKind => {kinds += oneKind.name+', '}); return kinds; }, //버터헤드로메인 붙어나오는 현상이 있어서 stringify 추가하고 null,",[,] 제거.
-                            Cell: props => <Cell>{props.value}</Cell>,
+                            Cell: props => <Cell textAlign="left">{props.value}</Cell>,
                             filterMethod: (filter, rows) => matchSorter(rows, filter.value, { keys: [filter.id] }),
                             filterAll: true,
-                            width: 500
+                            width: 800
                         },
 
                     ]}

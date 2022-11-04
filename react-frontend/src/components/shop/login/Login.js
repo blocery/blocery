@@ -1,11 +1,11 @@
 import React from 'react'
 import ConsumerLogin from './ConsumerLogin'   //BuyerLogin.js
-import {ShopXButtonNav} from '~/components/common'
+import BackNavigation from "~/components/common/navs/BackNavigation";
 const Login = (props) => {
     return(
         <div>
-            <ShopXButtonNav close>소비자 로그인</ShopXButtonNav>
-            <div><ConsumerLogin /></div>
+            <BackNavigation hideHomeButton>샵블리 로그인</BackNavigation>
+            <div><ConsumerLogin minHeight={'calc(100vh - 52px - 56px)'}/></div>
         </div>
     )
 }

@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 
-import ImageUploader from '../../common/ImageUploader/ImageUploader'
+import ImageUploader from '~/components/common/ImageUploader/ImageUploader'
 
 class ImageCompressor extends Component {
     constructor(props) {
@@ -19,7 +19,7 @@ class ImageCompressor extends Component {
     render() {
         return (
             <div className='text-center'>
-                <h6>src/components/sample/ImageCompressor.js</h6>
+                <code>import ImageUploader from '~/components/common/ImageUploader/ImageUploader'</code>
                 <h4>이미지 업로드(압축하기)</h4>
                 <div className='text-left'>Single 업로드</div>
                 <ImageUploader onUploaded={this.onUploadCompleted}/>

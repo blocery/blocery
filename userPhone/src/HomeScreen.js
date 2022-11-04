@@ -2,7 +2,6 @@ import React from 'react';
 import { ToastAndroid, View, SafeAreaView, BackHandler, Platform, Alert, Linking, Clipboard } from 'react-native';
 import AsyncStorage from "@react-native-community/async-storage";
 import { Server } from './Properties';
-import BottomNavigation, {FullTab} from 'react-native-material-bottom-navigation';
 import WebView from 'react-native-webview';
 import axios from 'axios';
 import firebase from 'react-native-firebase';
@@ -12,6 +11,7 @@ import ClearCacheModule from './ClearNativeAppCache';
 import RNExitApp from 'react-native-exit-app';
 //import RNKakaoLink from 'react-native-kakao-links';
 import KakaoLink from '@actbase/react-native-kakao-link';
+import KakaoLogins, {KAKAO_AUTH_TYPES, login} from "@react-native-seoul/kakao-login";
 
 const VERSION_KEY = "version";
 const USER_TYPE = {
@@ -28,8 +28,6 @@ const TAB_KEY = {
 }
 
 // 아이콘 검색 - https://materialdesignicons.com/
-
-const getLoginUserType = () => axios(Server.getRestAPIHost() + '/login/userType', { method:"get", withCredentials: true, credentials: 'same-origin'});
 
 export default class HomeScreen extends React.Component {
 
@@ -51,49 +49,13 @@ export default class HomeScreen extends React.Component {
         this.state = {
             key: 0,
             isCacheChecked: false,
-            //isPopupOnScreen: false,
-            source: {uri: Server.getMainPage(false)},  // 소비자용이 default
-            pressedTabKey: TAB_KEY.HOME,
-            tabs : this.getTabName(false),   //소비자용 TabName이 default.
+            source: {uri: Server.getMainPage()},  // 소비자용이 default
+            // pressedTabKey: TAB_KEY.HOME,
+            // tabs : this.getTabName(false),   //소비자용 TabName이 default.
             serverVersion: '',
             minSupportB2cAndroidVersion: 0,
             minSupportB2cIosVersion: 0
         }
-    }
-
-    getTabName = (isProducer) => {
-        return (
-            [
-                {
-                    key: TAB_KEY.HOME,
-                    icon: 'home-outline',
-                    label: '홈',
-                    barColor: '#f3f3f3',
-                    pressColor: 'rgba(255,255,255,0.16)'
-                },
-                {
-                    key: TAB_KEY.CATEGORY,
-                    icon: 'package-variant',
-                    label: isProducer? '상품/상점':'카테고리',
-                    barColor: '#f3f3f3',
-                    pressColor: 'rgba(255,255,255,0.16)'
-                },
-                {
-                    key: TAB_KEY.SEARCH,
-                    icon: 'magnify',
-                    label: isProducer? '주문/정산':'검색',
-                    barColor: '#f3f3f3',
-                    pressColor: 'rgba(255,255,255,0.16)'
-                },
-                {
-                    key: TAB_KEY.MY_PAGE,
-                    icon: 'account-outline',
-                    label: '마이페이지',
-                    barColor: '#f3f3f3',
-                    pressColor: 'rgba(255,255,255,0.16)'
-                }
-            ]
-        );
     }
 
     async componentDidMount() {
@@ -101,11 +63,7 @@ export default class HomeScreen extends React.Component {
         if(this.notificationListener)this.notificationListener.remove()
         if(this.notificationOpenedListener)this.notificationOpenedListener.remove()
         if(this.messageListener)this.messageListener.remove()
-
         console.log('componentDidMount - homeScreen')
-
-        // const fcmToken = await ComUtil._checkPermission();
-        // console.log('fcmToken: ', fcmToken);
 
         if (Platform.OS === 'android') {
             this.backHandler = BackHandler.addEventListener('hardwareBackPress', this.onAndroidBackPress);
@@ -115,28 +73,12 @@ export default class HomeScreen extends React.Component {
         await this.deleteWebviewCache();
         this.alertAppUpdate();
 
-        const isProducer = await this.isProducerUserType();
-
-        console.log('componentDidMount - isProducer:', isProducer);
-
-        if (isProducer) {
-            this.setState({
-                key: this.getNewKey(),
-                isCacheChecked: true,
-                tabs: this.getTabName(true)
-            }, () => {
-                this._listenForNotifications();
-            });
-        }
-        else {
-            this.setState({
-                key: this.getNewKey(),
-                isCacheChecked: true
-            }, () => {
-                this._listenForNotifications();
-            });
-        }
-        /* 여기가지 */
+        this.setState({
+            key: this.getNewKey(),
+            isCacheChecked: true
+        }, () => {
+            this._listenForNotifications();
+        });
     }
 
 
@@ -192,7 +134,7 @@ export default class HomeScreen extends React.Component {
         }
 
         Linking.canOpenURL(url).then(supported => {
-            console.log(supported);
+            // console.log(supported);
             supported && Linking.openURL(url);
             if (Platform.OS === 'android') {
                 RNExitApp.exitApp();
@@ -237,16 +179,9 @@ export default class HomeScreen extends React.Component {
 
     finishApp = async (currentUrl) => {
         if (this.exitApp === undefined || !this.exitApp) {
-            let isProducerUserType = await this.isProducerUserType();
-            let mainUrl = Server.getMainPage(isProducerUserType);
-            let goodsUrl = Server.getGoodsPage(isProducerUserType);
-            let searchUrl = Server.getSearchPage(isProducerUserType);
-            let consumerMypageUrl = Server.getMyPage(false);
-            let producerMypageUrl = Server.getMyPage(true);
-
-            const res = [{url:mainUrl},{url:goodsUrl},{url:searchUrl},{url:consumerMypageUrl},{url:producerMypageUrl}].find(obj => obj.url === currentUrl)
-
-            if (res) {
+            let mainUrl = Server.getMainPage();
+            let homeUrl = Server.getHomePage();
+            if (mainUrl === currentUrl || [homeUrl].includes(currentUrl)) {
                 ToastAndroid.show('한 번 더 누르시면 종료됩니다.', ToastAndroid.SHORT);
                 this.exitApp = true;
 
@@ -258,88 +193,32 @@ export default class HomeScreen extends React.Component {
             }
         } else {
             clearTimeout(this.timeout);
-            BackHandler.exitApp();
+            // BackHandler.exitApp();
+            RNExitApp.exitApp();
         }
     }
-
-    // renderIcon = icon => ({ isActive }) => (
-    //     <Icon size={24} color='gray' name={icon} />
-    // )
-    //
-    // renderTab = ({ tab }) =>{
-    //     //renderTab 의 arguments 로 tab, isActive 를 받지만 isActive를 수동으로 제어하기 위해 state.pressedTabkey를 사용하도록 변경함
-    //     const isActive = this.state.pressedTabKey === tab.key
-    //     return <FullTab
-    //         isActive={isActive}
-    //         key={tab.key}
-    //         label={tab.label}
-    //         labelStyle={{ color: '#313131' }}
-    //         renderIcon={this.renderIcon(tab.icon)}
-    //     />
-    // }
-
 
     getNewKey = () => {
         return this.state.key +1
     }
 
-
-    // sendInfoToWebView = async (tabKey) => {
-    //     this.changeTab(tabKey)
-    // }
-
-    /* FCM ComUtil.js 에서 별도 구성함 */
-    /*
-    _checkPermission = async() => {
-        console.log(' _checkPermission() ');
-        const enabled = await firebase.messaging().hasPermission();
-        if(enabled) {
-            console.log('enabled : ', enabled);
-            this._updateTokenToServer();
-        } else {
-            this._requestPermission();
-        }
-    };
-
-    _requestPermission = async() => {
-        try{
-            await firebase.messaging().requestPermission();
-            await this._updateTokenToServer();
-        } catch (error) {
-            alert("you can't handle push notification");
-        }
-    };
-
-    _updateTokenToServer = async() => {
-        const fcmToken = await firebase.messaging().getToken();
-        console.log('fcmToken: ', fcmToken);
-
-        const header = {
-            method: "POST",
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'Cache': 'no-cache'
-            },
-            body: JSON.stringify({
-                user_id:"CURRENT_USER_ID",
-                firebase_token: fcmToken
-            }),
-            credentials: 'include',
-        };
-        const url = "http://SERVER_URL";
-        // if you want to notification using server,
-        // do registry current user token
-
-        // await fetch(url, header);
-    };
-    */
     _listenForNotifications = async() => {
         this.notificationListener = firebase.notifications().onNotification((notification) => {
             console.log('onNotification ', notification);  // 앱이 실행되어있을 때 푸쉬가 오면 실행됨
-            const { _title, _subtitle, _body, _data, _notificationId, _sound, _android, _ios } = notification
+            const params = {
+                action: 'APP_PUSH',
+                params: {
+                    title: notification._title, //  타이틀
+                    body: notification._body,   //  내용 xx님이 내 게시물에 댓글을 남겼어요
+                    data: notification._data,   //  { url: '/mypage?moveTo=boardList' }
+                },
+            }
 
-            alert('푸시알림 '+_title + _body)
+            if(this.webView.ref) {
+                console.log('ref 있음 ')
+                this.webView.ref.postMessage(JSON.stringify(params)); //TODO
+            }
+
         });
 
         this.notificationOpenedListener = firebase.notifications().onNotificationOpened((notificationOpen) => {
@@ -352,7 +231,6 @@ export default class HomeScreen extends React.Component {
             // background에서 message를 핸들링 할 수 있다고 하는데. 콘솔이 안찍힘 필요할 경우 추가 테스트 필요
         })
 
-        //TODO: notificationOpen 에 값들이 들어오지 않는 이슈가 있음
         const notificationOpen = await firebase.notifications().getInitialNotification();
         if(notificationOpen) {
 
@@ -362,132 +240,76 @@ export default class HomeScreen extends React.Component {
             const { url } = notificationOpen.notification._data
 
             // console.log(url);
+            // backend에서 url을 지정해서 푸쉬를 보낼 경우 모두 여기에서 이동(notificationType 의미없음)
             if(url) {
                 await this.changeConsumerUrl(Server.getServerURL() + url);
                 return;
             }
 
-
+            // 2021.11.22 이후로 notificationType 변경으로 모두 url 분기처리되고 아래 이동 안함.
             //각 해당하는 탭으로 이동
-            switch (notificationType){
-                case 'deliveryStart': //배송시작
-                case 'producerCancelOrder': //생산자 주문취소
-                    await this.changeConsumerUrl( Server.getServerURL() + '/mypage?moveTo=orderList' ,TAB_KEY.MY_PAGE);
-                    break;
-
-                case 'favoriteNewGoods':
-                    await this.changeConsumerUrl( Server.getServerURL() + '/home/7' ,TAB_KEY.HOME);
-                    break;
-                case 'goodsQnaAnswer':
-                    await this.changeConsumerUrl( Server.getServerURL() + '/mypage?moveTo=goodsQnaList' ,TAB_KEY.MY_PAGE);
-                    break;
-                case 'noticePush': //공지사항을 푸시하는 경우
-                    await this.changeConsumerUrl( Server.getServerURL() + '/noticeList' ,TAB_KEY.HOME);
-                    break;
-
-                case 'favoriteNewFarmDiary': //생산일지
-                    //await this.changeTab(TAB_KEY.HOME);
-                    //break;
-                case 'delayShippingGoods':  //배송지연, 생산일지는 그냥 알림으로 이동
-                    //await this.changeTab(TAB_KEY.MY_PAGE);
-                    await this.changeConsumerUrl( Server.getServerURL() + '/mypage?moveTo=notificationList' ,TAB_KEY.MY_PAGE);
-                    break;
-
-                case 'kycAuth':
-                case 'transferBly':
-                    await this.changeConsumerUrl( Server.getServerURL() + '/mypage' ,TAB_KEY.MY_PAGE);
-                    break;
-
-
-                //생산자 --
-                case 'goodsQnaAsk':
-                case 'saleEndGoods':
-                    await this.changeTab(TAB_KEY.CATEGORY);
-                    break;
-
-                case 'newOrder':
-                case 'cancelOrder':
-                case 'alertProducerCalculate':
-                case 'firstNotDelivery':
-                case 'notDelivery':
-                case 'delayDelivery':
-                case 'shippingStartWaring':
-                    await this.changeTab(TAB_KEY.SEARCH);
-                    break;
-
-                default:
-                    await this.changeTab(TAB_KEY.HOME);
-                    break;
-            }
+            // switch (notificationType){
+            //     case 'deliveryStart': //배송시작
+            //     case 'producerCancelOrder': //생산자 주문취소
+            //         await this.changeConsumerUrl( Server.getServerURL() + '/mypage?moveTo=orderList');
+            //         break;
+            //
+            //     case 'favoriteNewGoods':
+            //         await this.changeConsumerUrl( Server.getServerURL() + '/store/7'); // TODO
+            //         break;
+            //     case 'goodsQnaAnswer':
+            //         await this.changeConsumerUrl( Server.getServerURL() + '/mypage?moveTo=myQA/1');
+            //         break;
+            //     case 'coupon':
+            //         await this.changeConsumerUrl( Server.getServerURL() + '/mypage?moveTo=couponList');
+            //         break;
+            //
+            //     case 'favoriteNewFarmDiary': //생산일지 (라운지로 보내기)
+            //         await this.changeConsumerUrl( Server.getMainPage());
+            //         break;
+            //
+            //     case 'boardReply':  // 내 게시글에 댓글이 달린경우 게시글 리스트
+            //         await this.changeConsumerUrl( Server.getServerURL() + '/mypage?moveTo=boardList');
+            //         break;
+            //
+            //     case 'reviewReply': // 리뷰에 댓글이 달린 경우 리뷰리스트
+            //         await this.changeConsumerUrl( Server.getServerURL() + '/goodsReviewList/2');   // TODO
+            //         break;
+            //
+            //     case 'getBadge':    // 뱃지 획득 푸쉬도 마이페이지로 이동
+            //     case 'kycAuth':
+            //     case 'transferBly':
+            //         await this.changeConsumerUrl( Server.getServerURL() + '/mypage');
+            //         break;
+            //
+            //
+            //     //생산자 --
+            //     case 'goodsQnaAsk':
+            //         await this.changeConsumerUrl( Server.getServerURL() + '/mypage?moveTo=producer/qnalist');
+            //         break;
+            //
+            //     case 'newOrder':
+            //         await this.changeConsumerUrl( Server.getServerURL() + '/mypage?moveTo=producer/orderList');
+            //         break;
+            //
+            //     case 'cancelOrder':
+            //         await this.changeConsumerUrl( Server.getServerURL() + '/mypage?moveTo=producer/cancelList');
+            //         break;
+            //     default:
+            //         await this.changeConsumerUrl( Server.getMainPage());
+            //         break;
+            // }
         }
     };
 
-    changeConsumerUrl = async (uri, tabKey) => {
+    changeConsumerUrl = async (uri) => {
+        // console.log("changeConsumerUrl : ", uri);
         this.setState({
             key: this.getNewKey(),
-            pressedTabKey: tabKey,
+            // pressedTabKey: tabKey,
             source: {uri: uri}
         });
     }
-
-
-    // //유저타입이 맞는지 반환 - 미사용
-    // userTypeOf = async (userType) => {
-    //     const {data} = await getLoginUserType()
-    //     return data === userType
-    // }
-
-    //userType을 localStorage에 저장해서 get하는 로직: 미로그인시에 오류방지용.
-    isProducerUserType = async () => {
-        let {data:userType} = await getLoginUserType();
-        console.log('get userType', userType );
-
-        if (!userType) { //미로그인시
-            userType = await AsyncStorage.getItem('userType');
-            console.log('get AsyncStorageUserType', userType );
-
-            if (!userType) { //로컬에 저장 안되어 있을시 ..
-                console.log('no login history exists: defulat consumer' );
-            }
-        }
-
-        // https://github.com/react-native-community/async-storage/issues/190
-        // null 을 저장하려고 하면 iOS 에서 crash
-        if(userType) {
-            console.log('AsyncStorage.setItem ' + userType );
-            AsyncStorage.setItem('userType', userType); //userType 저장
-        }
-
-        return (userType === USER_TYPE.PRODUCER); //default consumer
-    }
-
-    changeTab = async (tabKey) => {
-
-        let uri;
-
-        switch (tabKey){
-            case TAB_KEY.HOME :
-                uri = Server.getMainPage(await this.isProducerUserType())
-                break;
-            case TAB_KEY.CATEGORY :
-                uri = Server.getGoodsPage(await this.isProducerUserType())
-                break;
-            case TAB_KEY.SEARCH :
-                uri = Server.getSearchPage(await this.isProducerUserType())
-                break;
-            case TAB_KEY.MY_PAGE :
-                uri = Server.getMyPage(await this.isProducerUserType())
-                break;
-        }
-
-        this.setState({
-            key: this.getNewKey(),
-            pressedTabKey: tabKey,
-            source: {uri: uri}
-        });
-    }
-
-    /* 여기까지 */
 
     kakaoLink = async (urlObject) => {
         console.log(urlObject);
@@ -524,7 +346,7 @@ export default class HomeScreen extends React.Component {
             return; //empty URL - 왜 호출되는지..
         }
 
-        const { url, type } = JSON.parse(event.nativeEvent.data);
+        const { url, type, param, payload } = JSON.parse(event.nativeEvent.data);
 
         if(type === 'CURRENT_URL') {
             console.log('url : ', url);
@@ -569,42 +391,40 @@ export default class HomeScreen extends React.Component {
             //uri가 /mypage 및 /producer/mypage 간 이동때문에 최초 추가.
 
             let isProducer = url.includes('/producer/');
-            let tabs = this.getTabName(isProducer);
+            // let tabs = this.getTabName(isProducer);
             this.setState({
-                tabs: tabs,
+                // tabs: tabs,
                 key: this.getNewKey(),
                 source: uri
             });
-        }else if (type === 'LOGIN_UPDATE') {
-            console.log('###  HomeScreen: LOGIN_UPDATE:');
+        } else if(type === 'KAKAO_LOGIN') {
+            let self = this;
+            login()
+                .then(result => {
+                    console.log("KAKAO_SUCCESS : ", result);
+                    let url = '/login?accessToken=' + result.accessToken + '&refreshToken=' + result.refreshToken;
+                    // console.log(url);
 
-            getLoginUserType()
-                .then((res)=>{
-                    let userType = res.data;
-                    let isProducer = (userType === USER_TYPE.PRODUCER); //default consumer
-                    console.log('###  HomeScreen: LOGIN_UPDATE: isProducer', isProducer);
-
-                    let tabs = this.getTabName(isProducer);
-                    this.setState({
-                        tabs: tabs//,
-                        //무한루프문제로 막음  key: this.getNewKey()
-                    });
-
-                });
+                    const serverUrl = Server.getServerURL() + url;
+                    self.setState({
+                        key: self.state.key + 1,  //새로고침을 위해
+                        url: serverUrl
+                    })
+                })
         } else if(type === 'LOGOUT_UPDATE') {
             console.log('###  HomeScreen: LOGOUT_UPDATE:');
 
             AsyncStorage.setItem('userType', 'consumer');
 
-            let tabs = this.getTabName(false);
+            // let tabs = this.getTabName(false);
             this.setState({
-                tabs: tabs,
+                // tabs: tabs,
                 key: this.getNewKey()
             });
 
         } else if(type === 'QRCODE_SCAN') {
             this.props.navigation.navigate('Qrcode', {
-                onQrScanResult: this.qrcodeScanResult
+                onQrScanResult: this.qrcodeScanResult.bind(this, payload)
             });
         } else if(type === 'CLIPBOARD_TEXT') {
 
@@ -615,6 +435,12 @@ export default class HomeScreen extends React.Component {
             let data = await ComUtil.askCameraPermission();
             const jsonData = JSON.stringify(data)
             this.webView.ref.postMessage(jsonData)
+
+        } else if(type === 'OPEN_BROWSER') {
+            // 외부 웹브라우저로 띄우기
+            Linking.canOpenURL(url).then(supported => {
+                Linking.openURL(url);
+            }, (err) => console.log(err));
 
         } else { //APP_LOG
             console.log(url); //url에 변수를 넣어서 찍기
@@ -634,11 +460,9 @@ export default class HomeScreen extends React.Component {
 
     }
 
-    qrcodeScanResult = (data) => {
-        console.log('HomeScreen qrcodeResult : ', data)
-
+    qrcodeScanResult = (payload, data) => {
         // { qrcodeResult: 'I love you' }  이렇게 들어오는 데이터 중에 value만 webView로 넘겨야 하는디.....
-        const jsonData = JSON.stringify(data)
+        const jsonData = JSON.stringify({data, payload})
         this.webView.ref.postMessage(jsonData)
 
     }
@@ -682,16 +506,49 @@ export default class HomeScreen extends React.Component {
                 this.webView.ref.reload();
             }
         }
-        // else { //fronEnd로 전달.
-        //     this.webView.ref.postMessage(data);
-        // }
 
     }
 
     //웹뷰가 완전히 로드 되었을 경우
     onLoadEnd = () => {
+        SplashScreen.hide();
         //스플래시 이미지가 너무 빨리 닫히면 볼 수가 없어서 1초의 여유를 줌
-        setTimeout(SplashScreen.hide, 1000)
+        // setTimeout(SplashScreen.hide, 1000)
+    }
+
+    checkBlyUrl = (url) => {
+        if (url.includes("blocery.com") || url.includes("marketbly.com") ||
+            url.includes("shopbly.shop") || url.includes("shopbly.com") || url.includes(Server.getServerURL())) {
+            return true;
+        }
+        return false;
+    }
+
+    onNavigationStateChange = (navState) => {
+        console.log("onNavigationStateChange ");
+        this.webView.canGoBack = navState.canGoBack;
+        const url = navState.url;
+        if (!this.checkBlyUrl(url)) {
+            // 새 탭 열기
+            Linking.canOpenURL(url).then(supported => {
+                supported && Linking.openURL(url);
+            }, (err) => console.log(err));
+
+            return false;
+        }
+    }
+
+    onShouldStartLoadWithRequest = (event) => {
+        console.log("onShouldStartLoadWithRequest ");
+        const url = event.url;
+        if (!this.checkBlyUrl(url)) {
+            // 새 탭 열기
+            Linking.canOpenURL(url).then(supported => {
+                Linking.openURL(url);
+            }, (err) => console.log(err));
+            return false;
+        }
+        return true;
     }
 
     render() {
@@ -710,9 +567,8 @@ export default class HomeScreen extends React.Component {
                             ref={(webView) => {
                                 this.webView.ref = webView;
                             }}
-                            onNavigationStateChange={(navState) => {
-                                this.webView.canGoBack = navState.canGoBack;
-                            }}
+                            onNavigationStateChange={this.onNavigationStateChange}
+                            onShouldStartLoadWithRequest={this.onShouldStartLoadWithRequest}
                             onMessage={this.onMessageFromFront}
                             onLoadEnd={this.onLoadEnd}
                         />,
@@ -733,9 +589,8 @@ export default class HomeScreen extends React.Component {
                                 ref={(webView) => {
                                     this.webView.ref = webView;
                                 }}
-                                onNavigationStateChange={(navState) => {
-                                    this.webView.canGoBack = navState.canGoBack;
-                                }}
+                                onNavigationStateChange={this.onNavigationStateChange}
+                                onShouldStartLoadWithRequest={this.onShouldStartLoadWithRequest}
                                 onMessage={this.onMessageFromFront}
                                 onLoadEnd={this.onLoadEnd}
                             />

@@ -1,4 +1,4 @@
-import React, {useState, useEffect, lazy, Suspense} from 'react';
+import React, {useState, useEffect, lazy, Suspense, Fragment} from 'react';
 import { FormGroup, Alert, Container, Input, CustomInput, Row, Col, Label, Button, Modal, ModalHeader, ModalBody, ModalFooter  } from 'reactstrap'
 import Select from 'react-select'
 
@@ -10,7 +10,18 @@ import { B2cGoodsSearch } from '~/components/common'
 
 import {FaSearchPlus} from "react-icons/fa";
 import {Server} from "~/components/Properties";
-import {Div, Flex, Button as StyledButton} from "~/styledComponents/shared";
+import {
+    Div,
+    Flex,
+    Button as StyledButton,
+    Space,
+    Right,
+    Input as StInput,
+    Button as StButton
+} from "~/styledComponents/shared";
+import B2cGoodsSelSearch from "~/components/common/goodsSearch/b2cGoodsSelSearch";
+import Checkbox from "~/components/common/checkboxes/Checkbox";
+import ProducerList from "~/components/common/modalContents/producerList";
 
 const BuyRewardGoodsList = lazy(()=> import('./BuyRewardGoodsList'))
 
@@ -19,7 +30,8 @@ const titleTags = {
     memberJoinProdGoods: ['무료쿠폰', 'xxx 무료쿠폰'],                                        //회원가입생산자상품
     goodsBuyReward: ['차곡차곡 쌓이는 적립형 쿠폰'],                               //구매 보상쿠폰
     specialCoupon: ['스페셜 쿠폰', '고객님께만 드려요. 스페셜쿠폰', '고객님께만 드려요 :) 스페셜쿠폰', '이벤트 당첨 쿠폰', '후기 이벤트 당첨(x등) 쿠폰'],   //스페셜 쿠폰
-    potenCoupon: ['포텐타임 자동쿠폰']                                          //포텐타임 자동쿠폰
+    potenCoupon: ['포텐타임 자동쿠폰'],                                          //포텐타임 자동쿠폰
+    deliveryCoupon: ['배송비 무료쿠폰']                              // 배송비 무료쿠폰
 }
 
 const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 넘겨서 db 조회해서 보여줘야함
@@ -29,10 +41,11 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
     const [couponTypeOptions,setCouponTypeOptions] = useState(
         [
             {value: 'memberJoin', label: '회원가입'},
-            {value: 'memberJoinProdGoods', label: '회원가입생산자상품'},
+            // {value: 'memberJoinProdGoods', label: '회원가입생산자상품'},
             {value: 'goodsBuyReward', label: '구매 보상쿠폰'},
             {value: 'specialCoupon', label: '스페셜 쿠폰'},
             {value: 'potenCoupon', label: '포텐타임 자동쿠폰'},
+            {value: 'deliveryCoupon', label: '배송비 쿠폰'},
         ]
     );
 
@@ -43,6 +56,8 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
 
     const [startDayFocusedInput,setStartDayFocusedInput] = useState(null);
     const [endDayFocusedInput,setEndDayFocusedInput] = useState(null);
+    const [useEndDayFocusedInput,setUseEndDayFocusedInput] = useState(null);
+    const [checkUseEndDay, setCheckUseEndDay] = useState(false);
 
     // 쿠폰 종류 라디오 버튼 (할인금액 or 할인율) radio checked
     // const [radioCouponKind,setRadioCouponKind] = useState('0');
@@ -66,6 +81,8 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
         minOrderBlyAmount:0,
         prodGoodsProducerNo:0,  //회원가입생산자상품 팜토리 8번 일단 고정
 
+        minGoodsPrice : 0,   //2020-01 추가. 최소사용금액. 0보다 크면 적용. 0이면 한도가 없다고 봐야함-BLY한도에 걸림.
+
         potenCouponGoodsNo:0,           //포텐타임 자동쿠폰용 상품번호. -> targetGoodsNo 로 쓸 수 있을듯
         potenCouponProducerNo:0,        //포텐타임 상품 관련 생산자번호
         potenCouponProducerFarmNm:"",   //포텐타임 생산자농장명
@@ -79,16 +96,45 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
         // producerFarmNm:null,
         // goodsNm:null,
         targetGoods: [],         // array로 저장되는 구매보상리워드 대상상품
-        couponMemo: ''
+        couponMemo: '',
+        onlyAppCoupon: false,    // 앱전용쿠폰
+        couponGoods: null,        //특정상품구매쿠폰
+        wonCoupon: true,       //원화쿠폰 (default로 지정 2022.7.7)
+        downloadableFlag: false, //다운로드해서 사용하는 쿠폰
+        downloadLevel: 0,
+        targetProducerNo: 0,
+        targetProducerName: null,
+        useEndDay: null
     });
+
+    const couponOptions = [
+        {value:'all',label:'전체'},
+        {value:'couponGoods',label:'상품전용'},
+        {value:'targetProducerNo',label:'생산자용'},
+    ]
+
+    const levelOptions = [
+        {value:0,label:'전체'},
+        {value:1,label:'VVIP'},
+        {value:2,label:'VIP'},
+        {value:3,label:'GOLD'},
+        {value:4,label:'SILVER'},
+        {value:5,label:'BRONZE'},
+    ]
 
     const [multiGoodsSearchModal, setMultiGoodsSearchModal] = useState(false)
     const [goodsSearchModal, setGoodsSearchModal] = useState(false)
 
+    const [couponGoodsChecked, setCouponGoodsChecked] = useState(false);
+    const [targetProducerChecked, setTargetProducerChecked] = useState(false);
+    const [couponOptionValue, setCouponOptionValue] = useState("all");
+
+    const [producerModalOpen, setProducerModalOpen] = useState(false);
+
     const {
         masterNo,
         couponType,
-        startDay, endDay, useDuration, prodGoodsProducerNo,
+        startDay, endDay, useDuration, prodGoodsProducerNo, useEndDay,
         totalCount, remainCount,
         couponTitle,
         fixedWon,
@@ -96,7 +142,8 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
         minOrderBlyAmount,
         potenCouponDiscount,
         potenCouponSalePrice,
-        couponMemo
+        couponMemo,
+        minGoodsPrice
     } = couponMaster;
 
     useEffect(() => {
@@ -112,6 +159,8 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
         //수정일경우
         if(p_masterNo > 0){
             const {data:couponMasterInfo} = await getCouponMaster({masterNo:p_masterNo})
+            console.log({couponMasterInfo});
+
             if(couponMasterInfo){
 
                 // 최소주문금액 라디오 버튼 체크
@@ -134,6 +183,20 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
 
                 // 쿠폰발급내역 정보 가져오기
                 setCouponMaster(couponMasterInfo)
+
+                if(couponMasterInfo.couponGoods) {
+                    setCouponGoodsChecked(true);
+                    setCouponOptionValue('couponGoods')
+                }
+
+                if(couponMasterInfo.targetProducerNo > 0) {
+                    setTargetProducerChecked(true)
+                    setCouponOptionValue('targetProducerNo')
+                }
+
+                if(couponMasterInfo.useEndDay > 0) {
+                    setCheckUseEndDay(true)
+                }
             }
         }
     };
@@ -171,13 +234,15 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
 
     // 발급 위치
     const onCouponTypeChange = (data) => {
+        console.log("onCouponTypeChange");
         let v_CouponType = data.value;
+        console.log({v_CouponType});
 
         if(v_CouponType === "goodsBuyReward") {
             setCouponMaster({
                 ...couponMaster,
                 couponType:v_CouponType,
-                startDay: "", endDay: "",
+                startDay: "", endDay: "", useEndDay: "",
                 useDuration:30,
                 targetGoods:[],
                 prodGoodsProducerNo:0,
@@ -186,6 +251,9 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                 potenCouponProducerFarmNm:"",   //포텐타임 생산자농장명
                 potenCouponGoodsNm:"",          //포텐타임 상품명
                 potenCouponDiscount:0,          //포텐타임 할인율
+                downloadableFlag: false,
+                downloadLevel: 0,
+                wonCoupon: false
             });
         } else if(v_CouponType === "memberJoin") {
             setCouponMaster({
@@ -199,6 +267,9 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                 potenCouponProducerFarmNm:"",   //포텐타임 생산자농장명
                 potenCouponGoodsNm:"",          //포텐타임 상품명
                 potenCouponDiscount:0,          //포텐타임 할인율
+                downloadableFlag: false,
+                downloadLevel: 0,
+                useEndDay: null
             });
         }
         else if(v_CouponType === 'memberJoinProdGoods'){
@@ -213,9 +284,12 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                 potenCouponProducerFarmNm:"",   //포텐타임 생산자농장명
                 potenCouponGoodsNm:"",          //포텐타임 상품명
                 potenCouponDiscount:0,          //포텐타임 할인율
+                downloadableFlag: false,
+                downloadLevel: 0,
+                wonCoupon: false,
+                useEndDay: null
             });
-        }
-        else if(v_CouponType === 'specialCoupon') {
+        } else if(v_CouponType === 'specialCoupon') {
             setCouponMaster({
                 ...couponMaster,
                 couponType:v_CouponType,
@@ -228,12 +302,15 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                 potenCouponProducerFarmNm:"",   //포텐타임 생산자농장명
                 potenCouponGoodsNm:"",          //포텐타임 상품명
                 potenCouponDiscount:0,          //포텐타임 할인율
+                downloadableFlag: false,
+                downloadLevel: 0,
+                useEndDay: null
             })
         } else if(v_CouponType === 'potenCoupon') {
             setCouponMaster({
                 ...couponMaster,
                 couponType:v_CouponType,
-                startDay: "", endDay: "",
+                startDay: "", endDay: "", useEndDay: "",
                 useDuration:30,
                 targetGoods:[],
                 prodGoodsProducerNo:0,
@@ -242,7 +319,28 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                 potenCouponProducerFarmNm:"",   //포텐타임 생산자농장명
                 potenCouponGoodsNm:"",          //포텐타임 상품명
                 potenCouponDiscount:0,          //포텐타임 할인율
-                fixedWon:0
+                fixedWon:0,
+                downloadableFlag: false,
+                downloadLevel: 0,
+                wonCoupon: false
+            })
+        } else if(v_CouponType === 'deliveryCoupon') {
+            setCouponMaster({
+                ...couponMaster,
+                couponType:v_CouponType,
+                startDay: "", endDay: "", useEndDay: null,
+                useDuration:30,
+                targetGoods:[],
+                prodGoodsProducerNo:0,
+                potenCouponGoodsNo:0,           //포텐타임 자동쿠폰용 상품번호. -> targetGoodsNo 로 쓸 수 있을듯
+                potenCouponProducerNo:0,        //포텐타임 상품 관련 생산자번호
+                potenCouponProducerFarmNm:"",   //포텐타임 생산자농장명
+                potenCouponGoodsNm:"",          //포텐타임 상품명
+                potenCouponDiscount:0,          //포텐타임 할인율
+                fixedWon:0,
+                downloadableFlag: false,
+                downloadLevel: 0,
+                wonCoupon: false, // TODO 원쿠폰은 아니어야할듯... 확인 필요. useEndDay도 null로 할지 "" 이걸로 할지 확인필요
             })
         }
     };
@@ -260,6 +358,14 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
             setCouponMaster({
                 ...couponMaster,
                 endDay:date.format('YYYYMMDD')
+            });
+        }
+
+        if(gubun == "useEndDay") {
+            setCouponMaster({
+                ...couponMaster,
+                useDuration:0,
+                useEndDay:date.format('YYYYMMDD')
             });
         }
     };
@@ -299,8 +405,6 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
     const onSaveClick = async () => {
         const couponMasterInfo = Object.assign({}, couponMaster);
 
-        console.log(couponMasterInfo)
-
         if(couponMasterInfo.couponTitle.length === 0){
             alert("쿠폰명은 필수 입력입니다!");
             return false;
@@ -335,7 +439,7 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
             return false;
         }
 
-        if(couponMasterInfo.couponType !== 'memberJoinProdGoods' && couponMasterInfo.couponType !== 'potenCoupon') {
+        if(couponMasterInfo.couponType !== 'memberJoinProdGoods' && couponMasterInfo.couponType !== 'potenCoupon' && couponMasterInfo.couponType !== 'deliveryCoupon') {
             if (couponMasterInfo.fixedWon === 0 && couponMasterInfo.couponBlyAmount === 0) {
                 alert("금액은 필수 입력입니다!");
                 return false;
@@ -347,9 +451,24 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
             return false;
         }
 
-        const params = couponMasterInfo;
+        if(couponGoodsChecked && !couponMasterInfo.couponGoods) {
+            alert("상품전용쿠폰은 상품 필수입력입니다!")
+            return false;
+        }
 
-        console.log(params);
+        if(targetProducerChecked && couponMasterInfo.targetProducerNo === 0) {
+            alert("생산자용쿠폰은 생산자 필수선택입니다!")
+            return false;
+        }
+
+        if(checkUseEndDay && (couponMasterInfo.useEndDay === null || couponMasterInfo.useEndDay === "")) {
+            alert("사용기한을 지정해주세요.")
+            return false;
+        }
+
+        console.log({couponMasterInfo});
+
+        const params = couponMasterInfo;
 
         const { data } = await saveCouponMaster(params);
 
@@ -367,6 +486,26 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
         }
 
     };
+
+    // 생산자 쿠폰의 생산자 선택
+    const onProducerClick = () => {
+        toggleProducerModal();
+    }
+
+    const toggleProducerModal = () => {
+        setProducerModalOpen(!producerModalOpen);
+    }
+
+    const onProducerModalClosed = (data) => {
+        if (data) {
+            setCouponMaster({
+                ...couponMaster,
+                targetProducerNo: data.producerNo,
+                targetProducerName: data.farmName
+            })
+        }
+        toggleProducerModal();
+    }
 
     // 구매쿠폰 상품리스트 수정
     const onTargetGoodsUpdateClick = async () => {
@@ -433,14 +572,30 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
         //         // goodsNm: obj.goodsNm,
         //     });
         // } else if(couponMaster.couponType === 'potenCoupon') {
-        setCouponMaster({
-            ...couponMaster,
-            potenCouponGoodsNo: obj.goodsNo,
-            potenCouponProducerNo: obj.producerNo,
-            potenCouponProducerFarmNm: obj.producerFarmNm,
-            potenCouponGoodsNm: obj.goodsNm,
-            potenCouponGoodsPrice: obj.currentPrice,
-        });
+
+        // 쿠폰으로 살수있는 상품 선택이면 포텐 아님 (2022.5.25)
+        if(couponGoodsChecked) {
+            const couponGoods = {
+                targetGoodsNo: obj.goodsNo,
+                producerNo: obj.producerNo,
+                producerFarmNm: obj.producerFarmNm,
+                goodsNm: obj.goodsNm + '[' + obj.eventOptionName + ']'
+            }
+            setCouponMaster({
+                ...couponMaster,
+                couponGoods: couponGoods
+            })
+
+        } else {
+            setCouponMaster({
+                ...couponMaster,
+                potenCouponGoodsNo: obj.goodsNo,
+                potenCouponProducerNo: obj.producerNo,
+                potenCouponProducerFarmNm: obj.producerFarmNm,
+                potenCouponGoodsNm: obj.goodsNm + '[' + obj.eventOptionName + ']', //eventFlag반영
+                potenCouponGoodsPrice: obj.eventOptionPrice //obj.currentPrice,  //eventFlag반영
+            });
+        }
         // }
         goodsSearchModalToggle();
     };
@@ -468,6 +623,72 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
         setMultiGoodsSearchModal(!multiGoodsSearchModal);
     }
 
+    // 앱 전용쿠폰
+    const onAppCouponCheckChange = (e) => {
+        setCouponMaster({
+            ...couponMaster,
+            onlyAppCoupon: e.target.checked
+        });
+    }
+
+    // 다운로드 쿠폰의 등급선택
+    const onLevelOptionsChange = (item) =>{
+        setCouponMaster({
+            ...couponMaster,
+            downloadLevel: item.value
+        })
+    }
+
+    const onCouponOptionsChange = (item) => {
+        setCouponOptionValue(item.value);
+
+        setCouponGoodsChecked(false);
+        setTargetProducerChecked(false);
+
+        if(item.value === 'couponGoods') {
+            setCouponGoodsChecked(true);
+
+            setCouponMaster({
+                ...couponMaster,
+                targetProducerNo: 0,
+                targetProducerName: null
+            })
+
+        } else if(item.value === 'targetProducerNo') {
+            setTargetProducerChecked(true);
+
+            setCouponMaster({
+                ...couponMaster,
+                couponGoods: null
+            })
+
+        }
+    }
+
+    const onDownloadableFlagCheckChange = (e) => {
+        setCouponMaster({
+            ...couponMaster,
+            downloadableFlag: e.target.checked,
+            downloadLevel: 0
+        })
+    }
+
+    const onUseEndDayCheckChange = (e) => {
+        setCheckUseEndDay(e.target.checked)
+        if(e.target.checked) {
+            setCouponMaster({
+                ...couponMaster,
+                useDuration:-1,
+                useEndDay: null
+            });
+        } else {
+            setCouponMaster({
+                ...couponMaster,
+                useDuration:30,
+                useEndDay: null
+            });
+        }
+    }
 
     const star = <span className='text-danger'>*</span>;
     return(
@@ -481,21 +702,50 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                 </FormGroup>
                 <FormGroup>
                     <Label className={'font-weight-bold text-secondary small'}>발급 위치 {star}</Label>
-                    <div className="pl-1" style={{width: '300px'}}>
+                    <Space>
+                        <div className="pl-1" style={{width: '250px'}}>
+                            {
+                                (masterNo == 0) &&
+                                <Select
+                                    name={'couponType'}
+                                    options={couponTypeOptions}
+                                    value={couponType ? couponTypeOptions.find(items => items.value === couponType) : 'memberJoin'}
+                                    onChange={onCouponTypeChange}
+                                />
+                            }
+                            {
+                                (masterNo > 0) &&
+                                <div>{couponTypeOptions.find(items => items.value === couponType) && couponTypeOptions.find(items => items.value === couponType).label}</div>
+                            }
+                        </div>
+                        <div className="pl-2 text-secondary small" >
+                            <Checkbox bg={'green'} checked={couponMaster.onlyAppCoupon} onChange={onAppCouponCheckChange}>앱전용 </Checkbox>
+                        </div>
+
                         {
-                            (masterNo == 0) &&
-                            <Select
-                                name={'couponType'}
-                                options={couponTypeOptions}
-                                value={couponType ? couponTypeOptions.find(items => items.value === couponType) : 'memberJoin'}
-                                onChange={onCouponTypeChange}
-                            />
+                            (couponMaster.couponType === 'specialCoupon' || couponMaster.couponType === 'deliveryCoupon') &&
+                            <div className="text-secondary small d-flex align-items-center">
+                                <div className="pl-1">
+                                    <Checkbox bg={'green'} checked={couponMaster.downloadableFlag} onChange={onDownloadableFlagCheckChange}>다운로드 </Checkbox>
+                                </div>
+                            </div>
                         }
+
                         {
-                            (masterNo > 0) &&
-                            <div>{couponTypeOptions.find(items => items.value === couponType) && couponTypeOptions.find(items => items.value === couponType).label}</div>
+                            (couponMaster.couponType === 'memberJoin' || couponMaster.couponType === 'specialCoupon') &&
+                                <div className="text-secondary small d-flex align-items-center">
+                                    <div className="pl-1 d-flex">
+                                        <Checkbox bg={'green'} checked={checkUseEndDay} onChange={onUseEndDayCheckChange}>사용기한지정 </Checkbox>
+                                    </div>
+                                    <div className="pl-2"  style={{width: '150px'}}>
+                                        <Select options={couponOptions}
+                                                value={couponOptions.find(item => item.value === couponOptionValue)}
+                                                onChange={onCouponOptionsChange}
+                                        />
+                                    </div>
+                                </div>
                         }
-                    </div>
+                    </Space>
                 </FormGroup>
 
                 <FormGroup>
@@ -537,6 +787,7 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                         />
                     </div>
                 </FormGroup>
+
                 {
                     (couponMaster.couponType === 'goodsBuyReward') &&
                     <FormGroup>
@@ -592,7 +843,7 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                 }
 
                 {
-                    (couponMaster.couponType === 'potenCoupon') &&
+                    (couponMaster.couponType === 'potenCoupon' || couponGoodsChecked) &&
                     <FormGroup>
                         <Label className={'font-weight-bold text-secondary small'}>
                             쿠폰상품 {star}
@@ -601,7 +852,7 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                             <Input type="text"
                                    name={'mdPickProducerNo'}
                                    style={{width: '60px'}}
-                                   value={couponMaster.potenCouponProducerNo || ""}
+                                   value={couponMaster.couponGoods ? couponMaster.couponGoods.producerNo : couponMaster.potenCouponProducerNo || ""}
                                    readOnly='readonly'
                                    placeholder={'생산자번호'}
                                    onChange={onInputBlyTimeGoodsChange}/>
@@ -609,7 +860,7 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                                    name={'mdPickProducerFarmNm'}
                                    className="ml-1"
                                    style={{width: '130px'}}
-                                   value={couponMaster.potenCouponProducerFarmNm || ""}
+                                   value={couponMaster.couponGoods ? couponMaster.couponGoods.producerFarmNm : couponMaster.potenCouponProducerFarmNm || ""}
                                    readOnly='readonly'
                                    placeholder={'생산자명'}
                                    onChange={onInputBlyTimeGoodsChange}/>
@@ -617,7 +868,7 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                                    name={'mdPickGoodsNm'}
                                    className="ml-1"
                                    style={{width: '250px'}}
-                                   value={couponMaster.potenCouponGoodsNm || ""}
+                                   value={couponMaster.couponGoods ? couponMaster.couponGoods.goodsNm : couponMaster.potenCouponGoodsNm || ""}
                                    readOnly='readonly'
                                    placeholder={'상품명'}
                                    onChange={onInputBlyTimeGoodsChange}/>
@@ -633,7 +884,7 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                                    name={'mdPickGoodsNo'}
                                    className="ml-1"
                                    style={{width: '70px'}}
-                                   value={couponMaster.potenCouponGoodsNo || ""}
+                                   value={couponMaster.couponGoods ? couponMaster.couponGoods.targetGoodsNo : couponMaster.potenCouponGoodsNo || ""}
                                    readOnly='readonly'
                                    placeholder={'상품번호'}
                                    onChange={onInputBlyTimeGoodsChange}/>
@@ -647,12 +898,45 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                     </FormGroup>
 
                 }
+                {
+                    targetProducerChecked &&
+                    <FormGroup>
+                        <Label className={'font-weight-bold text-secondary small'}>
+                            생산자번호 {star}
+                        </Label>
+                        <Flex>
+                            <StInput readOnly={true} width={70} value={couponMaster.targetProducerNo} mr={5} />
+                            <StInput readOnly={true} width={200} value={couponMaster.targetProducerName} mr={5} />
+                            <StButton bg={'green'} fg={'white'} onClick={onProducerClick} px={10}><FaSearchPlus/>{' 생산자검색'}</StButton>
+                        </Flex>
+                    </FormGroup>
+                }
 
                 {
-                    ((couponMaster.couponType === 'memberJoin') || (couponMaster.couponType === 'memberJoinProdGoods') )&&
+                    couponMaster.downloadableFlag &&
+                    <>
+                        <FormGroup>
+                            <Label className={'font-weight-bold text-secondary small'}>등급번호 {star}</Label>
+
+                            <div style={{width: '150px'}}>
+                                <Select options={levelOptions}
+                                        value={levelOptions.find(item => item.value === couponMaster.downloadLevel)}
+                                        onChange={onLevelOptionsChange}
+                                />
+                            </div>
+                        </FormGroup>
+                    </>
+                }
+                {
+                    ((couponMaster.couponType === 'memberJoin') || (couponMaster.couponType === 'memberJoinProdGoods') || (couponMaster.downloadableFlag) )&&
 
                     <FormGroup>
-                        <Label className={'font-weight-bold text-secondary small'}>발급 기간 {star}</Label>
+                        {
+                            couponMaster.downloadableFlag ?
+                                <Label className={'font-weight-bold text-secondary small'}>다운로드 가능기간(기간 설정시에만 쿠폰 다운로드 페이지에 노출됩니다)</Label>
+                                :
+                                <Label className={'font-weight-bold text-secondary small'}>발급 기간 {star}</Label>
+                        }
                         <div className="d-flex align-items-center">
                             <SingleDatePicker
                                 placeholder="시작일"
@@ -691,22 +975,7 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                     </FormGroup>
                 }
                 {
-                    (couponMaster.couponType === 'memberJoinProdGoods') &&
-                    <>
-                        <FormGroup>
-                            <Label className={'font-weight-bold text-secondary small'}>생산자번호 {star}</Label>
-                            <div className='d-flex align-items-center' style={{width:'40%'}}>
-                                <Input
-                                    type='number'
-                                    name={'prodGoodsProducerNo'} value={prodGoodsProducerNo}
-                                    onFocus={(event) => event.target.select()}
-                                    onChange={onInputChange}/>
-                            </div>
-                        </FormGroup>
-                    </>
-                }
-                {
-                    (couponMaster.couponType !== 'potenCoupon') &&
+                    (couponMaster.couponType !== 'potenCoupon' && !checkUseEndDay) &&
                     <>
                         <FormGroup>
                             <Label className={'font-weight-bold text-secondary small'}>발급시작일~사용가능일수 {star}</Label>
@@ -720,8 +989,36 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                         </FormGroup>
                     </>
                 }
+
                 {
-                    (couponMaster.couponType !== 'memberJoinProdGoods' && couponMaster.couponType !== 'potenCoupon') &&
+                    checkUseEndDay &&
+                    <>
+                        <FormGroup>
+                            <Label className={'font-weight-bold text-secondary small'}>쿠폰사용기한지정 {star}</Label>
+                            <div className="d-flex align-items-center">
+                                <SingleDatePicker
+                                    placeholder="종료일"
+                                    date={useEndDay ? moment(ComUtil.intToDateMoment(useEndDay)).endOf('day') : null}
+                                    onDateChange={onCalendarDatesChange.bind(this, 'useEndDay')}
+                                    focused={useEndDayFocusedInput}
+                                    id={"useEndDay"}
+                                    onFocusChange={({focused}) => setUseEndDayFocusedInput(focused)}
+                                    numberOfMonths={1}
+                                    withPortal
+                                    small
+                                    readOnly
+                                    isOutsideRange={() => false}
+                                    calendarInfoPosition="top"
+                                    verticalHeight={700}
+                                    renderCalendarInfo={renderEndCalendarInfo}
+                                />
+                            </div>
+                        </FormGroup>
+                    </>
+                }
+
+                {
+                    (couponMaster.couponType !== 'memberJoinProdGoods' && couponMaster.couponType !== 'potenCoupon' && couponMaster.couponType !== 'deliveryCoupon') &&
                     <>
                         <FormGroup>
                             <Label className={'font-weight-bold text-secondary small'}>원화금액(원) {star}</Label>
@@ -735,18 +1032,21 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                                 /> <span className='ml-2'>원</span>
                             </div>
                         </FormGroup>
-                        <FormGroup>
-                            <Label className={'font-weight-bold text-secondary small'}>쿠폰금액(BLY) {star}</Label>
-                            <div className='d-flex align-items-center' style={{width:'40%'}}>
-                                <Input
-                                    type='number'
-                                    name={'couponBlyAmount'} value={couponBlyAmount}
-                                    onFocus={(event) => event.target.select()}
-                                    onChange={onInputChange}
-                                    readOnly={couponType == 'specialCoupon' ? false:true }
-                                /> <span className='ml-2'>BLY</span>
-                            </div>
-                        </FormGroup>
+                        {
+                            !couponMaster.wonCoupon &&
+                            <FormGroup>
+                                <Label className={'font-weight-bold text-secondary small'}>쿠폰금액(BLY) </Label>
+                                <div className='d-flex align-items-center' style={{width:'40%'}}>
+                                    <Input
+                                        type='number'
+                                        name={'couponBlyAmount'} value={couponBlyAmount}
+                                        onFocus={(event) => event.target.select()}
+                                        onChange={onInputChange}
+                                        readOnly={couponType == 'specialCoupon' ? false:true }
+                                    /> <span className='ml-2'>BLY</span>
+                                </div>
+                            </FormGroup>
+                        }
                     </>
                 }
                 {
@@ -777,11 +1077,27 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                             onChange={onInputChange}/> <span className='ml-2'>개</span>
                     </div>
                 </FormGroup>
+                { //2022 01 신규추가.
+                    (couponMaster.couponType === 'memberJoin' || couponMaster.couponType === 'specialCoupon') &&
+                    <FormGroup>
+                        <Label className={'font-weight-bold text-secondary small'}>최소 주문 금액(원) {!couponMaster.wonCoupon && <span>- 0이면 아래 BLY한도만 적용</span>} {star}</Label>
+                        <div className='d-flex align-items-center' style={{width: '40%'}}>
+                            <Input
+                                type='number'
+                                name={'minGoodsPrice'}
+                                value={minGoodsPrice}
+                                onChange={onInputChange}
+                                onFocus={(event) => event.target.select()}
+                            /> <span className='ml-2'> 원 </span>
+                        </div>
+                    </FormGroup>
+                }
+
                 {
-                    (couponMaster.couponType !== 'memberJoinProdGoods' && couponMaster.couponType !== 'potenCoupon') &&
+                    (couponMaster.couponType !== 'memberJoinProdGoods' && couponMaster.couponType !== 'potenCoupon' && !couponMaster.wonCoupon && couponMaster.couponType !== 'deliveryCoupon') &&
                     <>
                         <FormGroup>
-                            <Label className={'font-weight-bold text-secondary small'}>최소 주문 금액 {star}</Label>
+                            <Label className={'font-weight-bold text-secondary small'}>최소 주문 금액 </Label>
                             <div className='d-flex align-items-center' style={{width:'40%'}}>
                                 <Input
                                     type='number'
@@ -795,6 +1111,8 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                         </FormGroup>
                     </>
                 }
+
+
             </div>
             <div className="d-flex">
                 <div className='flex-grow-1 p-1'>
@@ -824,10 +1142,11 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
             <Modal size="lg" isOpen={goodsSearchModal}
                    toggle={goodsSearchModalToggle} >
                 <ModalHeader toggle={goodsSearchModalToggle}>
-                    상품 검색
+                    쿠폰 상품검색
                 </ModalHeader>
                 <ModalBody>
-                    <B2cGoodsSearch onChange={goodsSearchModalOnChange} />
+                    {/* 2022.05 아래로 변경. <B2cGoodsSearch onChange={goodsSearchModalOnChange} />*/}
+                    <B2cGoodsSelSearch onChange={goodsSearchModalOnChange} />
                 </ModalBody>
                 <ModalFooter>
                     <Button color="secondary" onClick={goodsSearchModalToggle}>취소</Button>
@@ -851,6 +1170,23 @@ const CouponMasterReg = (props) => { // props에 수정할 공지사항 key를 �
                             onClose={multiGoodsToggle} goodsList={couponMaster.targetGoods} />
                     </Suspense>
                 </ModalBody>
+            </Modal>
+
+            {/*생산자 모달 */}
+            <Modal size="lg" isOpen={producerModalOpen}
+                   toggle={toggleProducerModal} >
+                <ModalHeader toggle={toggleProducerModal}>
+                    생산자 검색
+                </ModalHeader>
+                <ModalBody>
+                    <ProducerList
+                        onClose={onProducerModalClosed}
+                    />
+                </ModalBody>
+                <ModalFooter>
+                    <Button color="secondary"
+                            onClick={toggleProducerModal}>취소</Button>
+                </ModalFooter>
             </Modal>
         </div>
     )

@@ -13,12 +13,12 @@ import { Server } from "~/components/Properties";
 
 
 export const getManagerBlctBalance = () =>
-     axios(Server.getRestAPIHost() + '/ont/getBalanceOfManagerBlct',
-            {   method:"get",
-                withCredentials: true,
-                credentials: 'same-origin'
-            }
-        );
+    axios(Server.getRestAPIHost() + '/ont/getBalanceOfManagerBlct',
+        {   method:"get",
+            withCredentials: true,
+            credentials: 'same-origin'
+        }
+    );
 
 
 // Logic Contract에서 Manager의 Blct 전송 (simple 관리자 용)
@@ -46,16 +46,30 @@ export const scOntGetBalanceOfBlct = (owner) =>
         }
     );
 
+
+//현재 BLCT 조회 ( OptiongGoodsBuy용도:   -잠긴 금액 해서 가용 BLCT 리턴)
+export const checkMyBlctAmount = (usedBlyAmount) =>
+    axios(Server.getRestAPIHost() + '/ont/checkMyBlctAmount',
+        {   method:"get",
+            withCredentials: true,
+            credentials: 'same-origin',
+            params: {
+                usedBlyAmount: usedBlyAmount
+            }
+        }
+    );
+
+
 //전체 BLCT, 가용 BLCT, 잠긴 BLCT 리턴
-export const scOntGetBalanceOfBlctMypage = (owner) =>
-    axios(Server.getRestAPIHost() + '/ont/getBalanceOfBlctMypage',
+export const scOntGetBalanceOfBlctMypage = (owner, signal) =>
+    axios.get(Server.getRestAPIHost() + '/ont/getBalanceOfBlctMypage',
         {
-            method: "get",
             withCredentials: true,
             credentials: 'same-origin',
             params: {
                 account: owner
-            }
+            },
+            signal
         }
     );
 
@@ -119,7 +133,7 @@ export const scOntManagerSendBlctToManager = (email, amount) =>
         }
     )
 
-export const scOntTransferManagerBlctWithEvent = (eventTitle, eventSubTitle, consumerNo, amount, sendKakao, justHistory) =>
+export const scOntTransferManagerBlctWithEvent = (eventTitle, eventSubTitle, consumerNo, amount, sendKakao, justHistory, manualFlag) =>
     axios(Server.getRestAPIHost() + '/ont/transferMangerTokenToMany',
         {
             method:"post",
@@ -131,7 +145,8 @@ export const scOntTransferManagerBlctWithEvent = (eventTitle, eventSubTitle, con
                 consumerNo: consumerNo,
                 amount: amount,
                 sendKakao: sendKakao,
-                justHistory: justHistory
+                justHistory: justHistory,
+                manualFlag: manualFlag
             }
         }
     );
@@ -180,38 +195,15 @@ export const scOntGetManagerOngBalance = () =>
         }
     );
 
-// 생산자 보증금 납부
-export const scOntPayProducerDeposit = (goodsNo, amount) =>
-    axios(Server.getRestAPIHost() + '/ont/payProducerDeposit',
-        {   method:"post",
-            withCredentials: true,
-            credentials: 'same-origin',
-            data: {
-                goodsNo: goodsNo,
-                depositBlct: amount
-            }
-        }
-    );
-
-
-// 매니저에게 적립왼 총 위약금 조회
-export const scOntGetManagerTotalDeposit = () =>
-    axios(Server.getRestAPIHost() + '/ont/getManagerTotalDeposit',
-        {   method: "get",
-            withCredentials: true,
-            credentials: 'same-origin'
-        }
-    );
-
-
 // 소비자의 blct로 주문하기
-export const scOntOrderGoodsBlct = (orderSeqNo, blctAmount, price, ordersParam) =>
+//TODO: orders 만 보내서 back-end 에서 처리하면 되지 않을까 -> 예약, 멀티 바이 등에서 사용 중이라서 하려다 맘
+export const scOntOrderGoodsBlct = (orderGroupNo, blctAmount, price, ordersParam) =>
     axios(Server.getRestAPIHost() + '/ont/orderGoodsBlct',
         {   method:"post",
             withCredentials: true,
             credentials: 'same-origin',
             data: {
-                orderSeqNo: orderSeqNo,
+                orderGroupNo: orderGroupNo,
                 blctAmount: blctAmount,
                 price: price,
                 orders: ordersParam
@@ -221,22 +213,22 @@ export const scOntOrderGoodsBlct = (orderSeqNo, blctAmount, price, ordersParam) 
 
 // 무료쿠폰 주문 (blct 주문)
 export const scOntOrderFreeCouponGoodsBlct = ({
-                                        usedCouponNo,
-                                        goodsNo,
-                                        hopeDeliveryDate,
-                                        deliveryFee,            //배송비
-                                        additionalDeliveryFee,  //도서산간 지방 일 경우 들어오는 배송비
+                                                  usedCouponNo,
+                                                  goodsNo,
+                                                  hopeDeliveryDate,
+                                                  deliveryFee,            //배송비
+                                                  additionalDeliveryFee,  //도서산간 지방 일 경우 들어오는 배송비
 
-                                        gift,                   //선물여부
-                                        senderName,             //보내는이
-                                        giftMsg,                //선물메세지
-                                        deliveryMsg,            //배송메세지
-                                        receiverName,           //수령자
-                                        receiverPhone,          //수령자연락처
-                                        receiverZipNo,          //수령자우편번호
-                                        receiverAddr,           //수령자주소
-                                        receiverAddrDetail      //수령자주소상세
-                                    }) =>
+                                                  gift,                   //선물여부
+                                                  senderName,             //보내는이
+                                                  giftMsg,                //선물메세지
+                                                  deliveryMsg,            //배송메세지
+                                                  receiverName,           //수령자
+                                                  receiverPhone,          //수령자연락처
+                                                  receiverZipNo,          //수령자우편번호
+                                                  receiverAddr,           //수령자주소
+                                                  receiverAddrDetail      //수령자주소상세
+                                              }) =>
     axios(Server.getRestAPIHost() + '/ont/orderFreeCouponGoodsBlct',
         {   method:"post",
             withCredentials: true,
@@ -261,71 +253,12 @@ export const scOntOrderFreeCouponGoodsBlct = ({
         }
     );
 
-// 주문취소
-// export const scOntCancelOrderBlct = (orderSeq, goodsPriceBlct, cancelBlctFee, cancelFee, isNotDelivery) =>
-//     axios(Server.getRestAPIHost() + '/ont/cancelOrderBlct',
-//         {   method:"post",
-//             withCredentials: true,
-//             credentials: 'same-origin',
-//             data: {
-//                 orderSeqNo: orderSeq,
-//                 cancelFee: cancelFee,
-//                 isNotDelivery: isNotDelivery,
-//                 goodsPriceBlct: goodsPriceBlct,
-//                 cancelBlctFee: cancelBlctFee
-//             }
-//         }
-//     );
-
 export const scOntCancelOrderBlct = (data) =>
     axios(Server.getRestAPIHost() + '/ont/cancelOrderBlctWithDB',
         {   method:"post",
             withCredentials: true,
             credentials: 'same-origin',
             data: data
-        }
-    );
-
-// 구매정산 (구매 보상이기에 카드결제와 BLCT 결제 동일하게 사용함)
-export const scOntCalculateOrderBlct = (orderNo, orderPenalty, feeAndReward, orderPenaltyBlct, consumerRewardBlct, producerRewardBlct, orderDepositBlct) =>
-    axios(Server.getRestAPIHost() + '/ont/calculateOrderBlct',
-        {   method:"post",
-            withCredentials: true,
-            credentials: 'same-origin',
-            data: {
-                orderSeqNo: orderNo,
-                orderPenalty: orderPenalty,
-                feeAndReward: feeAndReward,
-                orderPenaltyBlct: orderPenaltyBlct,
-                consumerRewardBlct: consumerRewardBlct,
-                producerRewardBlct: producerRewardBlct,
-                orderDepositBlct: orderDepositBlct
-            }
-        }
-    );
-
-// 리뷰보상
-export const scOntRewardReviewBlct = (orderNo, reviewBlct) =>
-    axios(Server.getRestAPIHost() + '/ont/rewardReviewBlct',
-        {   method:"post",
-            withCredentials: true,
-            credentials: 'same-origin',
-            data: {
-                orderSeqNo: orderNo,
-                reviewBlct: reviewBlct
-            }
-        }
-    )
-
-// 주문번호로 그 주문에 해당하는 소비자 토큰거래내역 조회
-export const scOntGetConsumerBlctHistory = (orderSeq) =>
-    axios(Server.getRestAPIHost() + '/ont/getConsumerBlctHistory',
-        {   method:"get",
-            withCredentials: true,
-            credentials: 'same-origin',
-            params: {
-                orderSeq: orderSeq
-            }
         }
     );
 
@@ -337,18 +270,6 @@ export const scOntGetProducerOrderBlctHistory = (orderNo) =>
             credentials: 'same-origin',
             params: {
                 orderSeq: orderNo
-            }
-        }
-    );
-
-// 상품번호에 해당하는 생산자 토큰거래내역 조회 (미배송보증금)
-export const scOntGetProducerGoodsBlctHistory = (goodsNo) =>
-    axios(Server.getRestAPIHost() + '/ont/getProducerGoodsBlctHistory',
-        {   method:"get",
-            withCredentials: true,
-            credentials: 'same-origin',
-            params: {
-                goodsNo: goodsNo
             }
         }
     );
@@ -365,11 +286,3 @@ export const scOntGetProducerTotalBls = (producer) =>
         }
     );
 
-// Blct 담보 Bls 발행금액의 총액 조회
-export const scOntGetTotalBlsGuarantyBlct = () =>
-    axios(Server.getRestAPIHost() + '/ont/getTotalBlsGuaranteedBlct',
-        {   method: "get",
-            withCredentials: true,
-            credentials: 'same-origin'
-        }
-    );

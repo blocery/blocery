@@ -4,18 +4,18 @@ import { getLoginProducerUser } from '~/lib/loginApi'
 import {getGoodsByGoodsNo, getProducerFilterGoods, updateGoodsSalesStop, updateSalePaused} from '~/lib/goodsApi'
 import { getServerToday } from '~/lib/commonApi'
 import { getItems } from '~/lib/adminApi'
+import {getProducer, getProducerGoodsRegStopChk} from "~/lib/producerApi";
 import Select from 'react-select'
 import {ProducerFullModalPopupWithNav, Cell, ModalPopup, ModalConfirm} from '~/components/common'
-import { WebGoodsReg, WebDirectGoodsReg } from '~/components/producer'
+import { WebDirectGoodsReg, WebDealGoodsReg } from '~/components/producer'
 import ComUtil from '~/util/ComUtil'
 import { ExcelDownload } from '~/components/common'
+import classNames from 'classnames';
 
-import {FaClock, FaBolt} from "react-icons/fa";
+import {FaClock, FaBolt, FaLayerGroup} from "react-icons/fa";
 
 //ag-grid
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
 import {Div, Flex, Hr, FilterGroup} from "~/styledComponents/shared";
 import InputFilter from "~/components/common/gridFilter/InputFilter";
 import CheckboxFilter from "~/components/common/gridFilter/CheckboxFilter";
@@ -25,15 +25,14 @@ export default class WebGoodsList extends Component {
     constructor(props) {
         super(props);
         this.serverToday=null;
-        this.rowHeight=50;
-        this.isPcWeb=false;
+        //this.isPcWeb=false;
         this.state = {
             isGoodsSelectionOpen: false,    //상품종류 선택 팝업
             goodsRegPopupKind: '',                  //상품종류 reservedGoods, directGoods
 
             //isFarmDiaryOpen: false,
             goodsNo: null,
-            data: null,
+            data: [],
             excelData: {
                 columns: [],
                 data: []
@@ -58,7 +57,7 @@ export default class WebGoodsList extends Component {
                     resizable: true,
                     filter: true,
                     sortable: true,
-                    floatingFilter: false,
+                    floatingFilter: true,
                     filterParams: {
                         newRowsAction: 'keep'
                     }
@@ -66,39 +65,37 @@ export default class WebGoodsList extends Component {
                 components: {
                     formatCurrencyRenderer: this.formatCurrencyRenderer,
                     formatDateRenderer: this.formatDateRenderer,
-                    saleCntRenderer: this.saleCntRenderer,
-                    vatRenderer: this.vatRenderer
+                    saleCntRenderer: this.saleCntRenderer
                 },
                 frameworkComponents: {
                     directGoodsRenderer: this.directGoodsRenderer,
-                    goodsTagRenderer: this.goodsTagRenderer,
-                    goodsSttRenderer: this.goodsSttRenderer,
-                    goodsSttActRenderer: this.goodsSttActRenderer,
+                    //goodsTagRenderer: this.goodsTagRenderer,
+                    //goodsSttRenderer: this.goodsSttRenderer,
+                    //goodsSttActRenderer: this.goodsSttActRenderer,
                     goodsStateRenderer: this.goodsStateRenderer,
-                    goodsNameRenderer: this.goodsNameRenderer
+                    goodsNameRenderer: this.goodsNameRenderer,
+                    optionsNmRenderer: this.optionsNmRenderer,
+                    optionsPriceRenderer: this.optionsPriceRenderer
                 },
-                rowHeight: this.rowHeight,
+                rowHeight: 50,
                 rowSelection: 'multiple',
                 suppressRowClickSelection: false,   //false : 셀 클릭시 체크박스도 체크 true: 셀클릭시 체크박스 체크 안함
                 overlayLoadingTemplate: '<span class="ag-overlay-loading-center">...로딩중입니다...</span>',
                 overlayNoRowsTemplate: '<span class="ag-overlay-loading-center">조회된 내역이 없습니다</span>',
-
-                // enableSorting: true,                //정렬 여부
-                // enableFilter: true,                 //필터링 여부
-
-                // enableColResize: true,              //컬럼 크기 조정
                 onGridReady: this.onGridReady.bind(this),   //그리드 init(최초한번실행)
                 suppressMovableColumns: true, //헤더고정시키
                 onFilterChanged: this.onGridFilterChanged.bind(this),
                 onSelectionChanged: this.onSelectionChanged.bind(this),
             },
 
-            isPcWeb: this.isPcWeb
+            //isPcWeb: this.isPcWeb
         }
 
         //상품보기,상품수정,신규상품 타이틀 명칭 용
         // this.goodsPopTitle = "신규상품";
     }
+
+    isLocalFoodFarmer = React.createRef()
 
     onSelectionChanged = (event) => {
         this.updateSelectedRows()
@@ -113,7 +110,7 @@ export default class WebGoodsList extends Component {
     onGridReady(params) {
         //API init
         this.gridApi = params.api;
-        this.gridColumnApi = params.columnApi;
+        this.columnApi = params.columnApi;
 
         //로드시 기본 정렬
         const defaultSortModel = [
@@ -123,207 +120,163 @@ export default class WebGoodsList extends Component {
             },
         ];
         params.api.setSortModel(defaultSortModel);
-        this.search()
-    }
-
-    setExcelData() {
-        let excelData = this.getExcelData();
-        this.setState({
-            excelData: excelData
-        })
-    }
-
-    getExcelData = () => {
-        const columns = [
-            '번호', '상품명', '상품구분',
-            '소비자가', '단일가', '2단계 할인가', '3단계 할인가', '판매가', '부가세',
-            '대분류', '중분류', '총 수량', '판매', '재고',
-            '포장 양', '포장단위', '판매개수',
-            '등록일시', '수정일시', '상품상태'
-        ]
-
-        // 필터링된 데이터 push
-        let sortedData = [];
-        this.gridApi.forEachNodeAfterFilterAndSort(function(node, index) {
-            if(node.data.goodsNo) {
-                sortedData.push(node.data);
-            }
-        });
-
-        //필터링 된 데이터에서 sortedData._original 로 접근하여 그리드에 바인딩 원본 값을 가져옴
-        const data = sortedData.map((item ,index)=> {
-            let gubun = item.directGoods? "즉시" : "예약";
-            let priceStep1 = item.priceSteps[0] ? item.priceSteps[0].price : '-'
-            let priceStep2 = item.priceSteps[1] ? item.priceSteps[1].price : '-'
-            let priceStep3 = item.priceSteps[2] ? item.priceSteps[2].price : '-'
-            let vatFlag = item.vatFlag ? "과세" : "면세";
-            return [
-                index+1, item.goodsNm, gubun,
-                item.consumerPrice, priceStep1, priceStep2, priceStep3, item.defaultCurrentPrice, vatFlag,
-                item.itemName, item.itemKindName, item.packCnt, item.packCnt-item.remainedCnt, item.remainedCnt,
-                item.packAmount, item.packUnit, item.packCnt,
-                ComUtil.utcToString(item.timestamp), item.modDate ? ComUtil.utcToString(item.modDate) : '',
-                this.getStatus(item)
-            ]
-        })
-
-        return [{
-            columns: columns,
-            data: data
-        }]
     }
 
     // Ag-Grid column Info
     getColumnDefs () {
         let columnDefs = [
             // {headerName: "상태/수정", field: "", width: 80, suppressSizeToFit: true, cellStyle:this.getCellStyle({cellAlign: 'center'}), suppressMenu:"false",suppressSorting:"false", cellRenderer: 'goodsSttActRenderer'},
-            {headerName: "구분", field: "directGoods", width: 30, cellStyle:this.getCellStyle({cellAlign: 'center'}),
+            {
+                headerName: "구분", field: "directGoods", width: 70, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}), suppressSizeToFit: true,
                 valueGetter: function ({data}) {
-                    return data.directGoods ? '즉시' : '예약'
+                    return data.goodsKind === 0 ? '예약' : (data.goodsKind === 1 ? '즉시' : '공동구매')
                 },
-                cellRenderer: 'directGoodsRenderer'},
-            {headerName: "상품No", field: "goodsNo", width: 80, cellStyle:this.getCellStyle({whiteSpace: 'normal'}),
+                cellRenderer: 'directGoodsRenderer'
+            },
+            {
+                headerName: "상품No", field: "goodsNo", width: 110, cellStyle:ComUtil.getCellStyle({whiteSpace: 'normal'}), suppressSizeToFit: true,
                 headerCheckboxSelection: true,
                 headerCheckboxSelectionFilteredOnly: true,  //전체 체크시 필터된 것만 체크
                 checkboxSelection: true,
             },
-            {headerName: "상품명", field: "goodsNm", width: 120, cellStyle:this.getCellStyle({whiteSpace: 'normal'}), cellRenderer: 'goodsNameRenderer' },
-            {headerName: "소비자가", field: "consumerPrice", width: 50, cellStyle:this.getCellStyle({cellAlign: 'right'}), cellRenderer: 'formatCurrencyRenderer'},
-            {headerName: "단일가", field: "priceSteps", width: 40, cellStyle:this.getCellStyle({cellAlign: 'right'}), valueGetter: function(params) {
-                    let firstPrice = params.data.priceSteps[0] ? ComUtil.addCommas(params.data.priceSteps[0].price) : '-'
-                    return firstPrice
-                }},
-            {headerName: "2단계할인가", field: "priceSteps", width: 50, cellStyle:this.getCellStyle({cellAlign: 'right'}), valueGetter: function(params) {
-                    let secondPrice = params.data.priceSteps[1] ? ComUtil.addCommas(params.data.priceSteps[1].price) : '-'
-                    return secondPrice
-                }},
-            {headerName: "3단계할인가", field: "priceSteps", width: 50, cellStyle:this.getCellStyle({cellAlign: 'right'}), valueGetter: function(params) {
-                    let thirdPrice = params.data.priceSteps[2] ? ComUtil.addCommas(params.data.priceSteps[2].price) : '-'
-                    return thirdPrice
-                }},
-            {headerName: "판매가", field: "defaultCurrentPrice", width: 40, cellStyle:this.getCellStyle({cellAlign: 'right',color:'red'}), cellRenderer: 'formatCurrencyRenderer'},
-            {headerName: "부가세", field: "vatFlag", width:40, cellRenderer: 'vatRenderer'},
-            {headerName: "대분류", field: "itemName", width: 50},
-            {headerName: "중분류", field: "itemKindName", width: 50},
-            {headerName: "상품상태", field: "confirm", width: 50, cellRenderer: 'goodsStateRenderer'},
-            {headerName: "수량", field: "packCnt", width: 30, cellStyle:this.getCellStyle({cellAlign: 'right'}), cellRenderer: 'formatCurrencyRenderer'},
-            {headerName: "판매", field: "saleCnt", width: 30, cellStyle:this.getCellStyle({cellAlign: 'right'}), cellRenderer: 'saleCntRenderer'},
-            {headerName: "재고", field: "remainedCnt", width: 30, cellStyle:this.getCellStyle({cellAlign: 'right'}), cellRenderer: 'formatCurrencyRenderer'},
+            {headerName: "로컬농부명", field: "localFarmerName", width: 100, cellStyle:ComUtil.getCellStyle({whiteSpace: 'normal'}), hide: !this.isLocalFoodFarmer.current, suppressSizeToFit: true},
             {
-                sort:'desc', headerName: "등록일시", field: "timestamp", width: 70, cellStyle:this.getCellStyle({whiteSpace: 'normal'}),
-                valueGetter: function(params){
-                    let date = params.data.timestamp ? ComUtil.utcToString(params.data.timestamp, 'YYYY.MM.DD HH:mm') : null;
-                    return date;
-                }
+                headerName: "묶음배송", field: "producerWrapDelivered", width: 90, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
+                valueGetter: function(params) {
+                    return params.data.producerWrapDelivered ? "O" : "-";
+                }, suppressSizeToFit: true
+            },
+            // {headerName: "묶음배송", field: "producerWrapDelivered", width: 50, cellStyle:ComUtil.getCellStyle({whiteSpace: 'normal'}), hide: !this.isLocalFoodFarmer.current,
+            //     valueGetter: function(params) {
+            //         return params.data.producerWrapDelivered?"O":"";
+            //     }, suppressSizeToFit: true
+            // },
+            {headerName: "개체인식", field: "objectUniqueFlag", width: 50, cellStyle:ComUtil.getCellStyle({whiteSpace: 'normal'}), hide: !this.isLocalFoodFarmer.current,
+                valueGetter: function(params) {
+                    return params.data.objectUniqueFlag?"O":"";
+                }, suppressSizeToFit: true
+            },
+            {headerName: "재고연동", field: "localGoodsNo", width: 50, cellStyle:ComUtil.getCellStyle({whiteSpace: 'normal'}), hide: !this.isLocalFoodFarmer.current,
+                valueGetter: function(params) {
+                    return params.data.localGoodsNo?"O":"";
+                }, suppressSizeToFit: true
             },
             {
-                sort:'desc', headerName: "수정일시", field: "modDate", width: 70, cellStyle:this.getCellStyle({whiteSpace: 'normal'}),
+                headerName: "상품명", field: "goodsNm", width: 220,
+                cellStyle:ComUtil.getCellStyle({whiteSpace: 'normal'}),
+                cellRenderer: 'goodsNameRenderer', suppressSizeToFit: true
+            },
+            {
+                headerName: "인증마크", field: "authMarkInfo", width: 90, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
+                valueGetter: function(params) {
+                    return params.data.authMarkInfo && params.data.authMarkInfo.length;
+                }, suppressSizeToFit: true
+            },
+            {
+                headerName: "옵션수", field: "optionsCnt", width: 80, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
+                valueGetter: function(params) {
+                    return params.data.options.length;
+                }, suppressSizeToFit: true
+            },
+
+            {
+                headerName: "옵션명", field: "optionsNames", width: 300, cellStyle:ComUtil.getCellStyle({whiteSpace: 'normal'}),
+                cellRenderer: 'optionsNmRenderer',
+                valueGetter: function(params) {
+                    let optionNames = '';
+                    if(params.data.options.length > 1) {
+                        params.data.options.map(item => {
+                            optionNames = optionNames + item.optionName + ' // ';
+                        })
+                        optionNames = optionNames.substring(0,optionNames.length-4)
+                    }
+                    return optionNames;
+                }, suppressSizeToFit: true},
+            {headerName: "소비자가", field: "consumerPrice", width: 90, cellStyle:ComUtil.getCellStyle({cellAlign: 'right'}), cellRenderer: 'formatCurrencyRenderer', suppressSizeToFit: true},
+            {
+                headerName: "판매가", field: "defaultCurrentPrice", width: 150, cellStyle:ComUtil.getCellStyle({cellAlign: 'right',color:'red', whiteSpace: 'normal'}),
+                cellRenderer: 'optionsPriceRenderer',
+                valueGetter: function(params) {
+                    const objectUniqueFlag = params.data.objectUniqueFlag||false;
+                    let optionPrice = params.data.defaultCurrentPrice;
+                    if(objectUniqueFlag){
+                        let firstOptionPrice = '';
+                        let lastOptionPrice = '';
+                        if (params.data.options) {
+                            if (params.data.options.length == 1) {
+                                firstOptionPrice = params.data.options[0].optionPrice;
+                                optionPrice = firstOptionPrice;
+                            } else if (params.data.options.length > 1) {
+                                firstOptionPrice = params.data.options[0].optionPrice;
+                                optionPrice = firstOptionPrice;
+                                if (params.data.options.length >= 2) {
+                                    lastOptionPrice = params.data.options[params.data.options.length - 1].optionPrice;
+                                    if (firstOptionPrice != lastOptionPrice) {
+                                        optionPrice = firstOptionPrice + ' ~ ' + lastOptionPrice
+                                    }
+                                }
+                            }
+                        }
+                    }else {
+                        if (params.data.options) {
+                            if(params.data.options.length == 1) {
+                                optionPrice =  params.data.options[0].optionPrice;
+                            } else if (params.data.options.length > 1) {
+                                optionPrice = '';
+                                params.data.options.map(item => {
+                                    optionPrice = optionPrice + item.optionPrice + ' // ';
+                                })
+                                optionPrice = optionPrice.substring(0, optionPrice.length - 4)
+                            }
+                        }
+                    }
+                    return optionPrice;
+                }, suppressSizeToFit: true},
+
+            {headerName: "부가세", field: "vatFlag", width:80,
+                valueGetter: function(params) {
+                    return params.data.vatFlag ? "과세" : "면세";
+                },suppressSizeToFit: true},
+            {headerName: "대분류", field: "itemName", width: 80, suppressSizeToFit: true},
+            {headerName: "중분류", field: "itemKindName", width: 80, suppressSizeToFit: true},
+            {headerName: "상품상태", field: "confirm", width: 90, cellRenderer: 'goodsStateRenderer', suppressSizeToFit: true},
+            {headerName: "수량", field: "packCnt", width: 70, cellStyle:ComUtil.getCellStyle({cellAlign: 'right'}), suppressSizeToFit: true, cellRenderer: 'formatCurrencyRenderer'},
+            {headerName: "판매", field: "saleCnt", width: 70, cellStyle:ComUtil.getCellStyle({cellAlign: 'right'}), suppressSizeToFit: true, cellRenderer: 'saleCntRenderer'},
+            {headerName: "재고", field: "remainedCnt", width: 70, cellStyle:ComUtil.getCellStyle({cellAlign: 'right'}), suppressSizeToFit: true, cellRenderer: 'formatCurrencyRenderer'},
+            {
+                sort:'desc', headerName: "등록일시", field: "timestamp", width: 140, cellStyle:ComUtil.getCellStyle({whiteSpace: 'normal'}),
+                valueGetter: function(params){
+                    const date = params.data.timestamp ? ComUtil.utcToString(params.data.timestamp, 'YYYY.MM.DD HH:mm') : null;
+                    return date;
+                }, suppressSizeToFit: true
+            },
+            {
+                sort:'desc', headerName: "수정일시", field: "modDate", width: 140, cellStyle:ComUtil.getCellStyle({whiteSpace: 'normal'}),
                 valueGetter: function(params){
                     if(params.data.modDate)
                         return ComUtil.utcToString(params.data.modDate, 'YYYY.MM.DD HH:mm')
                     return ''
-                }
+                }, suppressSizeToFit: true
             },
         ];
 
         return columnDefs
     }
 
-    //Ag-Grid Cell 모바일용 View 렌더러
-    goodsSttRenderer = ({value, data:rowData}) => {
-        let toDate = this.serverToday;
-        let saleDateEnd = rowData.saleEnd ? ComUtil.utcToString(rowData.saleEnd):null;
-        let diffSale='';
-        if(saleDateEnd) {
-            let diffSaleResult = ComUtil.compareDate(saleDateEnd.replace(new RegExp('.', 'g'), ''),toDate);
-            diffSale = diffSaleResult === -1 ? '판매기한만료' : '';
-        }
-        let goodsSaleStop = rowData.saleStopped ? '판매중단' : '';
-
-        return (
-            <Cell height={this.rowHeight}>
-                <div>
-                    <span>{rowData.goodsNm}</span><br/>
-                    <span className='small'>{Math.round(rowData.discountRate)}%{' '}<del className='text-secondary'>{ComUtil.addCommas(rowData.consumerPrice)}</del>원</span><br/>
-                    <span className='text-danger font-weight-bolder'>{ComUtil.addCommas(rowData.defaultCurrentPrice)}원</span><br/>
-                    <span className='small'>{`수량/판매/재고 : ${rowData.packCnt}/${rowData.packCnt-rowData.remainedCnt}/${rowData.remainedCnt}`}</span><br/>
-                    <span className='small'>판매기한 : {(rowData.saleEnd ? ComUtil.utcToString(rowData.saleEnd, 'YY.MM.DD') : '-')}</span><br/>
-                    <span className='small'>예상발송일 : {(rowData.expectShippingStart ? ComUtil.utcToString(rowData.expectShippingStart, 'YY.MM.DD') : '-')} ~ {(rowData.expectShippingEnd ? ComUtil.utcToString(rowData.expectShippingEnd, 'YY.MM.DD') : '-')}</span><br/>
-                    <span>
-
-                        { rowData.directGoods ? <FaBolt className={'text-warning mr-1'} /> : <FaClock className={'text-info mr-1'} /> }
-                        <Badge color='success' children={rowData.itemName}/>{' '}
-                        <Badge color='success' children={rowData.breedNm} />{' '}
-                        <Badge color='success' children={`${rowData.packAmount} ${rowData.packUnit}`}/>{' '}
-                        <Badge color='success' children={rowData.pesticideYn} />{' '}
-                        <Badge color='warning' children={!rowData.confirm ? '임시저장': ''} />{' '}
-                        <Badge color='danger' children={goodsSaleStop ? goodsSaleStop: ''} />{' '}
-                        <Badge color='danger' children={diffSale ? diffSale: ''} />{' '}
-                    </span>
-                </div>
-            </Cell>
-        )
-    }
-
     //Ag-Grid Cell 상품명 렌더러
     goodsNameRenderer = ({value, data:rowData}) => {
+
+        // 예약상품 수정 기능 막음 (더이상 예약상품 사용안함)
+        if(rowData.goodsKind === 0){
+            return (<span>{rowData.goodsNm}</span>);
+        }
+
         return (<span a href="#" onClick={this.onGoodsClick.bind(this, rowData)}><u>{rowData.goodsNm}</u></span>);
     }
 
-    //Ag-Grid Cell 상품관리 버튼 렌더러
-    goodsSttActRenderer = ({value, data:rowData}) => {
-        let toDate = this.serverToday;
-        let saleDateEnd = rowData.saleEnd ? ComUtil.utcToString(rowData.saleEnd):null;
-        let diffSaleResult='';
-        if(saleDateEnd) {
-            diffSaleResult = ComUtil.compareDate(saleDateEnd.replace(new RegExp('.', 'g'), ''),toDate);
-        }
-        //STOPPED : 판매중단(품절, 판매기한만료 포함), SALES : 판매중, TEMP : 임시저장
-        // const goodsStatus = !rowData.confirm ? 'TEMP' : rowData.saleStopped || rowData.remainedCnt === 0 || diffSaleResult === -1 ? 'STOPPED' : 'SALES'
-        const goodsStatus = rowData.saleStopped || diffSaleResult === -1 ? 'STOPPED' : rowData.confirm ? 'SALES' : 'TEMP'
-        const color = goodsStatus === 'STOPPED' ? 'secondary' :  goodsStatus === 'SALES' ? 'warning' : 'success'
-
-
-        return (
-            <Cell height={this.rowHeight}>
-                <div style={{textAlign:'center'}}>
-                    {
-                        !ComUtil.isPcWeb() && (<div>{rowData.directGoods ? '[즉시]' : '[예약]'}</div>)
-                    }
-                    <Button size={'sm'} color={color} onClick={this.onGoodsClick.bind(this,rowData)}>상품보기</Button>
-
-                    {/*<br/><p/>*/}
-                    {
-                        /*
-                        <Button size={'sm'} color={'success'} onClick={this.onFarmDiaryClick.bind(this,rowData)}>
-                            재배일지추가{' '}
-                        </Button>
-                        */
-                    }
-                </div>
-            </Cell>
-        );
-    }
-
-    // Ag-Grid Cell 스타일 기본 적용 함수
-    getCellStyle ({cellAlign,color,textDecoration,whiteSpace, fontWeight}){
-        if(cellAlign === 'left') cellAlign='flex-start';
-        else if(cellAlign === 'center') cellAlign='center';
-        else if(cellAlign === 'right') cellAlign='flex-end';
-        else cellAlign='flex-start';
-        return {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: cellAlign,
-            color: color,
-            textDecoration: textDecoration,
-            whiteSpace: whiteSpace,
-            fontWeight: fontWeight
-        }
-    }
     //Ag-Grid Cell 예약/즉시판매상품 여부 렌더러
     directGoodsRenderer = ({value, data:rowData}) => {
-        return value ? <FaBolt className={'text-warning'}/> : <FaClock className={'text-info'} />
+        return value === '즉시' ? <FaBolt className={'text-warning'}/> : (value === '공동구매'?<FaLayerGroup className={'text-danger'} /> : <FaClock className={'text-info'} />)
     }
     //Ag-Grid Cell 숫자콤마적용 렌더러
     formatCurrencyRenderer = ({value, data:rowData}) => {
@@ -339,67 +292,10 @@ export default class WebGoodsList extends Component {
         //console.log("rowData",rowData);
         return ComUtil.addCommas(rowData.packCnt - rowData.remainedCnt);
     }
-
-    vatRenderer = ({value, data:rowData}) => {
-        return (value ? "과세" : "면세");
-    }
-
-    //Ag-Grid Cell 상품 정보 Badge 렌더러 (상품노출여부,품목명,품종명,단위,농약여부)
-    goodsTagRenderer = ({value, data:rowData}) => {
-        let toDate = this.serverToday;
-        let saleDateEnd = rowData.saleEnd ? ComUtil.utcToString(rowData.saleEnd):null;
-        let diffSale='';
-        if(saleDateEnd) {
-            let diffSaleResult = ComUtil.compareDate(saleDateEnd.replace(new RegExp('.', 'g'), ''), toDate);
-            diffSale = diffSaleResult === -1 ? '판매기한만료' : '';
-        }
-        let goodsSaleStop = rowData.saleStopped ? '판매중단' : '';
-        //console.log("toDate",toDate);
-        //console.log("saleDateEnd",saleDateEnd);
-        //console.log("diffSaleResult",diffSaleResult);
-        return (
-            <div>
-                { rowData.directGoods ? <FaBolt className={'text-warning mr-1'} /> :<FaClock className={'text-info mr-1'} /> }
-                <Badge color='success' children={rowData.itemName}/>{' '}
-                <Badge color='success' children={rowData.breedNm} />{' '}
-                <Badge color='success' children={`${rowData.packAmount} ${rowData.packUnit}`}/>{' '}
-                <Badge color='success' children={rowData.pesticideYn} />{' '}
-                <Badge color='warning' children={!rowData.confirm ? '임시저장': ''} />{' '}
-                <Badge color='danger' children={goodsSaleStop ? goodsSaleStop: ''} />{' '}
-                <Badge color='danger' children={diffSale ? diffSale: ''} />{' '}
-            </div>
-        )
-    }
+    
     //Ag-Grid cell 상품상태(판매중, 판매기한만료, 판매중단) 렌더러
     goodsStateRenderer = ({data:rowData}) => {
         const status = this.getStatus(rowData)
-        // let toDate = this.serverToday;
-        // let saleDateEnd = rowData.saleEnd ? ComUtil.utcToString(rowData.saleEnd):null;
-        //
-        // let status;
-        //
-        // if(!rowData.confirm){
-        //     status = '임시저장'
-        // }else{
-        //     status = '판매중'
-        //     if(rowData.salePaused){
-        //         status = '일시중지'
-        //     }
-        //     if(rowData.saleStopped){
-        //         status = '판매중단'
-        //     }
-        //     if(rowData.remainedCnt <= 0){
-        //         status += '|품절'
-        //     }
-        //
-        //     if(saleDateEnd) {
-        //         let newResult = saleDateEnd.replace(/\./gi,"-")
-        //         let diffSaleResult = ComUtil.compareDate(newResult, toDate);
-        //         if(diffSaleResult === -1){
-        //             status += '|판매기한만료'
-        //         }
-        //     }
-        // }
         return <div>{status}</div>
     }
 
@@ -417,7 +313,7 @@ export default class WebGoodsList extends Component {
                 status = '일시중지'
             }
             if (rowData.saleStopped) {
-                status = '판매중단'
+                status = '영구판매종료'
             }
             if (rowData.remainedCnt <= 0) {
                 status += '|품절'
@@ -434,12 +330,69 @@ export default class WebGoodsList extends Component {
         return status
     }
 
+    optionsNmRenderer = ({value, data:rowData}) => {
+        const options = rowData.options;
+        let optionNames = '';
+        if(options && options.length > 1) {
+            let firstOptionName = '';
+            let lastOptionName = '';
+            firstOptionName = options[0].optionName;
+            optionNames = firstOptionName;
+            if(options.length >= 2) {
+                lastOptionName = options[options.length - 1].optionName;
+                if(firstOptionName != lastOptionName) {
+                    optionNames = firstOptionName + ' ~ ' + lastOptionName
+                }
+            }
+        }
+        return (<span>{optionNames}</span>);
+    }
+
+    optionsPriceRenderer = ({value, data:rowData}) => {
+        const options = rowData.options;
+        let optionPrice = rowData.defaultCurrentPrice;
+        if(options){
+            if(options.length == 1) {
+                optionPrice = options[0].optionPrice;
+            } else if(options.length > 1) {
+                let firstOptionPrice = '';
+                let lastOptionPrice = '';
+                firstOptionPrice = options[0].optionPrice;
+                optionPrice = firstOptionPrice;
+                if(options.length >= 2) {
+                    lastOptionPrice = options[options.length - 1].optionPrice;
+                    if (firstOptionPrice != lastOptionPrice) {
+                        optionPrice = firstOptionPrice + ' ~ ' + lastOptionPrice
+                    }
+                }
+            }
+        }
+
+        return (<span>{optionPrice}</span>);
+    }
+
+    defaultCurrentPriceRenderer = ({data:rowData}) => {
+        //rowData.defaultCurrentPrice
+        //const status = this.getStatus(rowData)
+        // return <div>{status}</div>
+    }
+
     onGridFilterChanged() {
-        this.setExcelData();
+        // this.setExcelData();
     }
 
     componentDidMount = async() => {
-        this.checkLogin()
+        await this.checkLogin()
+
+        const {data: producer} = await getProducer();
+        this.isLocalFoodFarmer.current = producer.localfoodFlag;
+        const gridOptions = Object.assign({}, this.state.gridOptions)
+        gridOptions.columnDefs = this.getColumnDefs()
+        this.setState({
+            gridOptions
+        }, () => {
+            this.search()
+        })
     }
 
     checkLogin = async () => {
@@ -464,6 +417,8 @@ export default class WebGoodsList extends Component {
         const filter = this.state.searchFilter;
         const { status, data } = await getProducerFilterGoods(filter.itemNo, filter.directGoods, filter.confirm, filter.saleStopped, filter.saleEnd, filter.remainedCnt, filter.salePaused);
 
+        console.log({data});
+
         if(status !== 200){
             alert('응답이 실패 하였습니다');
             return;
@@ -472,17 +427,17 @@ export default class WebGoodsList extends Component {
         this.getItemsName();
 
         //PC용으로 화면을 크게 그릴때 사용
-        let isPcWeb = ComUtil.isPcWeb();//window.innerWidth > 760// ComUtil.isPcWeb();
+        //let isPcWeb = ComUtil.isPcWeb();//window.innerWidth > 760// ComUtil.isPcWeb();
 
-        let rowHeight = (isPcWeb?50:220);
-        this.isPcWeb = isPcWeb;
-        this.rowHeight = rowHeight;
+        //let rowHeight = (isPcWeb?50:220);
+        //this.isPcWeb = isPcWeb;
+        //this.rowHeight = rowHeight;
 
         this.setState({
             data: data,
-            isPcWeb: isPcWeb,
-            rowHeight: rowHeight,
-            columnDefs: this.getColumnDefs()
+            //isPcWeb: isPcWeb,
+            //rowHeight: rowHeight,
+            // columnDefs: this.getColumnDefs()
         });
 
         //ag-grid api
@@ -493,7 +448,7 @@ export default class WebGoodsList extends Component {
             //ag-grid 높이 리셋 및 렌더링
             this.gridApi.sizeColumnsToFit();
 
-            this.setExcelData();
+            // this.setExcelData(data);
 
             //ag-grid 높이 리셋 및 렌더링
             // Following line dymanic set height to row on content
@@ -501,8 +456,23 @@ export default class WebGoodsList extends Component {
         }
     }
 
+    goodsRegStopChk = async () => {
+        const loginInfo = await getLoginProducerUser();
+        const {data:isGoodsRegStopChk} = await getProducerGoodsRegStopChk(loginInfo.uniqueNo)
+        if(isGoodsRegStopChk === true){
+            alert("사용 중이신 계정이 서비스 이용 제한 상태입니다.\n" +
+                "계속 이용하고자 하실 경우 샵블리 관리자에 문의하시기 바랍니다.\n" +
+                "031-8090-3108")
+            return false;
+        }
+        return true
+    }
+
     //신규상품(상품종류 선택 팝업)
-    onNewGoodsClick = () => {
+    onNewGoodsClick = async () => {
+
+        if(!await this.goodsRegStopChk()) return
+
         this.setState({
             isGoodsSelectionOpen: true,
             goodsNo: null
@@ -511,7 +481,10 @@ export default class WebGoodsList extends Component {
     }
 
     //상품등록팝업 페이지
-    onGoodsPopupClick = (gb) => {
+    onGoodsPopupClick = async (gb) => {
+
+        if(!await this.goodsRegStopChk()) return
+
         switch (gb){
             case 'reservedGoods' :
                 this.setState({
@@ -525,6 +498,12 @@ export default class WebGoodsList extends Component {
                     isDirectGoodsOpen: true,
                 });
                 break
+            case 'dealGoods' :
+                this.setState({
+                    isGoodsSelectionOpen: false,
+                    isDirectGoodsOpen: false,
+                    isDealGoodsOpen: true
+                })
         }
     }
     //상품수정
@@ -534,6 +513,7 @@ export default class WebGoodsList extends Component {
         // this.goodsPopTitle = title;
         this.setState({
             isDirectGoodsOpen: data.directGoods === true,
+            isDealGoodsOpen: data.dealGoods === true,
             goodsNo: data.goodsNo,
             directGoods: data.directGoods
         })
@@ -573,6 +553,7 @@ export default class WebGoodsList extends Component {
         this.setState({
             // isGoodsSelectionOpen: false,
             isDirectGoodsOpen: null,
+            isDealGoodsOpen: null,
         });
     }
 
@@ -607,20 +588,20 @@ export default class WebGoodsList extends Component {
     }
 
     // 상품구분 filter
-    onGubunChange = (e) => {
-        const filter = Object.assign({}, this.state.searchFilter)
-        if (e.target.value === '2') {         // 전체
-            filter.directGoods = null
-        } else if (e.target.value === '1') {  // 즉시
-            filter.directGoods = true
-        } else {        // 예약
-            filter.directGoods = false
-        }
-
-        this.setState({
-            searchFilter: filter
-        })
-    }
+    // onGubunChange = (e) => {
+    //     const filter = Object.assign({}, this.state.searchFilter)
+    //     if (e.target.value === '2') {         // 전체
+    //         filter.directGoods = null
+    //     } else if (e.target.value === '1') {  // 즉시
+    //         filter.directGoods = true
+    //     } else {        // 예약
+    //         filter.directGoods = false
+    //     }
+    //
+    //     this.setState({
+    //         searchFilter: filter
+    //     })
+    // }
 
     // 상품상태 filter
     onStateChange = (e) => {
@@ -643,7 +624,7 @@ export default class WebGoodsList extends Component {
             filter.saleEnd = null
             filter.remainedCnt = true
             filter.salePaused = null
-        } else if (e.target.value === '3') {    // 판매중단
+        } else if (e.target.value === '3') {    // 영구판매종료
             filter.confirm = null
             filter.saleStopped = true
             filter.saleEnd = null
@@ -680,7 +661,7 @@ export default class WebGoodsList extends Component {
         await this.search();
     }
 
-    //일시중지, 판매중지, 판매재개 일괄처리
+    //일시중지, 영구판매종료, 판매재개 일괄처리
     onCheckedActionClick = async (action) => {
 
         const selectedRows = this.gridApi.getSelectedRows()
@@ -699,25 +680,23 @@ export default class WebGoodsList extends Component {
 
         //TODO data 를 푸시 해서 아래에서 판별 해야함
 
-        console.log({goodsList})
-
         //판매중단
         if (action === 'stop') {
 
             const len = goodsList.length
             if (len <= 0) {
-                alert('판매중단 가능한 상품이 없습니다.')
+                alert('영구판매종료 가능한 상품이 없습니다.')
                 return
             }
 
-            if (!window.confirm(`[${len}개 상품 가능] 판매중단 하시겠습니까?`)) {
+            if (!window.confirm(`[${len}개 상품 가능] 영구판매종료 하시겠습니까?`)) {
                 return
             }
 
             //TODO update
             //노출된 상품, 판매중인 상품은 모두 판매중지
             await this.doSaleStop(goodsList)
-            alert(`${len}개 상품이 판매중단 되었습니다.`);
+            alert(`${len}개 상품이 영구판매종료 되었습니다.`);
         }
         //일시중지
         else if (action === 'pause') {
@@ -741,6 +720,9 @@ export default class WebGoodsList extends Component {
         }
         //판매재개
         else if (action === 'continue') {
+
+            if(!await this.goodsRegStopChk()) return
+
             const list = goodsList.filter(goods =>
                 goods.directGoods === true &&       //즉시상품만
                 goods.salePaused === true          //일시중지인 것만
@@ -780,6 +762,10 @@ export default class WebGoodsList extends Component {
         return result.map(({data}) => data)
     }
 
+    copy = ({value}) => {
+        ComUtil.copyTextToClipboard(value, '', '');
+    }
+
     render() {
         const state = this.state
         return(
@@ -798,17 +784,17 @@ export default class WebGoodsList extends Component {
                                     />
                                 </div>
                             </div>
-                            <div className='d-flex justify-content-center align-items-center'>
-                                <div className='pl-5 textBoldLarge f3'>상품구분</div>
-                                <div className='pl-3 pt-2'>
-                                    <input defaultChecked type="radio" id="gubunAll" name="gubun" value={'2'} onChange={this.onGubunChange} />
-                                    <label for="gubunAll" className='pl-1 mr-3'>전체</label>
-                                    <input type="radio" id="gubunDirect" name="gubun" onChange={this.onGubunChange} value={'1'} />
-                                    <label for="gubunDirect" className='pl-1 mr-3'>즉시</label>
-                                    <input type="radio" id="gubunReserve" name="gubun" onChange={this.onGubunChange} value={'0'} />
-                                    <label for="gubunReserve" className='pl-1'>예약</label>
-                                </div>
-                            </div>
+                            {/*<div className='d-flex justify-content-center align-items-center'>*/}
+                            {/*    <div className='pl-5 textBoldLarge f3'>상품구분</div>*/}
+                            {/*    <div className='pl-3 pt-2'>*/}
+                            {/*        <input defaultChecked type="radio" id="gubunAll" name="gubun" value={'2'} onChange={this.onGubunChange} />*/}
+                            {/*        <label for="gubunAll" className='pl-1 mr-3'>전체</label>*/}
+                            {/*        <input type="radio" id="gubunDirect" name="gubun" onChange={this.onGubunChange} value={'1'} />*/}
+                            {/*        <label for="gubunDirect" className='pl-1 mr-3'>즉시</label>*/}
+                            {/*        <input type="radio" id="gubunReserve" name="gubun" onChange={this.onGubunChange} value={'0'} />*/}
+                            {/*        <label for="gubunReserve" className='pl-1'>예약</label>*/}
+                            {/*    </div>*/}
+                            {/*</div>*/}
                         </div>
 
                         <hr className='p-0 m-0' />
@@ -823,7 +809,7 @@ export default class WebGoodsList extends Component {
                                 <input type="radio" id="state2" name="state" onChange={this.onStateChange} value={'2'} />
                                 <label for="state2" className='pl-1 mr-3'>품절</label>
                                 <input type="radio" id="state3" name="state" onChange={this.onStateChange} value={'3'} />
-                                <label for="state3" className='pl-1 mr-3'>판매중단</label>
+                                <label for="state3" className='pl-1 mr-3'>영구판매종료</label>
                                 <input type="radio" id="state4" name="state" onChange={this.onStateChange} value={'4'} />
                                 <label for="state4" className='pl-1 mr-3'>판매기한만료</label>
                                 <input type="radio" id="state5" name="state" onChange={this.onStateChange} value={'5'} />
@@ -836,7 +822,7 @@ export default class WebGoodsList extends Component {
                     </div>
                 </FormGroup>
 
-                <FilterContainer gridApi={this.gridApi} excelFileName={'상품 목록'}>
+                <FilterContainer gridApi={this.gridApi} columnApi={this.columnApi} excelFileName={'상품 목록'}>
                     <FilterGroup>
                         <InputFilter
                             gridApi={this.gridApi}
@@ -855,7 +841,8 @@ export default class WebGoodsList extends Component {
                             name={'상품구분'}
                             data={[
                                 {value: '즉시', name: '즉시'},
-                                {value: '예약', name: '예약'},
+                                //숨겨도 될듯 {value: '예약', name: '예약'},
+                                {value: '공동구매', name: '공동구매'},
                             ]}
                         />
                     </Flex>
@@ -867,7 +854,7 @@ export default class WebGoodsList extends Component {
                         {
                             this.state.selectedRows.length > 0 && (
                                 <Flex>
-                                    <Button className='mr-1' size={'sm'} onClick={this.onCheckedActionClick.bind(this, 'stop')}>{this.state.selectedRows.length}건 판매중지</Button>
+                                    <Button className='mr-1' size={'sm'} onClick={this.onCheckedActionClick.bind(this, 'stop')}>{this.state.selectedRows.length}건 영구판매종료</Button>
                                     <Button className='mr-1' size={'sm'} onClick={this.onCheckedActionClick.bind(this, 'pause')}>{this.state.selectedRows.length}건 일시중지</Button>
                                     <Button className='mr-1' size={'sm'} onClick={this.onCheckedActionClick.bind(this, 'continue')}>{this.state.selectedRows.length}건 판매재개</Button>
                                 </Flex>
@@ -875,9 +862,9 @@ export default class WebGoodsList extends Component {
                         }
 
                         <div><Button className='mr-1' color={'info'} size={'sm'} onClick={this.onNewGoodsClick}>신규상품</Button></div>
-                        <div>
-                            <ExcelDownload data={this.state.excelData} fileName="goodsList" />
-                        </div>
+                        {/*<div>*/}
+                        {/*    <ExcelDownload data={this.state.excelData} fileName="goodsList" />*/}
+                        {/*</div>*/}
                     </div>
                 </div>
 
@@ -890,47 +877,11 @@ export default class WebGoodsList extends Component {
                 >
                     <AgGridReact
                         {...this.state.gridOptions}
-                        // enableSorting={true}                //정렬 여부
-                        // enableFilter={true}                 //필터링 여부
-                        // columnDefs={this.state.columnDefs}  //컬럼 세팅
-                        // defaultColDef={this.state.defaultColDef}
-                        // rowSelection={this.state.rowSelection}  //멀티체크 가능 여부
-                        // rowHeight={this.state.rowHeight}
-                        // //gridAutoHeight={true}
-                        // enableColResize={true}              //컬럼 크기 조정
-                        // overlayLoadingTemplate={this.state.overlayLoadingTemplate}
-                        // overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
-                        // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
                         rowData={this.state.data}
-                        // components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
-                        // frameworkComponents={this.state.frameworkComponents}
-                        // suppressMovableColumns={true} //헤더고정시키
-                        // onFilterChanged={this.onGridFilterChanged.bind(this)}
-                        // onRowClicked={this.onSelectionChanged.bind(this)}
-                        // onRowSelected={this.onRowSelected.bind(this)}
-                        // onSelectionChanged={this.onSelectionChanged.bind(this)}
-                        // suppressRowClickSelection={true}    //true : 셀 클릭시 체크박스 체크 안됨, false : 셀 클릭시 로우 단위로 선택되어 체크박스도 자동 체크됨 [default 값은 false]
+                        onCellDoubleClicked={this.copy}
                     >
                     </AgGridReact>
                 </div>
-                {
-                    /*
-                    <Container>
-                        <Row>
-                            <Col>
-                                {
-                                    this.state.data.map((goods) => {
-                                        return <GoodsItemCard key={`GoodsNo${goods.goodsNo}`} {...goods}
-                                                              onGoodsClick={this.onGoodsClick}
-                                                              onFarmDiaryClick={this.onFarmDiaryClick}
-                                                              onOrderClick={this.onOrderClick}/>
-                                    })
-                                }
-                            </Col>
-                        </Row>
-                    </Container>
-                    */
-                }
                 {
                     this.state.isGoodsSelectionOpen && (
                         <ModalPopup
@@ -941,17 +892,17 @@ export default class WebGoodsList extends Component {
                                 <div>
                                     <Container className={''}>
                                         <Row>
-                                            <Col xs={6}>
-                                                <Button className={'mb-2'} color={'info'} size={'lg'} block onClick={this.onGoodsPopupClick.bind(this, 'reservedGoods')}><FaClock />예약 상품</Button>
-                                                <div className={'small text-center text-secondary f6'}>
-                                                    <div className={'mb-2'}>
-                                                        - 채소 등과 같이 <b className={'text-info'}>재배기간 동안 주문을 받고 수확/출하 후 일괄 발송하는 상품</b>입니다.
-                                                    </div>
-                                                    <div>
-                                                        - 판매기간 동안 <b className={'text-info'}>단계별 할인가</b>를 적용할 수 있습니다.
-                                                    </div>
-                                                </div>
-                                            </Col>
+                                            {/*<Col xs={6}>*/}
+                                            {/*    <Button className={'mb-2'} color={'info'} size={'lg'} block onClick={this.onGoodsPopupClick.bind(this, 'reservedGoods')}><FaClock />예약 상품</Button>*/}
+                                            {/*    <div className={'small text-center text-secondary f6'}>*/}
+                                            {/*        <div className={'mb-2'}>*/}
+                                            {/*            - 채소 등과 같이 <b className={'text-info'}>재배기간 동안 주문을 받고 수확/출하 후 일괄 발송하는 상품</b>입니다.*/}
+                                            {/*        </div>*/}
+                                            {/*        <div>*/}
+                                            {/*            - 판매기간 동안 <b className={'text-info'}>단계별 할인가</b>를 적용할 수 있습니다.*/}
+                                            {/*        </div>*/}
+                                            {/*    </div>*/}
+                                            {/*</Col>*/}
                                             <Col xs={6}>
                                                 <Button className={'mb-2'} color={'warning'} size={'lg'} block onClick={this.onGoodsPopupClick.bind(this, 'directGoods')}><FaBolt />즉시 상품</Button>
                                                 <div className={'small text-center text-secondary f6'}>
@@ -964,6 +915,19 @@ export default class WebGoodsList extends Component {
                                                     <br/>
                                                 </div>
                                             </Col>
+                                            <Col xs={6}>
+                                                <Button className={'mb-2'} color={'info'} size={'lg'} block onClick={this.onGoodsPopupClick.bind(this, 'dealGoods')}><FaClock />쑥쑥-계약재배</Button>
+                                                <div className={'small text-center text-secondary f6'}>
+                                                    <div className={'mb-2'}>
+                                                        - 채소 등과 같이 <b className={'text-info'}>재배기간 동안 주문을 받고 수확/출하 후 일괄 발송하는 상품</b>입니다.
+                                                    </div>
+                                                    <div>
+                                                        <b className={'text-info'}>※ 샵블리와 사전에 논의된 계약재배 상품만 등록 가능합니다.</b>
+                                                    </div>
+                                                    <br/>
+                                                </div>
+                                            </Col>
+
                                         </Row>
                                     </Container>
                                 </div>
@@ -978,16 +942,25 @@ export default class WebGoodsList extends Component {
                             <ProducerFullModalPopupWithNav show={true} title={this.state.goodsNo ? '즉시판매 상품보기' : '즉시판매 상품등록'} onClose={this.onGoodsRegPopupClose}>
                                 <WebDirectGoodsReg goodsNo={this.state.goodsNo}/>
                             </ProducerFullModalPopupWithNav>
-                        ) : (
-                            <ProducerFullModalPopupWithNav show={true} title={this.state.goodsNo ? '예약판매 상품보기' : '예약판매 상품등록'} onClose={this.onGoodsRegPopupClose}>
-                                {/*<GoodsReg goodsNo={this.state.goodsNo}/>*/}
+                        ) : //this.state.isDealGoodsOpen ?
+                            (
+                            <ProducerFullModalPopupWithNav show={true} title={this.state.goodsNo ? '공동구매 상품보기' : '공동구매 상품등록'} onClose={this.onGoodsRegPopupClose}>
                                 <div>
                                     {
-                                        this.state.goodsNo? <WebGoodsReg goodsNo={this.state.goodsNo} /> : <WebGoodsReg goodsNo={0} />
+                                        this.state.goodsNo? <WebDealGoodsReg goodsNo={this.state.goodsNo} /> : <WebDealGoodsReg goodsNo={0} />
                                     }
                                 </div>
                             </ProducerFullModalPopupWithNav>
-                        )
+                            ) //:
+                                // (
+                                //     <ProducerFullModalPopupWithNav show={true} title={this.state.goodsNo ? '예약판매 상품보기' : '예약판매 상품등록'} onClose={this.onGoodsRegPopupClose}>
+                                //         <div>
+                                //             {
+                                //                 this.state.goodsNo? <WebGoodsReg goodsNo={this.state.goodsNo} /> : <WebGoodsReg goodsNo={0} />
+                                //             }
+                                //         </div>
+                                //     </ProducerFullModalPopupWithNav>
+                                // )
                     )
                 }
             </Fragment>

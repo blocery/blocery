@@ -126,7 +126,7 @@ export default class TempProducerList extends Component {
     onGridReady(params) {
         //API init
         this.gridApi = params.api
-        this.gridColumnApi = params.columnApi
+        this.columnApi = params.columnApi
         // console.log("onGridReady");
     }
     render() {
@@ -162,7 +162,7 @@ export default class TempProducerList extends Component {
                 </Flex>
 
                 {/* filter START */}
-                <FilterContainer gridApi={this.gridApi} excelFileName={'생산자 현금대납 목록'}>
+                <FilterContainer gridApi={this.gridApi} columnApi={this.columnApi} excelFileName={'생산자 현금대납 목록'}>
                     <FilterGroup>
                         <InputFilter
                             gridApi={this.gridApi}

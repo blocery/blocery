@@ -7,11 +7,12 @@ import { ToastContainer, toast } from 'react-toastify'                          
 import 'react-toastify/dist/ReactToastify.css'
 import ComUtil from '~/util/ComUtil'
 import { SingleImageUploader, BlocerySpinner } from '~/components/common'
-import { B2cTermsOfUse, B2cPrivatePolicy } from '~/components/common/termsOfUses'
+import { B2cTermsOfUse11, B2cPrivatePolicy11 } from '~/components/common/termsOfUses'
 import { AddressCard } from '~/components/common/cards'
 import Select from 'react-select'
 import Textarea from 'react-textarea-autosize'
 import Css from './ProducerJoinWeb.module.scss'
+import SummernoteEditor from "~/components/common/summernoteEditor";
 
 const Star = () => <span className='text-danger'>*</span>
 
@@ -148,6 +149,10 @@ export default class ProducerJoinWeb extends Component{
         this.setState({
             [e.target.name]: e.target.value
         })
+    }
+
+    onChangeShopIntroduce = (editorHtml) => {
+        this.setState({shopIntroduce: editorHtml})
     }
 
     findOverlapEmail = async (email) => {
@@ -304,14 +309,10 @@ export default class ProducerJoinWeb extends Component{
     }
 
     onProfileImageChange = (images) => {
-        // const state = Object.assign({}, this.state);
-        // state.profileImages = images;
         this.setState({profileImages:images})
     }
 
     onProfileBackgroundImageChange = (images) => {
-        // const state = Object.assign({}, this.state);
-        // state.profileImages = images;
         this.setState({profileBackgroundImages:images})
     }
 
@@ -557,7 +558,7 @@ export default class ProducerJoinWeb extends Component{
                                             }
                                         </div>
                                         <small className='ml-auto'>
-                                            MARKETBLY
+                                            SHOPBLY
                                         </small>
                                     </div>
                                     <hr className='m-0'/>
@@ -572,7 +573,7 @@ export default class ProducerJoinWeb extends Component{
                                             <>
                                             <div className='m-4'>
                                                 <Alert color={'danger'}>
-                                                    마켓블리(MarketBly)는 <b><u>별도의 계약서 작성 대신 회원가입으로 간소화 체결</u></b>을 하고 있습니다.<br/>
+                                                    샵블리(ShopBly)는 <b><u>별도의 계약서 작성 대신 회원가입으로 간소화 체결</u></b>을 하고 있습니다.<br/>
                                                     이용약관을 꼭 확인해 주세요!
                                                 </Alert>
                                                 <h5>계정정보</h5>
@@ -791,7 +792,7 @@ export default class ProducerJoinWeb extends Component{
                                                     <Label>프로필 사진</Label>
                                                 </Col>
                                                 <Col sm={10}>
-                                                    <SingleImageUploader images={this.state.profileImages} defaultCount={5} isShownMainText={false} onChange={this.onProfileImageChange} />
+                                                    <SingleImageUploader images={this.state.profileImages} defaultCount={1} isShownMainText={false} onChange={this.onProfileImageChange} />
                                                 </Col>
                                             </Row>
                                         </FormGroup>
@@ -811,14 +812,22 @@ export default class ProducerJoinWeb extends Component{
                                                     <Label>한줄소개</Label>
                                                 </Col>
                                                 <Col sm={10}>
-                                                <Textarea
-                                                    name="shopIntroduce"
-                                                    style={{width: '100%', minHeight: 90, borderRadius: 0}}
-                                                    className={'border-secondary'}
-                                                    value={state.shopIntroduce}
-                                                    onChange={this.handleChange}
-                                                    placeholder='한줄소개'
-                                                />
+                                                {/*<Textarea*/}
+                                                {/*    name="shopIntroduce"*/}
+                                                {/*    style={{width: '100%', minHeight: 90, borderRadius: 0}}*/}
+                                                {/*    className={'border-secondary'}*/}
+                                                {/*    value={state.shopIntroduce}*/}
+                                                {/*    onChange={this.handleChange}*/}
+                                                {/*    placeholder='한줄소개'*/}
+                                                {/*/>*/}
+
+                                                    <SummernoteEditor
+                                                        height={300}
+                                                        quality={1}
+                                                        onChange={this.onChangeShopIntroduce}
+                                                        editorHtml={state.shopIntroduce||null}
+                                                    />
+
                                                 </Col>
                                             </Row>
                                         </FormGroup>
@@ -935,7 +944,7 @@ export default class ProducerJoinWeb extends Component{
                                                     이용약관<Star/>
                                                 </p>
                                                 <p className='bg-light p-3' style={{height: 200, overflow: 'auto'}}>
-                                                    <B2cTermsOfUse/>
+                                                    <B2cTermsOfUse11/>
                                                 </p>
                                                 <p className='text-right'>
                                                     <CustomInput type="checkbox" id="agree1" label="동의합니다" inline innerRef={this.agree1} />
@@ -947,7 +956,7 @@ export default class ProducerJoinWeb extends Component{
                                                     개인정보 취급방침<Star/>
                                                 </p>
                                                 <p className='bg-light p-3' style={{height: 200, overflow: 'auto'}}>
-                                                    <B2cPrivatePolicy/>
+                                                    <B2cPrivatePolicy11/>
                                                 </p>
                                                 <p className='text-right'>
                                                     <CustomInput type="checkbox" id="agree2" label="동의합니다" inline innerRef={this.agree2} />
@@ -970,7 +979,7 @@ export default class ProducerJoinWeb extends Component{
                 </div>
 
 
-                <ToastContainer/>
+                {/*<ToastContainer/>*/}
 
                 {/* 블록체인 비밀번호용 modal */}
                 <Modal isOpen={this.state.modalPassPhrase} centered>

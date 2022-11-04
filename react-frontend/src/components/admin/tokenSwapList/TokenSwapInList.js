@@ -3,8 +3,6 @@ import {getBlyToBlctList, getSwapManagerBlyBalance, getSwapManagerEthBalance, ge
 
 import { scOntGetBalanceOfBlctAdmin, scOntGetManagerOngBalance } from '~/lib/smartcontractApi';
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
 import { ExcelDownload } from '~/components/common'
 import ComUtil from '~/util/ComUtil'
 import { Server } from '~/components/Properties';
@@ -340,17 +338,13 @@ const TokenSwapInList = (props) => {
                 }}
             >
                 <AgGridReact
-                    // enableSorting={true}
-                    // enableFilter={true}
                     columnDefs={agGrid.columnBlyToDefs}
                     defaultColDef={agGrid.defaultColDef}
                     rowSelection={'single'}  //멀티체크 가능 여부
-                    // enableColResize={true}
                     overlayLoadingTemplate={agGrid.overlayLoadingTemplate}
                     overlayNoRowsTempalte={agGrid.overlayNoRowsTemplate}
                     frameworkComponents={agGrid.frameworkComponents}
                     rowData={blyToBlctList}
-                    //onRowClicked={selectRow}
                     onCellDoubleClicked={copy}
                 />
             </div>

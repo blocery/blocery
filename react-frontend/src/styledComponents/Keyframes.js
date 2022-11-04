@@ -1,4 +1,4 @@
-import {keyframes} from "styled-components";
+import {css, keyframes} from "styled-components";
 
 export const spin = keyframes`
     0% {
@@ -41,10 +41,46 @@ export const scaleUp = keyframes`
     100%{}
 `;
 
+
+
+const moveDown = keyframes`
+    0%{}
+    50%{
+        -webkit-transform: translateY(10%);
+        -moz-transform: translateY(10%);
+        -ms-transform: translateY(10%);
+        -o-transform: translateY(10%);
+        transform: translateY(10%);}
+    100%{}
+`;
+
+const moveUp = keyframes`
+    0%{}
+    50%{
+        -webkit-transform: translateY(-20%);
+        -moz-transform: translateY(-20%);
+        -ms-transform: translateY(-20%);
+        -o-transform: translateY(-20%);
+        transform: translateY(-20%);}
+    100%{}
+`;
+
+const fadeIn = keyframes`
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+`
+
 const aniKey = {
     spin,
     heartBeat,
-    scaleUp
+    scaleUp,
+    moveDown,
+    moveUp,
+    fadeIn
 }
 
 export default aniKey

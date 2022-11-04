@@ -1,12 +1,26 @@
 import React, {Fragment, useState, useEffect} from 'react'
 import {Collapse} from 'reactstrap'
-import {FaAngleRight, FaAngleDown} from 'react-icons/fa'
+import {IoIosArrowForward, IoIosArrowDown} from 'react-icons/io'
+
 import {ProducerWebMenuList, ProducerWebSubMenuList} from '~/components/Properties'
 import Css from './ProducerWebNav.module.scss'
 import classNames from 'classnames'
 
-const ProducerWebNav = ({id, subId, history}) => {
+const ProducerWebNav = ({id, subId, localfoodFlag = false, producerNo, history}) => {
     const [menuList, setMenuList] = useState(ProducerWebMenuList)
+    const [subMenuList, setSubMenuList] = useState(ProducerWebSubMenuList)
+
+    useEffect(() => {
+        if(!localfoodFlag){
+            setSubMenuList(ProducerWebSubMenuList.filter(subMenu => (subMenu.menuTp != 1) ));
+        }else{
+            //옥천만: WebCalcculate157Fee 보여주기.
+            setSubMenuList(ProducerWebSubMenuList.filter(subMenu => !subMenu.localProducerNo || (subMenu.localProducerNo &&  subMenu.localProducerNo == producerNo) ));
+
+
+
+        }
+    }, [localfoodFlag])
 
     // function getMainMenuList(){
     //     return ProducerWebMenuList.filter(menu => menu.type === type)
@@ -60,6 +74,7 @@ const ProducerWebNav = ({id, subId, history}) => {
         history.push(path)
     }
 
+
     return (
             <div className={Css.wrap}>
                 {
@@ -80,7 +95,7 @@ const ProducerWebNav = ({id, subId, history}) => {
                                         {/*</span>*/}
                                         {/*{menu.name}*/}
                                         {/*</div>*/}
-                                        {/*<FontAwesomeIcon size={'1x'} icon={menu.isOpen ? faAngleDown : faAngleRight} className={'text-light ml-auto'}/>*/}
+                                        {/*<FontAwesomeIcon size={'1x'} icon={menu.isOpen ? IoIosArrowDown : IoIosArrowForward} className={'text-light ml-auto'}/>*/}
 
 
                                         <div className={Css.mainLeftBox}>
@@ -91,13 +106,13 @@ const ProducerWebNav = ({id, subId, history}) => {
                                             {menu.name}
                                         </div>
                                         {
-                                            menu.isOpen ? <FaAngleDown className={'text-light ml-auto'} /> : <FaAngleRight className={'text-light ml-auto'}/>
+                                            menu.isOpen ? <IoIosArrowDown className={'text-light ml-auto'} /> : <IoIosArrowForward className={'text-light ml-auto'}/>
                                         }
                                     </div>
                                 </a>
                                 <Collapse isOpen={menu.isOpen}>
                                     {
-                                        ProducerWebSubMenuList.filter(subMenu => subMenu.parentId === menu.id).map(subMenu => {
+                                        subMenuList.filter(subMenu => subMenu.parentId === menu.id).map(subMenu => {
                                             return (
                                                 <div key={`subMenu_${subMenu.id}${subMenu.id}`} className={classNames(Css.sub, subMenu.id === subId && Css.subActive)}
                                                     // style={{backgroundColor: subMenu.id === subId && '#3e6365'}}

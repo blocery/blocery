@@ -6,7 +6,7 @@ import { BlockChainSpinner, PassPhrase } from '~/components/common'
 import { ToastContainer, toast } from 'react-toastify'                              //토스트
 import 'react-toastify/dist/ReactToastify.css'
 import { toChecksumAddress, isValidAddress } from 'ethereumjs-util';
-import { swapBlctToBlyRequest, getTodayAmountBlctToBly, getTodayWithdrawCount } from '~/lib/swapApi'
+import { swapBlctToBly, getLevel1BlyTransferFee, getTodayWithdrawCount } from '~/lib/swapApi'
 import { BLCT_TO_WON } from "~/lib/exchangeApi"
 import { scOntGetBalanceOfBlct } from "~/lib/smartcontractApi";
 import { checkPassPhrase } from '~/lib/loginApi'
@@ -22,10 +22,11 @@ import {color, activeColor} from "~/styledComponents/Properties";
 
 import {FaPaste, FaQrcode} from 'react-icons/fa'
 import {withRouter} from 'react-router-dom'
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 
-const BLCT2BLY_TRANSFER_FEE = 50; //50으로 원복 필요.
-const MIN_TRANSFER_BLCT = 150; //신규추가 202104, 백엔드에도 있음 : MIN_BLCT2BLY_TRANSFER
+//const BLCT2BLY_TRANSFER_FEE = 50; //TODO -> 서버에서 가져오도록 수정 필요.
+
 
 const HeadingLayout = styled(Flex)`
     justify-content: space-between;
@@ -85,20 +86,20 @@ class Withdraw extends Component {
             passPhrase: '', //비밀번호 6 자리 PIN CODE
             clearPassPhrase: false,
             chainLoading: false,
-            // maxAmount: 1250,
             maxAmount: 500,
-            kycLevel: 0,
-            kycAuth: null,
-            todayRemainedAmount: 0,
+
+            //kycAuth: null, //pivot에서 제거.
+
             memo: '',
-            // withdrawAmountError: false,
             withdrawCntErrorText:'',
 
             errorText: '',
             accountOk: null,
             withdrawOk: null,
-            ageInfo:''
+            ageInfo:'',
 
+            level1TransferFee: '', //레벨증가시 마다 차감되는 수수료임.
+            myTransferFee: ''      //level1TransferFee * consumer.level
         }
 
         this.withdrawAmountRef = React.createRef()
@@ -107,17 +108,17 @@ class Withdraw extends Component {
     componentDidMount = () => {
 
         //1일 1회 출금 체크.
-        getTodayWithdrawCount().then(({data:todayWithdrawCount})=>{
-            console.log("todayWithdrawCount==",todayWithdrawCount)
-            let errorText = '';
-            let withdrawOk = true;
-            if (todayWithdrawCount >=1 ) {
-                errorText = "1일 1회 출금신청을 이미 하셨습니다!";
-            }
-            this.setState({
-                withdrawCntErrorText: errorText
-            })
-        })
+        // getTodayWithdrawCount().then(({data:todayWithdrawCount})=>{
+        //     console.log("todayWithdrawCount==",todayWithdrawCount)
+        //     let errorText = '';
+        //     let withdrawOk = true;
+        //     if (todayWithdrawCount >=1 ) {
+        //         errorText = "1일 1회 출금신청을 이미 하셨습니다!";
+        //     }
+        //     this.setState({
+        //         withdrawCntErrorText: errorText
+        //     })
+        // })
 
         // android 수신 이벤트(android)
         window.document.addEventListener('message', this.onMessageListener );
@@ -146,32 +147,23 @@ class Withdraw extends Component {
         if(loginUser && loginUser.account) {
             let {data:blctBalance} = await scOntGetBalanceOfBlct(loginUser.account);
 
-            // let maxAmount = 1250;
-            let maxAmount = 500;
-            if(loginUser.kycLevel === 1) {
-                maxAmount = blctBalance; // TODO donAirDrop
-                // maxAmount = 5000;
-                // maxAmount = 250000;
-            }
+            let maxAmount = blctBalance;  // kyc 안했으면 최대 출금금액이 수수료만큼
 
-            let {data:todayAmount} = await getTodayAmountBlctToBly();
-            // console.log('todayAmount : ', todayAmount);
+            //pivot추가. 수수료 차등적용
+            let {data:level1TransferFee} = await getLevel1BlyTransferFee();
+            let myTransferFee = level1TransferFee * loginUser.level;
 
-            let todayRemainedAmount = maxAmount - todayAmount;
-            // console.log('todayRemainedAmount : ', todayRemainedAmount);
-
-            let kycLevel = loginUser.kycLevel ? loginUser.kycLevel : 0;
 
             const {data:blctToWon} = await BLCT_TO_WON();
 
             this.setState({
-                kycLevel: kycLevel,
                 consumerAccount: loginUser.account,
                 consumerNo: loginUser.consumerNo,
                 blctBalance: blctBalance,
                 blctToWon: blctToWon,
                 maxAmount: maxAmount,
-                todayRemainedAmount: todayRemainedAmount
+                level1TransferFee: level1TransferFee, //레벨증가시 마다 차감되는 수수료임.
+                myTransferFee: myTransferFee
             });
         }
     }
@@ -186,8 +178,9 @@ class Withdraw extends Component {
         }
 
         {/* KYC승인 [0:미인증, 1:신청중(대기중), 2:승인처리] */}
-        const {data:kycAuthInfo} = await getConsumerKycAuth();
-        this.setState({ kycAuth: kycAuthInfo, ageInfo:ageInfo })
+        //const {data:kycAuthInfo} = await getConsumerKycAuth();
+        //this.setState({ kycAuth: kycAuthInfo, ageInfo:ageInfo })
+        this.setState({ ageInfo:ageInfo })
     }
 
     onWithdrawBlct = async() => {
@@ -198,10 +191,10 @@ class Withdraw extends Component {
             alert("로그아웃되었습니다. 다시 로그인 해주세요."); //혹시나해서, 백엔드 미로그인시 -1리턴.
             return;
         }
-        if (todayWithdrawCount >=1 ) {
-            alert("출금은 1일 1회만 가능합니다.");
-            return;
-        }
+        // if (todayWithdrawCount >=1 ) {
+        //     alert("출금은 1일 1회만 가능합니다.");
+        //     return;
+        // }
         // 어뷰저 체크
         if (await ComUtil.isBlockedAbuser()) {
             return
@@ -213,14 +206,20 @@ class Withdraw extends Component {
             return;
         }
 
-        let {data:todayAmount} = await getTodayAmountBlctToBly();
+        if (this.state.withdrawAmount <= this.state.myTransferFee) {
+            alert("최종 출금금액이 0보다 커야 합니다.");
+            return;
+        }
+
+        // let {data:todayAmount} = await getTodayAmountBlctToBly();
         // console.log(todayAmount, this.state.withdrawAmount);
-        let withdrawable = this.state.maxAmount - (todayAmount + ComUtil.toNum(this.state.withdrawAmount));
+        // let withdrawable = this.state.maxAmount - (todayAmount + ComUtil.toNum(this.state.withdrawAmount));
+        let withdrawable = this.state.maxAmount - (ComUtil.toNum(this.state.withdrawAmount));
         // console.log(withdrawable);
 
         //3455:tempProducer, 21530:COBAK_AAAAA_User :무한출금.
         if(this.state.consumerNo !== 3455 && this.state.consumerNo !== 21530 && withdrawable < 0) {
-            alert("출금 가능한 일한도를 초과하여 출금요청이 불가능합니다.");
+            alert("출금금액이 잔고를 초과하였습니다.");
             return;
         }
         if(this.state.ageInfo !== 1) {
@@ -265,8 +264,8 @@ class Withdraw extends Component {
 
         //OLD let {data:result} = await swapBlctToBly(this.state.withdrawAmount, this.state.ercAccount, this.state.memo);
 
-        //신규: 출금요청
-        let {data:result} = await swapBlctToBlyRequest(this.state.withdrawAmount, this.state.ercAccount, this.state.memo);
+        //신규: 출금
+        let {data:result} = await swapBlctToBly(this.state.withdrawAmount, this.state.ercAccount, this.state.memo);
 
         this.setState({chainLoading: false});
 
@@ -301,21 +300,20 @@ class Withdraw extends Component {
                 break;
 
             case 100 :
-                //this.notify('이미 금일 요청한 출금이 진행중입니다. 결과를 기다려주세요.', toast.warn);
-                this.notify('출금은 1일 1회만 가능합니다.', toast.warn);
+                this.notify('이미 요청한 출금이 진행중입니다. 결과를 기다려주세요.', toast.warn);
+                // this.notify('출금은 1일 1회만 가능합니다.', toast.warn);
                 break;
 
-            // case 101 :
-            //     this.notify('BLCT를 전송하는 중 오류가 발생했습니다. 다시 시도해주세요.', toast.error);
-            //     break;
-            // case 102 : // 내부 출금은 완료되었으나 외부 전송이 오류나서 수동으로 해주어야함. 사용자에게는 완료메시지 전송
-
+            case 101 :
+                this.notify('BLCT를 전송하는 중 오류가 발생했습니다. 다시 시도해주세요.', toast.error);
+                break;
+            case 102 : // 내부 출금은 완료되었으나 외부 전송이 오류나서 수동으로 해주어야함. 사용자에게는 완료메시지 전송
             case 200 :
-                alert('출금요청 완료 : 검토 및 출금이 완료되면 알림톡 및 push로 알려드립니다.');
+                alert('출금요청 완료 : 출금이 완료되면 알림톡 및 push로 알려드립니다.');
                 this.moveToTokenHistory()
                 break;
 
-            default: //-100이하
+            default: //-100이하  -102, -103 어뷰저, 해커 출금시도
                 this.notify('잘못된 출금요청 입니다 CODE:' + result, toast.warn);
                 break;
         }
@@ -369,15 +367,15 @@ class Withdraw extends Component {
         let withdrawAmount = this.state.blctBalance
 
         //남은 일한도
-        const todayRemainedAmount = this.state.todayRemainedAmount
+        // const todayRemainedAmount = this.state.todayRemainedAmount
 
         //console.log({withdrawAmount,todayRemainedAmount})
 
         //잔고가 일한도 초과 일 경우
-        if (ComUtil.toNum(withdrawAmount) > ComUtil.toNum(todayRemainedAmount)){
-            //console.log("===================================")
-            withdrawAmount = todayRemainedAmount
-        }
+        // if (ComUtil.toNum(withdrawAmount) > ComUtil.toNum(todayRemainedAmount)){
+        //     //console.log("===================================")
+        //     withdrawAmount = todayRemainedAmount
+        // }
 
         this.checkWithdrawAmount(withdrawAmount)
 
@@ -438,15 +436,17 @@ class Withdraw extends Component {
         if (this.state.blctBalance < amount) {
             errorText = `최대출금 수량은 ${ComUtil.addCommas(this.state.blctBalance)} 입니다`
             withdrawOk = false
-        }else if(amount < MIN_TRANSFER_BLCT) {
-            errorText = '출금금액은 최소 ' + MIN_TRANSFER_BLCT + ' BLY 입니다.'
+        }else if(amount <= this.state.myTransferFee) {
+            errorText = '출금금액은 ' + this.state.myTransferFee + ' BLY보다 커야 합니다..'
             withdrawOk = false
 
             // 3455 : tempProducer, 21530 : COBAK_AAAAA_User :무한출금.
-        } else if(amount > this.state.todayRemainedAmount &&  3455 !== this.state.consumerNo && 21530 !== this.state.consumerNo ) {
-            errorText = '일일 출금한도인 ' + this.state.maxAmount + 'BLY를 넘었습니다'
-            withdrawOk = false
         }
+
+        // else if(amount > this.state.todayRemainedAmount &&  3455 !== this.state.consumerNo && 21530 !== this.state.consumerNo ) {
+        //     errorText = '일일 출금한도인 ' + this.state.maxAmount + 'BLY를 넘었습니다'
+        //     withdrawOk = false
+        // }
 
         this.setState({
             errorText: errorText,
@@ -501,7 +501,6 @@ class Withdraw extends Component {
         try{
             // console.log(e);
             const data = JSON.parse(e.data);
-            Webview.appLog(data.accountFromPhone);
 
             this.checkErcAccount(data.accountFromPhone)
 
@@ -521,7 +520,7 @@ class Withdraw extends Component {
             const text = await navigator.clipboard.readText();
             this.setState({
                 ercAccount: text,
-                withdrawOk: (this.checkErcAccount(text) && this.state.withdrawAmount >= BLCT2BLY_TRANSFER_FEE)
+                withdrawOk: (this.checkErcAccount(text) && this.state.withdrawAmount >= this.state.myTransferFee)
             })
         }
 
@@ -531,7 +530,7 @@ class Withdraw extends Component {
         let amountStr = this.state.withdrawAmount.toString();
         let splitAmount = amountStr.split(".");
         //let split1 = ComUtil.toCurrency(parseInt(splitAmount[0])-50);
-        let split1 = ComUtil.toCurrency(parseInt(splitAmount[0])- BLCT2BLY_TRANSFER_FEE); //20200112 출금수수료 100으로 조정.
+        let split1 = ComUtil.toCurrency(parseInt(splitAmount[0])- this.state.myTransferFee); //20200112 출금수수료 100으로 조정.
         if(splitAmount.length > 1) {
             let split2 = splitAmount[1];
             return split1 + "." + split2;
@@ -556,7 +555,8 @@ class Withdraw extends Component {
                 {
                     this.state.chainLoading && <BlockChainSpinner/>
                 }
-                <ShopXButtonNav underline historyBack>출금</ShopXButtonNav>
+                {/*<ShopXButtonNav underline historyBack>출금</ShopXButtonNav>*/}
+                <BackNavigation>출금</BackNavigation>
                 {
                     this.state.withdrawCntErrorText &&
                     <Div p={15} bg={'danger'} fg={'white'}>{this.state.withdrawCntErrorText}</Div>
@@ -570,7 +570,7 @@ class Withdraw extends Component {
 
                     <Flex mt={16} mb={32} textAlign={'center'}>
                         <Div width={'50%'} bc={'dark'} bl={0} bt={0} bb={0}>
-                            <Div fontSize={12} mr={8} mb={5}>보유 자산(BLY) </Div>
+                            <Div fontSize={12} mr={8} mb={5}>보유 적립금(BLY) </Div>
                             <Div fontSize={15} bold fg={'green'}>{ComUtil.toCurrency(this.state.blctBalance)}</Div>
                         </Div>
                         <Div width={'50%'}>
@@ -582,7 +582,7 @@ class Withdraw extends Component {
                     <Card shadow={'sm'}>
                         <HeadingLayout>
                             <Div fontSize={16} fw={500}>출금금액</Div>
-                            <Div fontSize={12} fg={'adjust'}>수수료 {BLCT2BLY_TRANSFER_FEE}BLY</Div>
+                            <Div fontSize={12} fg={'adjust'}>수수료 {this.state.myTransferFee} BLY</Div>
                         </HeadingLayout>
 
 
@@ -592,7 +592,7 @@ class Withdraw extends Component {
                                     <Input
                                         type={'number'}
                                         ref={el => this.withdrawAmountRef = el}
-                                        style={{borderColor: 'white'}} bc={'white'} block placeholder={`최소 ${MIN_TRANSFER_BLCT} BLY`}
+                                        style={{borderColor: 'white'}} bc={'white'} block placeholder={`최소 ${this.state.myTransferFee} BLY`}
                                         onChange={this.onWithdrawChange}
                                         onBlur={this.onWithdrawChange}
                                     />
@@ -611,26 +611,32 @@ class Withdraw extends Component {
                         }
 
                         <Flex fontSize={11}>
-                            {
-                                this.state.kycLevel === 0 ?
-                                    <Badge fg={'white'} bg={'adjust'}> KYC인증 전 </Badge>
-                                    :
-                                    <Badge fg={'white'} bg={'green'}> KYC인증 완료 </Badge>
-                            }
-                            {/*<Div ml={5} fg={'adjust'}> 일 한도 {ComUtil.toCurrency(ComUtil.toNum(this.state.todayRemainedAmount))} / {ComUtil.toCurrency(this.state.maxAmount)} BLY</Div>*/}
-                            <Div ml={5} fg={'adjust'}> 일일 1회 최대 {ComUtil.toCurrency(this.state.maxAmount)} BLY</Div>
-
-                            {
-                                (this.state.kycAuth === 1) && (<Div ml={5} fontSize={12} fg={'danger'}>(승인대기중)</Div>)
-                            }
-                            {
-                                (!this.state.kycAuth || this.state.kycAuth === 0 || this.state.kycAuth === -1 ) && (
-                                    <Div ml={5} fontSize={12}>
-                                        <Link to={'/kycCertification'}><Button bg={'green'} fg={'white'} py={3} fontSize={10} >인증하기</Button></Link>
-                                    </Div>
-                                )
-                            }
+                            <Div> * 출금수수료는 고객등급 증가시마다 {this.state.level1TransferFee}BLY 씩 줄어듭니다.</Div>
                         </Flex>
+
+                        {/*<Flex fontSize={11}>*/}
+                        {/*    {*/}
+                        {/*        this.state.kycLevel === 0 ?*/}
+                        {/*            <Badge fg={'white'} bg={'adjust'}> KYC인증 전 </Badge>*/}
+                        {/*            :*/}
+                        {/*            <Badge fg={'white'} bg={'green'}> KYC인증 완료 </Badge>*/}
+                        {/*    }*/}
+                        {/*    {  (this.state.kycLevel === 0)?*/}
+                        {/*        <Div fg={'danger'}> 출금을 하기 위해서는 먼저 kyc인증이 필요합니다. </Div>*/}
+                        {/*        :<Div ml={5} fg={'adjust'}> 최대출금가능: {ComUtil.toCurrency(this.state.maxAmount)} BLY</Div>*/}
+                        {/*    }*/}
+
+                        {/*    {*/}
+                        {/*        (this.state.kycAuth === 1) && (<Div ml={5} fontSize={12} fg={'danger'}>(승인대기중)</Div>)*/}
+                        {/*    }*/}
+                        {/*    {*/}
+                        {/*        (!this.state.kycAuth || this.state.kycAuth === 0 || this.state.kycAuth === -1 ) && (*/}
+                        {/*            <Div ml={5} fontSize={12}>*/}
+                        {/*                <Link to={'/kycCertification'}><Button bg={'green'} fg={'white'} py={3} fontSize={10} >인증하기</Button></Link>*/}
+                        {/*            </Div>*/}
+                        {/*        )*/}
+                        {/*    }*/}
+                        {/*</Flex>*/}
                     </Card>
 
                     <Card shadow={'sm'}>
@@ -642,9 +648,9 @@ class Withdraw extends Component {
                                         <Button bg={'green'} fg={'white'} py={3} px={8} rounded={2} mr={3} onClick={this.onAccountPaste} >
                                             <Flex><Span mr={3}><FaPaste /></Span>붙여넣기</Flex>
                                         </Button>
-                                        <Button bg={'green'} fg={'white'} py={3} px={8} rounded={2} onClick={this.qrcodeScan} >
-                                            <Flex><Span mr={3}><FaQrcode/></Span>QR</Flex>
-                                        </Button>
+                                        {/*<Button bg={'green'} fg={'white'} py={3} px={8} rounded={2} onClick={this.qrcodeScan} >*/}
+                                        {/*    <Flex><Span mr={3}><FaQrcode/></Span>QR</Flex>*/}
+                                        {/*</Button>*/}
                                     </>
                                 )}
                             </Flex>
@@ -672,32 +678,32 @@ class Withdraw extends Component {
                         </Flex>
                         <Flex my={5}>
                             <Div width={100}>수  수  료  </Div>
-                            <Div>  : {`${BLCT2BLY_TRANSFER_FEE}`} BLY</Div>
+                            <Div>  : {`${this.state.myTransferFee}`} BLY</Div>
                         </Flex>
                         <Flex my={5}>
                             <Div width={100}>최종 출금금액</Div>
-                            <Div>{' : '}{ this.state.withdrawAmount >= MIN_TRANSFER_BLCT && `${this.minusFee50()} BLY` }</Div>
+                            <Div>{' : '}{ this.state.withdrawAmount >= this.state.myTransferFee && `${this.minusFee50()} BLY` }</Div>
                         </Flex>
-                        <Div fg={'danger'}>
-                            <Div>출금신청은 1일 1회로 제한되며 관리자 확인 후 출금됩니다.</Div>
-                            <Div>이더리움 네트워크의 과부하로 인해 GasPrice가 과도하게 높을경우 출금승인이 1~2일 지연될 수 있습니다.</Div>
-                        </Div>
+                        {/*<Div fg={'danger'}>*/}
+                        {/*    <Div>출금신청은 1일 1회로 제한되며 관리자 확인 후 출금됩니다.</Div>*/}
+                        {/*    <Div>이더리움 네트워크의 과부하로 인해 GasPrice가 과도하게 높을경우 출금승인이 1~2일 지연될 수 있습니다.</Div>*/}
+                        {/*</Div>*/}
                         {/*<Button my={20} bg={'green'} fg={'white'} py={12} block rounded={3} disabled={!this.state.withdrawOk || !this.state.accountOk} onClick={this.onWithdrawBlct} >확인</Button>*/}
 
 
-                        <Button  mt={16} fontSize={16} bg={'green'} fg={'white'} rounded={2} block py={12} disabled={!this.state.withdrawOk || !this.state.accountOk} onClick={this.onWithdrawBlct} >출금신청하기</Button>
+                        <Button  mt={16} fontSize={16} bg={'green'} fg={'white'} rounded={2} block py={12} disabled={!this.state.withdrawOk || !this.state.accountOk} onClick={this.onWithdrawBlct} >출금하기</Button>
 
                     </Card>
-                    <Card shadow={'sm'}>
-                        <HeadingLayout fw={500}>출금 처리 시간 안내</HeadingLayout>
-                        <Div fg={'dark'} fontSize={13}>
-                            <Div  lineHeight={20} mb={5}>
-                                <Div>전일 17시 ~ 당일 09시 신청건 : 당일 09시~</Div>
-                                <Div>당일 09시 ~ 당일 17시 신청건 : 당일 17시~</Div>
-                            </Div>
-                            <Div fontSize={13}>※ 주말 및 공휴일은 진행되지 않습니다.</Div>
-                        </Div>
-                    </Card>
+                    {/*<Card shadow={'sm'}>*/}
+                    {/*    <HeadingLayout fw={500}>출금 처리 시간 안내</HeadingLayout>*/}
+                    {/*    <Div fg={'dark'} fontSize={13}>*/}
+                    {/*        <Div  lineHeight={20} mb={5}>*/}
+                    {/*            <Div>전일 17시 ~ 당일 09시 신청건 : 당일 09시~</Div>*/}
+                    {/*            <Div>당일 09시 ~ 당일 17시 신청건 : 당일 17시~</Div>*/}
+                    {/*        </Div>*/}
+                    {/*        <Div fontSize={13}>※ 주말 및 공휴일은 진행되지 않습니다.</Div>*/}
+                    {/*    </Div>*/}
+                    {/*</Card>*/}
                 </Div>
 
 

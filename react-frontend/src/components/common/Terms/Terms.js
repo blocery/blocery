@@ -1,7 +1,10 @@
-import React, { Component } from 'react'
-import { Button, Collapse } from 'reactstrap'
+import React, {Component, Fragment} from 'react'
+import {Button, Collapse, Modal, ModalHeader, ModalBody, ModalFooter} from 'reactstrap'
+import {Div, Flex, Right, Span} from '~/styledComponents/shared'
 
 import PropTypes from 'prop-types'
+import Checkbox from "~/components/common/checkboxes/Checkbox";
+import {Required} from "~/styledComponents/ShopBlyLayouts";
 
 const Star = () => <span className='text-danger'>*</span>
 
@@ -41,9 +44,31 @@ export default class Terms extends Component {
         const checked = data[index].checked || false
         data[index].checked = !checked
 
-        this.setState({
-            data: data
+        let vAllChkCnt = 0;
+        data.map((item)=>{
+            if(item.checked){
+                vAllChkCnt = vAllChkCnt + 1;
+            }
+            if(!item.checked){
+                vAllChkCnt = vAllChkCnt - 1;
+            }
         })
+
+        if(vAllChkCnt !== data.length){
+            this.setState({
+                data: data,
+                isAllChecked: false
+            })
+        }else if(vAllChkCnt === data.length){
+            this.setState({
+                data: data,
+                isAllChecked: true
+            })
+        } else {
+            this.setState({
+                data: data
+            })
+        }
 
         this.props.onClickCheck(data, index)
     }
@@ -65,28 +90,42 @@ export default class Terms extends Component {
         return (
 
             <div>
-                <div>
-                    <input type="checkbox" id='checkAll' name="checkAll" className='mr-2' checked={this.state.isAllChecked} value="checkAll" onChange={this.onCheckAllBoxChange} />
-                    <label for='checkAll' className='m-0'>전체 동의{' '}</label>
-                </div>
+                <Flex mb={5} mb={20}>
+                    <Checkbox className='mr-2' id="checkAll" name="checkAll" bg={'green'} checked={this.state.isAllChecked} value="checkAll" onChange={this.onCheckAllBoxChange} />
+                    {/*<input type="checkbox" id='checkAll' name="checkAll" className='mr-2' checked={this.state.isAllChecked} value="checkAll" onChange={this.onCheckAllBoxChange} />*/}
+                    <label for='checkAll' className='m-0'><b>전체 동의 합니다</b></label>
+                </Flex>
                 {
                     data.map(({name, title, content, isOpen, checked}, index)=>{
                         return (
-                            <div key={index}>
-                                <div className='d-flex align-items-center'>
-                                    <input type="checkbox" id={`check_terms_${index}`} name={name} className='mr-2' checked={checked} onChange={this.onCheckBoxChange.bind(this, index)} />
-                                    <label for={`check_terms_${index}`} className='m-0'>
-                                        {title}{' '}<Star/>
-                                    </label>
-                                    <Button color="link" size={'sm'} className='ml-auto' onClick={this.toggle.bind(this, index)}>전체보기</Button>
-                                </div>
+                            <Div key={index} mb={20}>
+                                <Flex alignItems={'center'}>
+                                    <Checkbox name={name} bg={'green'} checked={checked} onChange={this.onCheckBoxChange.bind(this, index)}>
+                                        <Span fontSize={14}><b>{title}</b><Required /></Span>
+                                    </Checkbox>
+                                    <Right>
+                                        {
+                                            content && <Div fontSize={14} cursor onClick={this.toggle.bind(this, index)}><Span fg={'green'}>보기</Span></Div>
+                                        }
+                                    </Right>
+                                </Flex>
 
-                                <Collapse isOpen={isOpen} className={'mb-3'}>
-                                    <div className='small' style={{maxHeight: 300, overflow: 'auto'}}>{content}</div>
-                                </Collapse>
+                                {/*<Collapse isOpen={isOpen} className={'mb-3'}>*/}
+                                {/*    <div className='small' style={{maxHeight: 300, overflow: 'auto'}}>{content}</div>*/}
+                                {/*</Collapse>*/}
+                                <Modal isOpen={isOpen} centered>
+                                    <ModalHeader>
+                                        {title}{' '}
+                                    </ModalHeader>
+                                    <ModalBody>
+                                        <div className='small' style={{maxHeight: 300, overflow: 'auto'}}>{content}</div>
+                                    </ModalBody>
+                                    <ModalFooter>
+                                        <Button outline size='sm' color='secondary' className='m-1' onClick={this.toggle.bind(this, index)}>확인</Button>
+                                    </ModalFooter>
+                                </Modal>
 
-
-                            </div>
+                            </Div>
                         )
                     })
                 }

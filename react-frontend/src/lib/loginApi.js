@@ -17,7 +17,7 @@ export const doLogout = () => axios(Server.getRestAPIHost() + '/login', { method
                 if (window.Kakao.Auth.getAccessToken()) {
                     window.Kakao.Auth.logout(function() {
                         //console.log(window.Kakao.Auth.getAccessToken());
-                        //마켓블리 로그아웃 처리 (세션등)
+                        //샵블리 로그아웃 처리 (세션등)
                         localStorage.removeItem('token');
                         localStorage.removeItem('refreshToken');
                     });
@@ -94,8 +94,10 @@ export const doProducerLogin = (data) => axios(Server.getRestAPIHost() + '/produ
 // kakao 로그인시 사용. accessToken 필요.
 export const doKakaoLogin = (accessToken,refreshToken) => axios(Server.getRestAPIHost() + '/kakaoLogin', {method: "post", params:{ accessKey: accessToken,  refreshKey:refreshToken}, withCredentials: true, credentials: 'same-origin'})
 
+// kakao 소비자 6자리 비번 등록 프로세스 (임시저장후 본인인증처리하는 프로세스 용도)
+export const doKakaoReqConsumer = ({consumerNo,passPhrase,recommenderNo,noBlockchain}) => axios(Server.getRestAPIHost() + '/kakaoRegConsumer', {method: "post", params:{ consumerNo: consumerNo, passPhrase: passPhrase, recommenderNo: recommenderNo, noBlockchain:noBlockchain}, withCredentials: true, credentials: 'same-origin'})
 // kakao 소비자 6자리 비번 등록 프로세스
-export const doKakaoConsumer = ({consumerNo,passPhrase,recommenderNo}) => axios(Server.getRestAPIHost() + '/kakaoConsumer', {method: "post", params:{ consumerNo: consumerNo, passPhrase: passPhrase, recommenderNo: recommenderNo }, withCredentials: true, credentials: 'same-origin'})
+export const doKakaoConsumer = ({consumerNo,passPhrase,recommenderNo,noBlockchain}) => axios(Server.getRestAPIHost() + '/kakaoConsumer', {method: "post", params:{ consumerNo: consumerNo, passPhrase: passPhrase, recommenderNo: recommenderNo, noBlockchain:noBlockchain}, withCredentials: true, credentials: 'same-origin'})
 
 /**
  * 로그인된 user 가져오기
@@ -155,7 +157,7 @@ export const tempAdminProducerLogin = (data) => axios(Server.getRestAPIHost() + 
 export const tempAdminProducerList = (data) => axios(Server.getRestAPIHost() + '/tempAdminProducerList', { method: "get", withCredentials: true, credentials: 'same-origin' })
 
 // 106 바른먹거리연구소, 108 바른먹거리(가공)
-export const barunProducerLogin = (email) => axios(Server.getRestAPIHost() + '/barunProducerLogin', { method: "post", params:{ producerEmail: email }, withCredentials: true, credentials: 'same-origin' })
+export const chainProducerLogin = (email) => axios(Server.getRestAPIHost() + '/chainProducerLogin', { method: "post", params:{ producerEmail: email }, withCredentials: true, credentials: 'same-origin' })
 
 
 /**
@@ -187,19 +189,44 @@ export const isTokenAdminUser = () => axios(Server.getRestAPIHost() + '/isTokenA
 export const autoLoginCheckAndTryAsync = async () => {
     if (ComUtil.isPcWeb() && localStorage.getItem('userType') !== 'consumer') return; //admin <-> 생산자간 전환등 용도 때문에 return.
     const isLogined = sessionStorage.getItem('logined');
-    if (isLogined == 1 || localStorage.getItem('autoLogin') == 1) {
+
+    //마켓블리 버전
+    const autoLogin = localStorage.getItem('autoLogin');
+
+    //마켓블리 버전 (로그아웃 상태일때는 체크로직 추가)
+    if (autoLogin == 0) return null;
+
+    const loginInfo = await getLoginUser();//21.11.3 ''
+    console.log('isLogined:', loginInfo)
+    Webview.objAppLog(loginInfo)
+    Webview.appLog(''+localStorage.getItem('authType'))
+
+    if (loginInfo)  {
+        return loginInfo;
+    }
+    else {
+
+        // if (isLogined==0) return null;
+
         // kakao (authType:1)
         if(localStorage.getItem('authType') == 1){
-            const access_token = localStorage.getItem('token');
+            const access_token = localStorage.getItem('token')||"";
             const refresh_token = localStorage.getItem('refreshToken')||"";
             if(access_token != null) {
                 const {data: res} = await doKakaoLogin(access_token,refresh_token)
+                console.log('doKakao',res)
                 if (res.code == 0) {
                     //const consumer = res.consumer;
                     sessionStorage.setItem('logined', 1);  //로그인 완료.
+                    return res.loginInfo
                 }
             }
-        }else {
+            return null
+        }else { //email유저
+            let userEmail = localStorage.getItem('email');
+            Webview.appLog('userEmail'+userEmail)
+            if (!userEmail) return null;
+
             let user = {
                 email: localStorage.getItem('email'),
                 valword: ComUtil.decrypt(localStorage.getItem('valword')),
@@ -208,7 +235,9 @@ export const autoLoginCheckAndTryAsync = async () => {
             let {data: ret} = await doLogin(user);
             if (ret.status !== Server.ERROR) {
                 sessionStorage.setItem('logined', 1);  //로그인 완료.
+                return ret;
             }
+            return null;
         }
     }
 }
@@ -235,10 +264,10 @@ export const autoLoginCheckAndTry = (isForce) => {
                                     if (res.data.code == 0) {
                                         if (res.data.status !== Server.ERROR) { //100이면 로그인 실패
 
-                                            if (isForce) {  //자동로그인 무한루프 걸리는 문제가 있어 일단 가잆시에만 적용. 단말을 2버전으로 강제업데이트 이후에는 풀어도 뙴.
-                                                Webview.loginUpdate();
-                                            }
-                                            sessionStorage.setItem('logined', 1);  //로그인 완료.
+                                            // if (isForce) {  //자동로그인 무한루프 걸리는 문제가 있어 일단 가잆시에만 적용. 단말을 2버전으로 강제업데이트 이후에는 풀어도 뙴.
+                                            //     Webview.loginUpdate();
+                                            // }
+                                            sessionStorage.setItem('logined', 1);  //로그인 완료
                                         }
                                     }
                                 })
@@ -253,9 +282,9 @@ export const autoLoginCheckAndTry = (isForce) => {
                         doLogin(user)
                             .then((res) => {
                                 if (res.data.status !== Server.ERROR) { //100이면 로그인 실패
-                                    if (isForce) {  //자동로그인 무한루프 걸리는 문제가 있어 일단 가잆시에만 적용. 단말을 2버전으로 강제업데이트 이후에는 풀어도 뙴.
-                                        Webview.loginUpdate();
-                                    }
+                                    // if (isForce) {  //자동로그인 무한루프 걸리는 문제가 있어 일단 가잆시에만 적용. 단말을 2버전으로 강제업데이트 이후에는 풀어도 뙴.
+                                    //     Webview.loginUpdate();
+                                    // }
                                     sessionStorage.setItem('logined', 1);  //로그인 완료.
                                 }
                             })

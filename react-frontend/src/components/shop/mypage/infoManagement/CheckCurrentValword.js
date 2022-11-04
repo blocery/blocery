@@ -6,6 +6,7 @@ import {getConsumer} from "~/lib/shopApi";
 import { getProducerByProducerNo } from "~/lib/producerApi";
 import { Server } from '~/components/Properties';
 import axios from 'axios'
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 export default class CheckCurrentValword extends Component {
     constructor(props) {
@@ -117,7 +118,8 @@ export default class CheckCurrentValword extends Component {
     render() {
         return(
             <Fragment>
-                <ShopXButtonNav underline historyBack>비밀번호 확인</ShopXButtonNav>
+                {/*<ShopXButtonNav underline historyBack>비밀번호 확인</ShopXButtonNav>*/}
+                <BackNavigation>비밀번호 확인</BackNavigation>
                 <Container fluid>
                     <p></p>
                     <Row>

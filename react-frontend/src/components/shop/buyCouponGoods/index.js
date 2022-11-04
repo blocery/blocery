@@ -7,7 +7,7 @@ import {getValue} from "~/styledComponents/Util";
 import {color} from "~/styledComponents/Properties";
 import Checkbox from "~/components/common/checkboxes/Checkbox";
 import {FaGift} from "react-icons/fa";
-import {EditRow, ItemDefaultBody, PayInfoRow} from "~/components/shop/buy/BuyStyle";
+import {EditRow, ItemDefaultBody, PayInfoRow} from "~/components/shop/goodsBuy/directGoodsBuy/BuyStyle";
 import {Collapse, Fade, Input} from "reactstrap";
 import {getConsumer, getNotDeliveryZipNo} from "~/lib/shopApi";
 import Skeleton from "~/components/common/cards/Skeleton";
@@ -20,6 +20,7 @@ import {getServerTodayTime} from "~/lib/commonApi";
 import {scOntOrderFreeCouponGoodsBlct} from "~/lib/smartcontractApi";
 import {withRouter} from 'react-router-dom'
 import BlocerySpinner from "~/components/common/Spinner/BlocerySpinner";
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 const jejuZipNo = [
     "63002","63003","63004","63005","63006","63007","63008","63009","63010","63011","63012","63013","63014","63015","63016","63017","63018","63019","63020",
@@ -380,7 +381,7 @@ const BuyCouponGoods = (props) => {
 
         let {data : result} = await scOntOrderFreeCouponGoodsBlct(saveParams);
 
-        if (result){
+        if (result && result.resCode === 0){
             alert('주문 완료 하였습니다.')
             //쿠폰리스트 페이지로
             props.history.go(-3)
@@ -431,7 +432,8 @@ const BuyCouponGoods = (props) => {
         <div>
             {saving && <BlocerySpinner />}
 
-            <ShopXButtonNav fixed historyBack>구매하기</ShopXButtonNav>
+            {/*<ShopXButtonNav fixed historyBack>구매하기</ShopXButtonNav>*/}
+            <BackNavigation>구매하기</BackNavigation>
             {
                 loading ? (
                     <Skeleton.List count={4} />
@@ -588,7 +590,7 @@ const BuyCouponGoods = (props) => {
                         <Div p={16}>
                             <Flex alignItems={'flex-start'}>
                                 <Div width={70}>
-                                    <img src={ComUtil.getFirstImageSrc(goods.goodsImages, true)} alt="상품이미지" style={{width: '100%'}}/>
+                                    <img src={ComUtil.getFirstImageSrc(goods.goodsImages)} alt="상품이미지" style={{width: '100%'}}/>
                                 </Div>
                                 <Div pl={16}>
                                     <Div fontSize={16}>{goods.goodsNm}</Div>

@@ -110,6 +110,12 @@ function Payment({ navigation }) {
             let alertTitle = '결제실패';
             // let alertContent = response.error_msg;
             let alertContent = '결제에 실패하였습니다. 다시 한 번 시도해주세요.';
+
+            if (response && response.error_msg ) {
+                console.log('response.error_msg:', response.error_msg)
+                alertContent = response.error_msg;
+            }
+
             Alert.alert(
                 alertTitle,
                 alertContent,

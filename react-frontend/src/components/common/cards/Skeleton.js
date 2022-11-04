@@ -56,7 +56,7 @@ const Skeleton = (props) => {
 
 const Row = (props) => {
     const {...rest} = props
-    return <RowDiv bg={'background'} height={16} {...rest}></RowDiv>
+    return <RowDiv rounded={3} bg={'background'} height={16} {...rest}></RowDiv>
 }
 
 const List = (props) => {
@@ -88,9 +88,26 @@ const ProductList = props => {
     )
 }
 
+const VerticalProductList = props => {
+    const {count, circle = false, ...rest} = props
+    return (
+        <LoopContainer count={count} {...rest}>
+            <Div>
+                <RowDiv bg={'light'} height={80} mb={16}></RowDiv>
+                <Div flexGrow={1}>
+                    <Row width={'80%'} mb={16}></Row>
+                    <Row width={'50%'} mb={16}></Row>
+                    <Row mb={16}></Row>
+                </Div>
+            </Div>
+        </LoopContainer>
+    )
+}
+
 Skeleton.Row = Row
 Skeleton.List = List
 Skeleton.ProductList = ProductList
+Skeleton.VerticalProductList = VerticalProductList
 
 export default Skeleton
-export {Row, List, ProductList}
+export {Row, List, ProductList, VerticalProductList}

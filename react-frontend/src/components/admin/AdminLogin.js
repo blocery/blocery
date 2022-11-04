@@ -1,10 +1,21 @@
 import React, { Component, Fragment } from 'react'
-import { Container, Button as LoginButton, Form, FormGroup, Label, Input } from 'reactstrap'
+import {
+    Container,
+    Button as LoginButton,
+    Form,
+    FormGroup,
+    Label,
+    InputGroup,
+    Input,
+    InputGroupAddon,
+    Col, Row
+} from 'reactstrap'
 import axios from 'axios'
 import { Server } from '../Properties'
 import { Button, Flex, Right, Div } from '~/styledComponents/shared'
 import Style from './AdminLogin.module.scss'
 import { Redirect } from 'react-router-dom'
+import {FaEye, FaEyeSlash} from 'react-icons/fa'
 import {smsConfirm, smsSend} from "~/lib/smsApi";
 
 export default class AdminLogin extends Component {
@@ -14,6 +25,7 @@ export default class AdminLogin extends Component {
         this.state = {
             email:'',
             valword: null,
+            passwordType:{type: 'password', visible: false},
             phone: null,
             digit: null,
             redirectToReferrer: false,
@@ -80,6 +92,19 @@ export default class AdminLogin extends Component {
             });
     };
 
+    //password type 변경하는 함수
+    handlePasswordType = e => {
+        if(!this.state.passwordType.visible){
+            this.setState({
+                passwordType: { type: 'text', visible: true }
+            });
+        }else{
+            this.setState({
+                passwordType: { type: 'password', visible: false }
+            });
+        }
+    }
+
     onInputChange = (e) => {
         const { name, value } = e.target;
         this.setState({
@@ -128,7 +153,12 @@ export default class AdminLogin extends Component {
                         </FormGroup>
                         <FormGroup row>
                             <Label for="valword"><h6>비밀번호</h6></Label>
-                            <Input type="password" name="valword" value={this.state.valword||''} onChange={this.onInputChange} />
+                            <Div width={'100%'} relative>
+                                <Input type={this.state.passwordType.type} style={{imeMode:"inactive"}} placeholder="비밀번호" name="valword" value={this.state.valword||''} onChange={this.onInputChange} />
+                                <Div absolute cursor yCenter top={'50%'} right={19} onClick={this.handlePasswordType}>
+                                    {  this.state.passwordType.visible ? <FaEye /> : <FaEyeSlash />  }
+                                </Div>
+                            </Div>
                         </FormGroup>
                         <FormGroup row>
                             <Label for="phone"><h6>핸드폰번호</h6></Label>

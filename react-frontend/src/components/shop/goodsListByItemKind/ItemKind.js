@@ -1,4 +1,4 @@
-import React, {useState} from 'react'
+import React, {useEffect, useState} from 'react'
 import styled from 'styled-components'
 import {getValue} from '~/styledComponents/Util'
 import {color} from '~/styledComponents/Properties'
@@ -15,6 +15,8 @@ const Modal = styled(Div)`
     & > div:last-child{
         margin-bottom: 0;
     }
+    overflow: auto;
+    max-height: calc(100vh - 51.27px);
 `;
 
 const Item = styled.div`
@@ -35,6 +37,10 @@ const ItemKind = (props) => {
         props.onClick(_itemKindCode)
         props.onClose()
     }
+
+    useEffect(() => {
+        setItemKindCode(props.itemKindCode)
+    }, [props.itemKindCode])
 
     if(!props.item || !props.isOpen) return null
     return(

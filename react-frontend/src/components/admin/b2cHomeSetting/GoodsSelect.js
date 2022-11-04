@@ -43,7 +43,9 @@ const GoodsSelect = ({goodsNo, producerNo, producerFarmNm, goodsNm,
     // if (!goods) return null
 
     return(
-        <Flex>
+        <Flex custom={`
+            & button {flex-shrink: 0;}            
+        `}>
             <Input type="text"
                    underLine
                    mr={10}

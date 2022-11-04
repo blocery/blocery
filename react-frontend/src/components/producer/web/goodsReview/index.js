@@ -9,16 +9,15 @@ import { IconStarGroup } from '~/components/common'
 //ag-grid
 import { AgGridReact } from 'ag-grid-react';
 import FilterContainer from "~/components/common/gridFilter/FilterContainer";
-import {FilterGroup, Hr} from "~/styledComponents/shared";
+import {Div, FilterGroup, Hr} from "~/styledComponents/shared";
 import InputFilter from "~/components/common/gridFilter/InputFilter";
 import CheckboxFilter from "~/components/common/gridFilter/CheckboxFilter";
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
+import SearchDates from "~/components/common/search/SearchDates";
+import moment from "moment-timezone";
 
 export default class WebGoodsReviewList extends Component {
     constructor(props) {
         super(props);
-        this.rowHeight=50;
         this.state = {
             data: null,
             columnDefs: this.getColumnDefs(),
@@ -56,7 +55,13 @@ export default class WebGoodsReviewList extends Component {
                 startAll: true
             },
 
-            zoomModalOpen: false
+            zoomModalOpen: false,
+
+            search: {
+                selectedGubun: 'month', //'months': 최초화면을 1달(months)로 설정.
+                startDate: moment(moment().toDate()).add(-1,"months"),
+                endDate: moment(moment().toDate()),
+            },
 
         }
     }
@@ -65,10 +70,14 @@ export default class WebGoodsReviewList extends Component {
     onGridReady(params) {
         //API init
         this.gridApi = params.api;
-        this.gridColumnApi = params.columnApi;
+        this.columnApi = params.columnApi;
         //console.log("onGridReady");
 
         this.gridApi.resetRowHeights();
+    }
+
+    getRowHeight(params) {
+        return 50;
     }
 
     // Ag-Grid column Info
@@ -96,7 +105,7 @@ export default class WebGoodsReviewList extends Component {
         let goodsNameColumn = {
             headerName: "상품명", field: "goodsNm",
             width: 300,
-            cellStyle:this.getCellStyle,
+            cellStyle:ComUtil.getCellStyle,
             filterParams: {
                 clearButton: true //클리어버튼
             }
@@ -108,7 +117,7 @@ export default class WebGoodsReviewList extends Component {
             suppressSizeToFit: true,
             width: 280,
             autoHeight:true,    //row크기자동
-            cellStyle:this.getCellStyle({whiteSpace:"pre-line"}),
+            cellStyle:ComUtil.getCellStyle({whiteSpace:"pre-line"}),
             filterParams: {
                 clearButton: true //클리어버튼
             }
@@ -123,7 +132,7 @@ export default class WebGoodsReviewList extends Component {
             suppressSizeToFit: true,
             width: 150,
             autoHeight:true,
-            cellStyle:this.getCellStyle,
+            cellStyle:ComUtil.getCellStyle,
             filterParams: {
                 clearButton: true //클리어버튼
             }
@@ -133,14 +142,14 @@ export default class WebGoodsReviewList extends Component {
             headerName: "후기작성일", field: "goodsReviewDate",
             suppressSizeToFit: true,
             width: 130,
-            cellStyle:this.getCellStyle,
+            cellStyle:ComUtil.getCellStyle,
             filterParams: {
                 clearButton: true //클리어버튼
             },
             valueGetter: function(params) {
                 //console.log("params",params);
                 //기공된 필터링 데이터로 필터링 되게 적용 (UTCDate 변환)
-                return ComUtil.utcToString(params.data.goodsReviewDate,'YYYY-MM-DD HH:MM');
+                return ComUtil.utcToString(params.data.goodsReviewDate,'YYYY-MM-DD HH:mm');
             },
             sort:"desc"
         };
@@ -149,7 +158,7 @@ export default class WebGoodsReviewList extends Component {
             headerName: "작성자", field: "consumerName",
             suppressSizeToFit: true,
             width: 80,
-            cellStyle:this.getCellStyle,
+            cellStyle:ComUtil.getCellStyle,
             filterParams: {
                 clearButton: true //클리어버튼
             }
@@ -161,17 +170,17 @@ export default class WebGoodsReviewList extends Component {
             cellRenderer: 'goodsReviewScoreRenderer',
             suppressSizeToFit: true,
             width: 120,
-            cellStyle:this.getCellStyle({cellAlign: 'center'}),
+            cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
             filterParams: {
                 clearButton: true //클리어버튼
             }
         };
 
         let likeColumn = {
-            headerName: "좋아요", field: "likeCount",
+            headerName: "좋아요", field: "likesCount",
             suppressSizeToFit: true,
             width: 80,
-            cellStyle:this.getCellStyle({cellAlign: 'center'}),
+            cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
             filterParams: {
                 clearButton: true //클리어버튼
             }
@@ -192,21 +201,6 @@ export default class WebGoodsReviewList extends Component {
         return columnDefs
     }
 
-    // Ag-Grid Cell 스타일 기본 적용 함수
-    getCellStyle ({cellAlign,color,textDecoration,whiteSpace}){
-        if(cellAlign === 'left') cellAlign='flex-start';
-        else if(cellAlign === 'center') cellAlign='center';
-        else if(cellAlign === 'right') cellAlign='flex-end';
-        else cellAlign='flex-start';
-        return {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: cellAlign,
-            color: color,
-            textDecoration: textDecoration,
-            whiteSpace: whiteSpace
-        }
-    }
     //Ag-Grid Cell 숫자콤마적용 렌더러
     formatCurrencyRenderer = ({value, data:rowData}) => {
         //console.log("rowData",rowData);
@@ -304,11 +298,16 @@ export default class WebGoodsReviewList extends Component {
             //ag-grid 레이지로딩중 보이기
             this.gridApi.showLoadingOverlay();
         }
-        let dataParams = {
-            producerNo:this.state.producerNo
-        };
 
-        const { status, data } = await getGoodsReviewListByProducerNo(this.state.searchFilter.stars);
+        const searchInfo = Object.assign({},this.state.search)
+        const startDate = searchInfo.startDate ? moment(searchInfo.startDate).format('YYYYMMDD'):null;
+        const endDate = searchInfo.endDate ? moment(searchInfo.endDate).format('YYYYMMDD'):null;
+        let dataParams = {
+            stars:this.state.searchFilter.stars,
+            startDate:startDate,
+            endDate:endDate
+        };
+        const { status, data } = await getGoodsReviewListByProducerNo(dataParams);
         //console.log(data);
         if(status !== 200){
             alert('응답이 실패 하였습니다');
@@ -389,6 +388,16 @@ export default class WebGoodsReviewList extends Component {
         ComUtil.copyTextToClipboard(value, '', '');
     }
 
+    onDatesChange = async (data) => {
+        await this.setState({
+            search: {
+                startDate: data.startDate,
+                endDate: data.endDate,
+                selectedGubun: data.gubun
+            }
+        });
+    }
+
     render() {
         const state = this.state
         return(
@@ -396,7 +405,23 @@ export default class WebGoodsReviewList extends Component {
                 <FormGroup>
                     <div className='border p-3'>
                         <div className='pt-1 pb-1'>
-                            <div className='d-flex'>
+                            <div className='pb-3 d-flex'>
+                                <Div>
+                                    {/*<Flex>*/}
+                                    <SearchDates
+                                        isHiddenAll={true}
+                                        isCurrenYeartHidden={true}
+                                        gubun={this.state.search.selectedGubun}
+                                        startDate={this.state.search.startDate}
+                                        endDate={this.state.search.endDate}
+                                        onChange={this.onDatesChange}
+                                    />
+                                    {/*<Button className="ml-3" color="primary" onClick={() => this.search(true)}> 검 색 </Button>*/}
+                                    {/*</Flex>*/}
+                                </Div>
+                            </div>
+                            <hr className='p-0 m-0' />
+                            <div className='pt-3 d-flex'>
                                 <div className='d-flex align-items-center'>
                                     <div className='textBoldLarge' fontSize={'small'}> 평점 </div>
                                     <div className='d-flex'>
@@ -431,7 +456,7 @@ export default class WebGoodsReviewList extends Component {
                     </div>
                 </FormGroup>
 
-                <FilterContainer gridApi={this.gridApi} excelFileName={'상품후기 목록'}>
+                <FilterContainer gridApi={this.gridApi} columnApi={this.columnApi} excelFileName={'상품후기 목록'}>
                     <FilterGroup>
                         <InputFilter
                             gridApi={this.gridApi}
@@ -478,16 +503,10 @@ export default class WebGoodsReviewList extends Component {
                     className='ag-theme-balham'
                 >
                     <AgGridReact
-                        // enableSorting={true}                //정렬 여부
-                        // enableFilter={true}                 //필터링 여부
-                        floatingFilter={true}               //Header 플로팅 필터 여부
                         columnDefs={this.state.columnDefs}  //컬럼 세팅
                         defaultColDef={this.state.defaultColDef}
                         rowSelection={this.state.rowSelection}  //멀티체크 가능 여부
-                        rowHeight={this.rowHeight}
-                        //gridAutoHeight={true}
-                        //domLayout={'autoHeight'}
-                        // enableColResize={true}              //컬럼 크기 조정
+                        getRowHeight={this.getRowHeight}
                         overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                         overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
                         onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
@@ -496,10 +515,6 @@ export default class WebGoodsReviewList extends Component {
                         frameworkComponents={this.state.frameworkComponents}
                         suppressMovableColumns={true} //헤더고정시키
                         onFilterChanged={this.onGridFilterChanged.bind(this)} //필터온체인지 이벤트
-                        // onRowClicked={this.onSelectionChanged.bind(this)}
-                        // onRowSelected={this.onRowSelected.bind(this)}
-                        // onSelectionChanged={this.onSelectionChanged.bind(this)}
-                        // suppressRowClickSelection={true}    //true : 셀 클릭시 체크박스 체크 안됨, false : 셀 클릭시 로우 단위로 선택되어 체크박스도 자동 체크됨 [default 값은 false]
                         onCellDoubleClicked={this.copy}
                     >
                     </AgGridReact>

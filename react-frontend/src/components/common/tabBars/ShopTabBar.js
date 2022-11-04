@@ -1,49 +1,94 @@
-//shopTabbar state로 되도록 수정
-
-
-import React, { Component, Fragment } from 'react'
-import PropTypes from 'prop-types'
-import { tabBarData } from '../../Properties'
-import {Link} from '~/styledComponents/shared'
-
-//previous version
-// import IconMenu from '~/images/icons/tabBar/ic_menu.svg'    //카테고리
-// import IconPlan from '~/images/icons/tabBar/ic_plan.svg'    //기획전
-import IconHome from '~/images/icons/tabBar/ic_home.svg'    //홈
-// import IconMy from '~/images/icons/tabBar/ic_my.svg'        //마이페이지
-// import IconImage from '~/images/icons/tabBar/ic_image.svg'  //찜한상품
-//
-// //선택된 아이콘
-// import IconMenuP from '~/images/icons/tabBar/ic_menu_p.svg'  //카테고리
-// import IconPlanP from '~/images/icons/tabBar/ic_plan_p.svg'  //기획전
-import IconHomeP from '~/images/icons/tabBar/ic_home_p.svg'  //홈
-// import IconMyP from '~/images/icons/tabBar/ic_my_p.svg'      //마이페이지
-// import IconImageP from '~/images/icons/tabBar/ic_image_p.svg'//찜한상품
-
-
-import {Icon} from '~/components/common/icons'
+import React, {useEffect} from "react";
+import {NavLink} from 'react-router-dom'
+import {FiHome, FiMessageSquare, FiSearch, FiUser, FiMapPin, FiMenu, FiShoppingCart} from 'react-icons/fi'
+import {BiStoreAlt} from 'react-icons/bi'
+import {activeColor, color, hoverColor} from "~/styledComponents/Properties";
 import {Div, Flex, Fixed} from '~/styledComponents/shared/Layouts'
 import styled from 'styled-components'
+import {getValue} from "~/styledComponents/Util";
+import {ScrollUpButton} from "~/components/common/buttons/ScrollUpButton";
+import useScrollPos from "~/hooks/useScrollPos";
+import ComUtil from "~/util/ComUtil";
+import useNotice from "~/hooks/useNotice";
+import useLogin from "~/hooks/useLogin";
+import {useRecoilState, useRecoilValue} from "recoil";
+import {cartCountState, optionAlertState} from "~/recoilState";
+import {OptionAlert} from "~/components/common/optionAlert";
 
-const iconStyle = {
-    width: 24,
-    height: 24
-}
-const linkStyle = {
-    textAlign: 'center',
-    textDecoration: 'none',
-    color: 'black'
-}
+const activeClassName = "nav-item-active";
 
-const TabBar = styled(Fixed)`
+export const StyledNavLink = styled(NavLink)`
+    background-color: ${color.white};
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+
+    // text-align: center;
+    text-decoration: none;
+    
+    position: relative;
+    
+    &:focus, &:hover, &:visited, &:link{
+        text-decoration: none;
+    }
+    
+    &:active {
+        background-color: ${activeColor.white}; 
+    }
+    
+    height: 100%;
+    // color: ${color.secondary};    
+    // &:hover {
+    //     color: ${color.secondary};
+    // }
+    color: ${color.black};
+
+    &.nav-item-active {
+        color: ${color.green};
+    }
+`
+
+// export const StyledNavLink = styled(NavLink).attrs({
+//     activeClassName,
+// })`
+//     text-align: center;
+//     text-decoration: none;
+//     &:focus, &:hover, &:visited, &:link, &:active {
+//         text-decoration: none;
+//     }
+//     // color: ${color.secondary};
+//     // &:hover {
+//     //     color: ${color.secondary};
+//     // }
+//     color: ${color.black};
+//
+//   &.${activeClassName} {
+//     color: ${color.green};
+//   }
+// `;
+
+const TabBarWrapper = styled(Fixed)`
     bottom:0;
     width: 100%;
-    z-index: 20;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 20px;
+    z-index: 3;
+    transition: 0.2s;
+    transform: ${p => p.isHidden ? 'translateY(57px)' : 'translateY(0px)'};
+`
+
+const TabBar = styled.div`
+    
+    // display: flex;
+    // align-items: center;
+    // justify-content: space-evenly;
+    height: 57px;
     box-shadow: -1px -3px 6px 0 rgba(0, 0, 0, 0.06);
+   
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    
 `;
 
 const Item = styled(Flex)`
@@ -52,162 +97,222 @@ const Item = styled(Flex)`
     align-items: center;
     text-decoration: none;
     min-width: 56px;    //정중앙에 맞추기 위해서 가장 긴 글자인 마이페이지 텍스트의 width 기준을 넣어줌
+    height: 100%;
 `;
-const Text = (props) => <Div fontSize={12} lineHeight={12} fg={!props.selected && 'secondary'}>{props.children}</Div>
-
-class ShopTabBar extends Component{
-
-    constructor(props){
-        super(props)
-        this.state = {
-            tabBarItems: tabBarData.shop,
-            // lastMdPickNotSeen: false
-        }
-    }
-
-    async componentDidMount(){
-        // let {data:lastMdPickNotSeen} = await getLastMdPickNotSeen();
-        // console.log("&&&& lastMdPickNotSeen : ", lastMdPickNotSeen);
-        // this.setState({
-        //     lastMdPickNotSeen:lastMdPickNotSeen
-        // });
-    }
-
-    componentWillReceiveProps(nextProps){
-
-    }
+const Text = (props) => <Div pt={3.6} fontSize={12} lineHeight={12}>{props.children}</Div>
 
 
-
-    //탭바를 표시할지 여부
-    isIgnored = () => {
-        const pathname = this.props.ignoredPathnames.find(ignoredpathname => ignoredpathname === this.props.pathname)
-        return pathname ? true : false
-    }
-
-    //사이드바 클릭
-    onSidebarClick = () =>{
-        this.props.onSidebarClick(true)
-    }
-
-
-    render(){
-        //console.log({desc: 'ShopTabBar', props: this.props})
-
-        // if(ComUtil.isMobileApp()) return null
-        if(this.state.tabBarItems === null) return null
-        else if(this.isIgnored()) return null
-
-        const isHome = this.props.pathname === this.state.tabBarItems[2].pathname
-        const isMdPick = this.props.pathname === this.state.tabBarItems[1].pathname
-        const isCategory = this.props.pathname === this.state.tabBarItems[0].pathname
-        const isMy = this.props.pathname === this.state.tabBarItems[3].pathname
-        const isNewWin = this.props.menuOpen
-
-
-        return(
-            <Fragment>
-                <Div height={54}></Div>
-                <TabBar bg={'white'} className={'dom_bottom'}>
-                {/*<div className={classNames(Css.tabBar, 'dom_bottom')}>*/}
-                    
-                    <Item>
-                        <Link style={linkStyle} to={this.state.tabBarItems[1].pathname} >
-                            {
-                                // this.state.tabIndex === 1 ? <img src={IconPlanP} /> : <img src={IconPlan} />
-                                isMdPick ? <Icon style={iconStyle} name='planP' /> : <Icon style={iconStyle} name='plan' />
-                            }
-                            <Text selected={isMdPick}>기획전</Text>
-                        </Link>
-                    </Item>
-                    <Item>
-                        <Link style={linkStyle} to={this.state.tabBarItems[0].pathname} >
-                            {
-                                // this.state.tabIndex === 0 ? <img src={IconMenuP} /> : <img src={IconMenu} />
-                                isCategory ? <Icon style={iconStyle} name='menuP' /> : <Icon style={iconStyle} name='menu' />
-                            }
-                            <Text selected={isCategory}>카테고리</Text>
-                        </Link>
-                    </Item>
-                    <Item>
-                        <Link style={linkStyle} to={this.state.tabBarItems[2].pathname} >
-                            {
-                                isHome ? <img src={IconHomeP} /> : <img src={IconHome} />
-                                // isHome ? <Icon style={iconStyle} name='homeNavP' /> : <Icon style={iconStyle} name='homeNav' />
-                            }
-                            {/*<Text selected={isHome}>홈</Text>*/}
-                        </Link>
-                    </Item>
-                    <Item>
-                        <Link style={linkStyle} to={this.state.tabBarItems[3].pathname} >
-                            {
-                                // this.state.tabIndex === 3 ? <img src={IconMyP} /> : <img src={IconMy} />
-                                isMy ? <Icon style={iconStyle} name='myP' /> : <Icon style={iconStyle} name='my' />
-                            }
-                            <Text selected={isMy}>마이페이지</Text>
-                        </Link>
-                    </Item>
-                    <Item>
-                        <Div textAlign={'center'} cursor={1} onClick={this.onSidebarClick}>
-                            {
-                                isNewWin ? <Icon style={iconStyle} name='newWinP' /> : <Icon style={iconStyle} name='newWin' />
-                            }
-                            <Text selected={isNewWin}>최근본</Text>
-                        </Div>
-                    </Item>
-                </TabBar>
-            </Fragment>
-
-        )
-
-        //previous version
-        // return(
-        //     <Fragment>
-        //         <div className={Css.emptySpace}></div>
-        //         <div className={Css.tabBar}>
-        //             <Link to={this.state.tabBarItems[0].pathname} >
-        //                 {
-        //                     // this.state.tabIndex === 0 ? <img src={IconMenuP} /> : <img src={IconMenu} />
-        //                     this.props.pathname === this.state.tabBarItems[0].pathname ? <img src={IconMenuP} /> : <img src={IconMenu} />
-        //                 }
-        //             </Link>
-        //
-        //             <Link to={this.state.tabBarItems[1].pathname} >
-        //                 {
-        //                     // this.state.tabIndex === 1 ? <img src={IconPlanP} /> : <img src={IconPlan} />
-        //                     this.props.pathname === this.state.tabBarItems[1].pathname ? <img src={IconPlanP} /> : <img src={IconPlan} />
-        //                 }
-        //             </Link>
-        //             <Link to={this.state.tabBarItems[2].pathname} >
-        //                 {
-        //                     // this.state.tabIndex === 2 ? <img src={IconHomeP} /> : <img src={IconHome} />
-        //                     this.props.pathname === this.state.tabBarItems[2].pathname ? <img src={IconHomeP} /> : <img src={IconHome} />
-        //                 }
-        //             </Link>
-        //             <Link to={this.state.tabBarItems[3].pathname} >
-        //                 {
-        //                     // this.state.tabIndex === 3 ? <img src={IconMyP} /> : <img src={IconMy} />
-        //                     this.props.pathname === this.state.tabBarItems[3].pathname ? <img src={IconMyP} /> : <img src={IconMy} />
-        //                 }
-        //             </Link>
-        //             <a
-        //                 onClick={this.onSidebarClick}
-        //             >
-        //                 {
-        //                     this.props.menuOpen ? <img src={IconImageP} /> :  <img src={IconImage} />
-        //                 }
-        //             </a>
-        //         </div>
-        //     </Fragment>
-        // )
-
-    }
+//bottom은 토크의 글쓰기 버튼 위치를 생각해야함
+const Absolute = styled.div`
+    position: absolute;
+    top: ${getValue(-50-16)};
+    right: ${getValue(16)};
+    // width: ${getValue(50)};
+    // height: ${getValue(50)};    
+    // background-color: rgba(255, 255, 255, .5);
+    // border: 1px solid ${color.light};
+    // border-radius: 50%;
+    //
+    // display: flex;
+    // align-items: center;
+    // justify-content: center;    
+    // transition: 0.1s;
+    // cursor: pointer;
+    //
+    // &:active {
+    //     background-color: ${color.white};
+    // }
+`
+const CartTabHook = () => {
+    // const {noticeInfo} = useNotice()
+    const cartCount = useRecoilValue(cartCountState)
+    return(
+        <StyledNavLink to={'/cartList'} activeClassName={'nav-item-active'} >
+            <Div noti={cartCount > 0} notiTop={-2} notiRight={-7}>
+                <FiShoppingCart size={24} />
+            </Div>
+            <Text>장바구니</Text>
+        </StyledNavLink>
+    )
 }
-ShopTabBar.propTypes = {
-    pathname: PropTypes.string.isRequired,
-    ignoredPathnames: PropTypes.array      //탭바 표시하지 않을 pathname
+
+
+export const BasicShopTabBar = ({isHidden = false, children}) => {
+    // const {consumer} = useLogin()
+    // const {noticeInfo} = useNotice()
+    // const [alerts, setAlerts] = useRecoilState(optionAlertState)
+    // useEffect(() => {
+    //     setPrivateCartCount()
+    // }, [consumer])
+    return(
+        <TabBarWrapper isHidden={isHidden}>
+            <Absolute>
+                {
+                    children
+                }
+            </Absolute>
+            <TabBar>
+                {/*<Item>*/}
+                {/*    <StyledNavLink to={'/menu'} activeClassName={'nav-item-active'}>*/}
+                {/*        <FiMenu size={24}/>*/}
+                {/*        <Text>메뉴</Text>*/}
+                {/*    </StyledNavLink>*/}
+                {/*</Item>*/}
+                {/*<Item>*/}
+                    <StyledNavLink
+                        to={'/search'} activeClassName={'nav-item-active'} >
+                        <FiSearch size={24} />
+                        <Text>검색</Text>
+                    </StyledNavLink>
+                {/*</Item>*/}
+                {/*<Item>*/}
+                    <StyledNavLink exact to={'/'} activeClassName={'nav-item-active'} >
+                        <FiHome size={24}/>
+                        <Text>홈</Text>
+                    </StyledNavLink>
+                {/*</Item>*/}
+                {/*<Item>*/}
+                    <StyledNavLink to={'/mypage'} activeClassName={'nav-item-active'} >
+                        <FiUser size={24} />
+                        <Text>마이페이지</Text>
+                    </StyledNavLink>
+                {/*</Item>*/}
+                {/*<Item>*/}
+                <CartTabHook />
+
+                {/*    <StyledNavLink to={'/cartList'} activeClassName={'nav-item-active'} >*/}
+
+                {/*        /!*{*!/*/}
+                {/*        /!*    alerts.map(time => <OptionAlert key={time} >장바구니에 담았어요!</OptionAlert>)*!/*/}
+                {/*        /!*}*!/*/}
+
+                {/*        <Div noti={noticeInfo.cartCount > 0} notiTop={-2} notiRight={-7}>*/}
+                {/*            <FiShoppingCart size={24} />*/}
+                {/*        </Div>*/}
+                {/*        <Text>장바구니</Text>*/}
+                {/*    </StyledNavLink>*/}
+                {/*</Item>*/}
+
+                {/*<Item>*/}
+                {/*    <Div textAlign={'center'} cursor={1} onClick={this.onSidebarClick}>*/}
+                {/*        {*/}
+                {/*            isNewWin ? <Icon style={iconStyle} name='newWinP' /> : <Icon style={iconStyle} name='newWin' />*/}
+                {/*        }*/}
+                {/*        <Text selected={isNewWin}>최근본</Text>*/}
+                {/*    </Div>*/}
+                {/*</Item>*/}
+            </TabBar>
+        </TabBarWrapper>
+    )
 }
-ShopTabBar.defaultProps = {
-    ignoredPathnames: []
+
+export const ShopTabBar = () =>
+    <BasicShopTabBar>
+        <ScrollUpButton />
+    </BasicShopTabBar>
+
+
+export const HookShopTabBar = (props) => {
+
+    //숨김 처리할지 여부
+    const [isHidden, setIsHidden] = React.useState(false);
+    //최상단 인지
+    // const [isTop, setIsTop] = React.useState(false);
+
+    useScrollPos((scrollObj) => {
+        const { previous, current } = scrollObj;
+        // console.log("useScrollTop effect", scrollObj);
+        setTimeout(() => {
+            //숨김 처리할지 여부
+            setIsHidden(ComUtil.isDownScrolling(scrollObj));
+            //최상단 인지
+            // setIsTop(ComUtil.isTopScrolling(current));
+        });
+    })
+
+    return(
+        <BasicShopTabBar isHidden={isHidden}>
+            <ScrollUpButton />
+        </BasicShopTabBar>
+    )
 }
-export default ShopTabBar
+
+export default {
+    ShopTabBar,
+    HookShopTabBar
+}
+
+// const ShopTabBar = (props) => {
+//
+//     //탭바를 표시 할 지 여부
+//     // const matche = useRouteMatch('/home', '/store')
+//
+//     const matche = useRouteMatch({
+//         path: ['/home', '/store']
+//     })
+//
+//     const exactMatche = useRouteMatch({
+//         path: ['/',  '/local', '/community', '/mypage'],
+//         //path: ['/', '/community', '/search', '/mypage'],
+//         exact: true
+//     })
+//
+//     if (!matche && !exactMatche) return null
+//     return <ShopTabBarContainer />
+// }
+// const ShopTabBar = (props) => {
+//
+//     //탭바 무조건 노출하게 변경
+//     return <ShopTabBarContainer />
+// }
+// export default withRouter(ShopTabBar)
+
+
+
+
+
+
+
+// const ShopTabBar = () => {
+//     const [scrollPos, setScrollPos] = useState({x: 0,y: 0})
+//     const [scrollDir, setScrollDir] = useState(true); //true : down, false: up
+//
+//     useEffect(() => {
+//         const threshold = 0;
+//         let lastScrollY = window.pageYOffset;
+//         let ticking = false;
+//
+//         const updateScrollDir = () => {
+//             const scrollY = window.pageYOffset;
+//
+//             if (Math.abs(scrollY - lastScrollY) < threshold) {
+//                 ticking = false;
+//                 return;
+//             }
+//
+//             setScrollPos({x: window.scrollX, y: window.scrollY})
+//             setScrollDir(scrollY > lastScrollY ? true : false);
+//
+//             lastScrollY = scrollY > 0 ? scrollY : 0;
+//             ticking = false;
+//         };
+//
+//         const onScroll = () => {
+//             if (!ticking) {
+//                 window.requestAnimationFrame(updateScrollDir);
+//                 ticking = true;
+//             }
+//         };
+//
+//         window.addEventListener("scroll", onScroll);
+//
+//         console.log(scrollDir);
+//
+//         return () => window.removeEventListener("scroll", onScroll);
+//     }, [scrollDir]);
+//
+//     return {
+//         x: scrollPos.x, y: scrollPos.y, scrollDir
+//     }
+// }
+// export default ShopTabBar

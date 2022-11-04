@@ -27,13 +27,51 @@ import ShoppingCartWhite from '~/images/icons/ic_cart_w.svg'
 import NotificationWhite from '~/images/icons/ic_alam_w.svg'
 import SearchWhite from '~/images/icons/ic_search_w.svg'
 
-import CateFish from '~/images/icons/category/ic_category_fish.svg'
-import CateFruit from '~/images/icons/category/ic_category_fruit.svg'
-import CateMeat from '~/images/icons/category/ic_category_meat.svg'
-import CateProcFood from '~/images/icons/category/ic_category_procFood.svg'
-import CateRice from '~/images/icons/category/ic_category_rice.svg'
-import CateVeggies from '~/images/icons/category/ic_category_veggies.svg'
-import CateGift from '~/images/icons/category/ic_category_gift.png'
+/*
+ic_cate_gift          선물세트
+ic_cate_kimchisidedish 김치/반찬
+ic_cate_gongsanpum 공산품 = 가공식품)
+ic_cate_healthfood 건강식품
+ic_cate_fruit 과일
+ic_cate_veggies   채소
+ic_cate_coffee_tea  커피/차
+ic_cate_refriger_frozen 냉장/냉동
+ic_cate_instantmealkit 즉석식품/밀키트
+ic_cate_meat_eggs 정육/계란류
+ic_cate_dairy_product 유제품
+ic_cate_oil_seasoning_soysauce 오일/양념/장류
+ic_cate_rice_miscell_nuts 쌀/잡곡/견과
+ic_cate_seafood_dried 수산물/건해산
+*/
+// 선물세트
+import CateGift from '~/images/icons/category/ic_cate_gift.svg'
+// 김치/반찬
+import CateKimchiSideDish from '~/images/icons/category/ic_cate_kimchisidedish.svg'
+// 커피/차
+import CateCoffeeTea from '~/images/icons/category/ic_cate_coffee_tea.svg'
+// 냉장/냉동
+import CateRefrigerFrozen from '~/images/icons/category/ic_cate_refriger_frozen.svg'
+// 즉석식품/밀키트
+import CateInstantMealkit from '~/images/icons/category/ic_cate_instantmealkit.svg'
+// 유제품
+import CateDairyProduct from '~/images/icons/category/ic_cate_dairy_product.svg'
+// 오일/양념/장류
+import CateOilSeasoningSoysauce from '~/images/icons/category/ic_cate_oil_seasoning_soysauce.svg'
+// 건강식품
+import CateHealthFood from '~/images/icons/category/ic_cate_healthfood.svg'
+// 수산물/건해산
+import CateSeaFood from '~/images/icons/category/ic_cate_seafood_dried.svg'
+// 과일
+import CateFruit from '~/images/icons/category/ic_cate_fruit.svg'
+// 채소
+import CateVeggies from '~/images/icons/category/ic_cate_veggies.svg'
+// 정육/계란류
+import CateMeat from '~/images/icons/category/ic_cate_meat_eggs.svg'
+// 가공식품 = 공산품
+import CateGongsanPum from '~/images/icons/category/ic_cate_gongsanpum.svg'
+// 쌀/잡곡/견과
+import CateRice from '~/images/icons/category/ic_cate_rice_miscell_nuts.svg'
+
 
 import BackArrow from '~/images/icons/ic_back_arrow.svg'
 import BackClose from '~/images/icons/ic_back_close.svg'
@@ -103,14 +141,20 @@ const IconSearchWhite = ({...rest}) => <img src={SearchWhite} {...rest} alt={'�
 
 const IconTomato = ({...rest}) => <img src={Tomato} {...rest} alt={'토마토'}/>
 
-const IconCateFish = ({...rest}) => <img src={CateFish} {...rest} alt={'수산물'}/>
-const IconCateFruit = ({...rest}) => <img src={CateFruit} {...rest} alt={'과일'}/>
-const IconCateMeat = ({...rest}) => <img src={CateMeat} {...rest} alt={'축산'}/>
-const IconCateProcFood = ({...rest}) => <img src={CateProcFood} {...rest} alt={'가공식품'}/>
-const IconCateRice = ({...rest}) => <img src={CateRice} {...rest} alt={'쌀/잡곡'}/>
-const IconCateVeggies = ({...rest}) => <img src={CateVeggies}  {...rest} alt={'채소'}/>
 const IconCateGift = ({...rest}) => <img src={CateGift}  {...rest} alt={'선물세트'}/>
-
+const IconCateKimchiSideDish = ({...rest}) => <img src={CateKimchiSideDish} {...rest} alt={'김치/반찬'}/>
+const IconCateCoffeeTea = ({...rest}) => <img src={CateCoffeeTea} {...rest} alt={'커피/차'}/>
+const IconCateRefrigerFrozen = ({...rest}) => <img src={CateRefrigerFrozen} {...rest} alt={'냉장/냉동'}/>
+const IconCateInstantMealkit = ({...rest}) => <img src={CateInstantMealkit} {...rest} alt={'즉석식품/밀키트'}/>
+const IconCateDairyProduct = ({...rest}) => <img src={CateDairyProduct} {...rest} alt={'유제품'}/>
+const IconCateOilSeasoningSoysauce = ({...rest}) => <img src={CateOilSeasoningSoysauce} {...rest} alt={'오일/양념/장류'}/>
+const IconCateHealthFood = ({...rest}) => <img src={CateHealthFood} {...rest} alt={'건강식품'}/>
+const IconCateSeaFood = ({...rest}) => <img src={CateSeaFood} {...rest} alt={'수산물'}/>
+const IconCateFruit = ({...rest}) => <img src={CateFruit} {...rest} alt={'과일'}/>
+const IconCateMeat = ({...rest}) => <img src={CateMeat} {...rest} alt={'정육/계란류'}/>
+const IconCateGongsanPum = ({...rest}) => <img src={CateGongsanPum} {...rest} alt={'공산품'}/>
+const IconCateRice = ({...rest}) => <img src={CateRice} {...rest} alt={'쌀/잡곡/견과'}/>
+const IconCateVeggies = ({...rest}) => <img src={CateVeggies}  {...rest} alt={'채소'}/>
 
 const IconBackArrow = ({...rest}) => <img src={BackArrow} {...rest} alt={'뒤로가기'}/>
 const IconBackClose = ({...rest}) => <img src={BackClose} {...rest} alt={'닫기'}/>
@@ -275,13 +319,20 @@ function Icon({name, ...rest}){
 // IconSearch.defaultProps = {style: {width: '100%', height: '100%'}}
 IconTomato.defaultProps = {style: Style}
 
-IconCateFish.defaultProps = {style: Style}
+IconCateSeaFood.defaultProps = {style: Style}
+IconCateKimchiSideDish.defaultProps = {style: Style}
 IconCateFruit.defaultProps = {style: Style}
 IconCateMeat.defaultProps = {style: Style}
-IconCateProcFood.defaultProps = {style: Style}
+IconCateGongsanPum.defaultProps = {style: Style}
 IconCateRice.defaultProps = {style: Style}
 IconCateVeggies.defaultProps = {style: Style}
 IconCateGift.defaultProps = {styele: Style}
+IconCateCoffeeTea.defaultProps = {styele: Style}
+IconCateRefrigerFrozen.defaultProps = {styele: Style}
+IconCateInstantMealkit.defaultProps = {styele: Style}
+IconCateDairyProduct.defaultProps = {styele: Style}
+IconCateOilSeasoningSoysauce.defaultProps = {styele: Style}
+IconCateHealthFood.defaultProps = {styele: Style}
 
 IconBackArrow.defaultProps = {}
 IconBackClose.defaultProps = {}
@@ -312,15 +363,20 @@ export {
     IconNotificationWhite,
     IconSearchWhite,
 
-
-    IconCateFish,
+    IconCateSeaFood,
+    IconCateKimchiSideDish,
     IconCateFruit,
     IconCateMeat,
-    IconCateProcFood,
+    IconCateGongsanPum,
     IconCateRice,
     IconCateVeggies,
     IconCateGift,
-
+    IconCateCoffeeTea,
+    IconCateRefrigerFrozen,
+    IconCateInstantMealkit,
+    IconCateDairyProduct,
+    IconCateOilSeasoningSoysauce,
+    IconCateHealthFood,
 
     IconBackArrow,
     IconBackClose,

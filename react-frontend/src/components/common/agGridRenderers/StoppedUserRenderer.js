@@ -19,7 +19,7 @@ const StoppedUserRenderer = (props) => {
         if (consumerNo > 0)
             getConsumerByConsumerNo(consumerNo).then(({data}) => {
                 if (data) {
-                    console.log({data: data})
+                    //console.log({data: data})
                     const {stoppedDate, stoppedUser} = data
                     setState({
                         stoppedDate,

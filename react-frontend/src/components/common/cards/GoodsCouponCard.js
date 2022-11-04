@@ -36,13 +36,27 @@ const GoodsCouponCard = ({title = '', couponBly = 0, minOrderBly, fixedWon = 0})
                 <ModalBody>
                     <Div>
                         <Div mb={16} lineHeight={28}>
-                            1. 적립 내역은 [마이페이지 > 쿠폰] 에서 확인 가능합니다. <br/>
-                            2. 적립형 쿠폰은 상품 구매 건별로 지급됩니다. <br/>
-                            3. 적립형 쿠폰은 BLY 쿠폰으로 표시된 원화의 근사치로 지급됩니다. <br/>
-                            4. 단일 상품 결제 시에만 사용 가능합니다. <br/>
-                            5. 상품 금액이 쿠폰 금액보다 작은 경우 사용 불가합니다. <br/>
-                            6. 구매 취소 시 사용된 쿠폰은 반환되지 않습니다. 단, 생산자 주문 취소에 한하여 동일한 BLY쿠폰이 재발급됩니다. <br/>
-                            7. 적립되는 BLY는 구매 시점 기준 시세로 적용됩니다.
+                            <Flex alignItems={'flex-start'}>
+                                <Div>1. 적립 내역은 [마이페이지 > 쿠폰] 에서 확인 가능합니다.</Div>
+                            </Flex>
+                            <Flex alignItems={'flex-start'} my={8}>
+                                <Div>2. 적립형 쿠폰은 상품의 구매 수량과 상관없이 구매 건당 지급됩니다. </Div>
+                            </Flex>
+                            <Flex alignItems={'flex-start'} my={8}>
+                                <Div>3. 적립형 쿠폰은 BLY 쿠폰으로 표시된 원화의 근사치로 지급됩니다. </Div>
+                            </Flex>
+                            <Flex alignItems={'flex-start'} my={8}>
+                                <Div>4. 단일 상품 결제 시에만 사용 가능합니다.</Div>
+                            </Flex>
+                            <Flex alignItems={'flex-start'} my={8}>
+                                <Div>5. 상품 금액이 쿠폰 금액보다 작은 경우 사용 불가합니다.</Div>
+                            </Flex>
+                            {/*<Flex alignItems={'flex-start'} my={8}>*/}
+                            {/*    <Div>6. 구매 취소 시 사용된 쿠폰은 반환되지 않습니다. 단, 생산자 주문 취소에 한하여 동일한 BLY쿠폰이 재발급됩니다. </Div>*/}
+                            {/*</Flex>*/}
+                            <Flex alignItems={'flex-start'} my={8}>
+                                <Div>6. 적립되는 BLY는 구매 시점 기준 시세로 적용됩니다.</Div>
+                            </Flex>
                         </Div>
                         <Div textAlign={'center'}>
                             <Button py={5} px={10} bg={'white'} bc={'dark'} onClick={toggle}>닫기</Button>

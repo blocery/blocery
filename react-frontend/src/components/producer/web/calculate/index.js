@@ -1,6 +1,8 @@
 import WebCalculateTab from './WebCalculateTab'
-import WebBlctHistory from './WebBlctHistory'
+import WebCalculateLocal from './WebCalculateLocal'
+import WebCalculate157Fee from './WebCalculate157Fee'
 export {
     WebCalculateTab,
-    WebBlctHistory
+    WebCalculateLocal,
+    WebCalculate157Fee
 }

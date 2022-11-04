@@ -4,6 +4,7 @@ import { regProducer } from '~/lib/producerApi'
 import { ShopXButtonNav, RadioButtons } from '~/components/common'
 import { Server } from '~/components/Properties'
 import axios from 'axios'
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 
 let bindCategory = [
@@ -115,8 +116,8 @@ class b2cQueInfo extends Component{
         let data = {};
 
         data.recipient = 'cs@blocery.io';
-        data.subject = '마켓블리 입점문의';
-        data.content = '마켓블리 생산자 입점문의 신청서가 제출되었습니다. 확인해주세요.';
+        data.subject = '샵블리 입점문의';
+        data.content = '샵블리 생산자 입점문의 신청서가 제출되었습니다. 확인해주세요.';
 
         await axios(Server.getRestAPIHost() + '/sendmail',
             {
@@ -137,7 +138,9 @@ class b2cQueInfo extends Component{
         const state = Object.assign({}, this.state)
         return(
             <Fragment>
-                <ShopXButtonNav underline historyBack>입점문의</ShopXButtonNav>
+                {/*<ShopXButtonNav underline historyBack>입점문의</ShopXButtonNav>*/}
+                <BackNavigation>입점문의</BackNavigation>
+
                 {/*<iframe src={"https://docs.google.com/forms/d/e/1FAIpQLSfD3RtDIWFVfy1bu1z51R8NmvA9kyFlTFJpNH3PBMn8RQjA1Q/viewform"}*/}
                         {/*width={'100%'}*/}
                         {/*height="100vh"*/}
@@ -149,9 +152,9 @@ class b2cQueInfo extends Component{
                         <Col className='p-0'>
                             <Col sm={12} className='mb-3'>
                                 <Card body>
-                                    <CardTitle className='f2'><span className='d-flex align-items-center'>마켓블리 입점문의</span></CardTitle>
+                                    <CardTitle className='f2'><span className='d-flex align-items-center'>샵블리 입점문의</span></CardTitle>
                                     <CardText>
-                                        안녕하세요. 마켓블리입니다. <br/>
+                                        안녕하세요. 샵블리입니다. <br/>
                                         아래 항목에 정확한 내용을 기입하여 제출하시면 확인 후 답변드리겠습니다.<br/>
                                         감사합니다.<br/>
                                         <span className='text-danger'>* 필수항목</span>

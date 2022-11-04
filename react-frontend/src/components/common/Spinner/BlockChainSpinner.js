@@ -1,9 +1,46 @@
 import React from 'react'
 import Style from './BlockChainSpinner.module.scss'
 import { ChainSpinner, BlocerySymbolGreen } from '../../common'
-const BlockChainSpinner = (props) => {
-    return(
+import {Div, Mask} from "~/styledComponents/shared";
+import styled from 'styled-components'
+import {color} from "~/styledComponents/Properties";
+import {getValue} from "~/styledComponents/Util";
+import {Spinner} from "reactstrap";
 
+const Modal = styled.div`
+    
+    position: absolute;
+    
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+   
+    background: ${color.white};
+    font-size: ${getValue(15)};
+    min-width: 45vmin;
+    padding: ${getValue(23)};
+    border-radius: ${getValue(3)};
+    text-align: center;
+`
+
+const BlockChainSpinner = (props) => {
+
+    return (
+        <Mask zIndex={9999999}>
+            <Modal>
+                <Spinner color="success" style={{marginBottom: 13}}/>
+                {/*<BlocerySymbolGreen style={{width: 25, height: 25}} />*/}
+                {/*<div><ChainSpinner /></div>*/}
+                <div>
+                    {
+                        props.children ? props.children : <b>블록체인 기록중!<br/>잠시만 기다려 주세요!</b>
+                    }
+                </div>
+            </Modal>
+        </Mask>
+    )
+
+    return (
         <div className={Style.wrap}>
             <div className={Style.modal}>
                 <div>

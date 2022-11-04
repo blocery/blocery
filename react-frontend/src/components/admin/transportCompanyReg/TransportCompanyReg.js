@@ -14,6 +14,7 @@ class TransportCompanyReg extends Component {
             transportCompany: {
                 transportCompanyNo: isUpdate ? this.props.transportCompanyNo : 0,
                 transportCompanyCode: '',
+                carrierId: '',
                 transportCompanyName: '',
                 transportCompanyUrl: '',
             },
@@ -145,11 +146,22 @@ class TransportCompanyReg extends Component {
                         onChange={this.onChange}
                         value={transportCompany.transportCompanyCode}
                         // onBlur={this.onTransportCompanyCodeBlur}
-                        onKeyUp={this.onCodeKeyUp}
+                        //onKeyUp={this.onCodeKeyUp}
                         valid={this.state.errors.transportCompanyCode.length <= 0} invalid={!this.state.errors.transportCompanyCode.length <= 0}
                         placeholder='택배사 코드'
                     />
                     <span className='text-danger'>{errors.transportCompanyCode}</span>
+                </FormGroup>
+                <FormGroup>
+                    <Label><h6>ID<span className='text-danger'>*</span></h6></Label>
+                    <Input
+                        innerRef={input => this.carrierId = input}
+                        name='carrierId'
+                        onChange={this.onChange}
+                        value={transportCompany.carrierId}
+                        placeholder='택배사 ID'
+                    />
+                    <span className='text-danger'>{errors.carrierId}</span>
                 </FormGroup>
                 <FormGroup>
                     <Label><h6>명칭<span className='text-danger'>*</span></h6></Label>

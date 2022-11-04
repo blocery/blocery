@@ -1,13 +1,12 @@
-import React, {useState} from 'react';
-import {Flex} from '~/styledComponents/shared/Layouts'
+import React, {useState,useEffect} from 'react';
+import {Flex, Div} from '~/styledComponents/shared/Layouts'
 import {Alert, Button, ButtonGroup} from 'reactstrap'
 import moment from "moment-timezone";
 import {SingleDatePicker} from "react-dates";
-
+import 'moment/locale/ko'
 const SearchDates = (props) => {
-
-    // isHiddenAll 전체 버튼 숨길 경우 true
-    const {isHiddenAll, isCurrenYeartHidden, txtAllTitle, isNotOnSearch}= props;
+    // isHiddenAll "전체" 버튼 숨길 경우 true
+    const {btnAllHidden = false, isHiddenAll = false, isCurrenYeartHidden = false, txtAllTitle, isNotOnSearch}= props;
 
     // 시작일자 달력 , 종료일자 달력
     const renderStartCalendarInfo = () => <Alert className='m-1'>시작 날짜를 선택해 주세요</Alert>;
@@ -19,6 +18,24 @@ const SearchDates = (props) => {
     const [startDate, setStartDate] = useState((props.startDate ? props.startDate:moment(moment().toDate())));
     const [endDate, setEndDate] = useState((props.endDate ? props.endDate:moment(moment().toDate())));
 
+    useEffect(() => {
+        //한글언어
+        moment.locale('ko');
+    },[]);
+
+    useEffect(() => {
+        if(props.startDate != null){
+            setStartDate(props.startDate);
+        }
+        if(props.endDate != null){
+            setEndDate(props.endDate)
+        }
+        if(props.gubun === 'all' && props.startDate == null && props.endDate == null){
+            setStartDate(null);
+            setEndDate(null);
+        }
+    }, [props]);
+
     const selectCondition = async (gubun)=>{
         let pStartDate = null;
         let pEndDate = null;
@@ -26,21 +43,20 @@ const SearchDates = (props) => {
             pStartDate = moment(moment().toDate());
             pEndDate = moment(moment().toDate());
         } else if(gubun === "week") {
-            pStartDate = moment(moment().toDate()).add("days", -7);
+            pStartDate = moment(moment().toDate()).subtract(7,"day");
             pEndDate = moment(moment().toDate());
         } else if(gubun === "month") {
-            pStartDate = moment(moment().toDate()).add("months", -1);
+            pStartDate = moment(moment().toDate()).subtract(1,"month");
             pEndDate = moment(moment().toDate());
         } else if(gubun === "3month") {
-            pStartDate = moment(moment().toDate()).add("months", -3);
+            pStartDate = moment(moment().toDate()).subtract(3,"month");
             pEndDate = moment(moment().toDate());
         } else if(gubun === "6month") {
-            pStartDate = moment(moment().toDate()).add("months", -6);
+            pStartDate = moment(moment().toDate()).subtract(6,"month");
             pEndDate = moment(moment().toDate());
         } else if(gubun === "1year") {
             const startYearStateDate = moment().startOf('year').toDate();
             pStartDate = moment(startYearStateDate);
-            //pStartDate = moment(moment().toDate()).add("months", -6);
             pEndDate = moment(moment().toDate());
         }
 
@@ -75,51 +91,60 @@ const SearchDates = (props) => {
 
     return (
         <>
-            <Flex>
-                <ButtonGroup className="pr-2">
-                    <Button color="secondary" onClick={selectCondition.bind(this,'day')} active={selectedGubun === 'day'}> 오늘 </Button>
-                    <Button color="secondary" onClick={selectCondition.bind(this,'week')} active={selectedGubun === 'week'}> 1주일 </Button>
-                    <Button color="secondary" onClick={selectCondition.bind(this,'month')} active={selectedGubun === 'month'}> 1개월 </Button>
-                    <Button color="secondary" onClick={selectCondition.bind(this,'3month')} active={selectedGubun === '3month'}> 3개월 </Button>
-                    <Button color="secondary" onClick={selectCondition.bind(this,'6month')} active={selectedGubun === '6month'}> 6개월 </Button>
-                    {
-                        !isCurrenYeartHidden && <Button color="secondary" onClick={selectCondition.bind(this,'1year')} active={selectedGubun === '1year'}> 현재년도 </Button>
-                    }
-                    {
-                        !isHiddenAll && <Button color="secondary" onClick={selectCondition.bind(this,'all')} active={selectedGubun === 'all'}> {txtAllTitle ? txtAllTitle : '전체'} </Button>
-                    }
-                </ButtonGroup>
-                <SingleDatePicker placeholder="검색시작일"
-                                  date={startDate}
-                                  onDateChange={onStartDateChange}
-                                  focused={startDayFocusedInput} // PropTypes.bool
-                                  onFocusChange={({focused}) => setStartDayFocusedInput(focused)} // PropTypes.func.isRequired
-                                  id={"startDate"} // PropTypes.string.isRequired,
-                                  numberOfMonths={1}
-                                  withPortal={false}
-                                  isOutsideRange={()=>false}
-                                  small
-                                  readOnly
-                                  calendarInfoPosition="top"
-                                  verticalHeight={700}
-                                  renderCalendarInfo={renderStartCalendarInfo}
+            <Flex flexDirection={props.useBr?'column':'row'}>
+                {
+                    !btnAllHidden &&
+                    <ButtonGroup className="pr-2">
+                        <Button color="secondary" onClick={selectCondition.bind(this,'day')} style={{zIndex:0}} zIndex={0} active={selectedGubun === 'day'}> 오늘 </Button>
+                        <Button color="secondary" onClick={selectCondition.bind(this,'week')} style={{zIndex:0}} active={selectedGubun === 'week'}> 1주일 </Button>
+                        <Button color="secondary" onClick={selectCondition.bind(this,'month')} style={{zIndex:0}} active={selectedGubun === 'month'}> 1개월 </Button>
+                        <Button color="secondary" onClick={selectCondition.bind(this,'3month')} style={{zIndex:0}} active={selectedGubun === '3month'}> 3개월 </Button>
+                        <Button color="secondary" onClick={selectCondition.bind(this,'6month')} style={{zIndex:0}} active={selectedGubun === '6month'}> 6개월 </Button>
+                        {
+                            !isCurrenYeartHidden && <Button color="secondary" onClick={selectCondition.bind(this,'1year')} style={{zIndex:0}} active={selectedGubun === '1year'}> 현재년도 </Button>
+                        }
+                        {
+                            !isHiddenAll && <Button color="secondary" onClick={selectCondition.bind(this,'all')} style={{zIndex:0}} active={selectedGubun === 'all'}> {txtAllTitle ? txtAllTitle : '전체'} </Button>
+                        }
+                    </ButtonGroup>
+                }
+                <Flex>
+                    <SingleDatePicker
+                        locale={'ko'}
+                        placeholder="검색시작일"
+                      date={startDate}
+                      onDateChange={onStartDateChange}
+                      focused={startDayFocusedInput} // PropTypes.bool
+                      onFocusChange={({focused}) => setStartDayFocusedInput(focused)} // PropTypes.func.isRequired
+                      id={"startDate"} // PropTypes.string.isRequired,
+                      numberOfMonths={1}
+                      withPortal={false}
+                      isOutsideRange={()=>false}
+                      small
+                      readOnly
+                      calendarInfoPosition="top"
+                      verticalHeight={700}
+                      renderCalendarInfo={renderStartCalendarInfo}
 
-                /> <Flex mx={5}>~</Flex>
-                <SingleDatePicker placeholder="검색종료일"
-                                  date={endDate}
-                                  onDateChange={onEndDateChange}
-                                  focused={endDayFocusedInput} // PropTypes.bool
-                                  onFocusChange={({focused}) => setEndDayFocusedInput(focused)} // PropTypes.func.isRequired
-                                  id={"endDate"} // PropTypes.string.isRequired,
-                                  numberOfMonths={1}
-                                  withPortal={false}
-                                  isOutsideRange={()=>false}
-                                  small
-                                  readOnly
-                                  calendarInfoPosition="top"
-                                  verticalHeight={700}
-                                  renderCalendarInfo={renderEndCalendarInfo}
-                />
+                    /> <Div mx={5}>~</Div>
+                    <SingleDatePicker
+                        locale={'ko'}
+                        placeholder="검색종료일"
+                      date={endDate}
+                      onDateChange={onEndDateChange}
+                      focused={endDayFocusedInput} // PropTypes.bool
+                      onFocusChange={({focused}) => setEndDayFocusedInput(focused)} // PropTypes.func.isRequired
+                      id={"endDate"} // PropTypes.string.isRequired,
+                      numberOfMonths={1}
+                      withPortal={false}
+                      isOutsideRange={()=>false}
+                      small
+                      readOnly
+                      calendarInfoPosition="top"
+                      verticalHeight={700}
+                      renderCalendarInfo={renderEndCalendarInfo}
+                    />
+                </Flex>
             </Flex>
         </>
     )

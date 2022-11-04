@@ -3,13 +3,15 @@ import { Button, Row, Col, Form, Input, Modal, ModalHeader, ModalBody, ModalFoot
 import axios from 'axios'
 import { Server } from '../../Properties'
 import ComUtil from '../../../util/ComUtil'
-import { MarketBlyLogoColorRectangle } from '../../common'
 import Style from './WebLogin.module.scss'
 import ModalPopup from "../../common/modals/ModalPopup";
 import {getProducerEmail} from "~/lib/producerApi";
 import {resetPassword} from "~/lib/adminApi";
 import {EMAIL_RESET_TITLE, getEmailResetContent} from "~/lib/mailApi";
 import classNames from 'classnames'
+import {MarketBlyMainLogo} from "~/components/common/logo";
+import {FaEye, FaEyeSlash} from "react-icons/fa";
+import {Div} from "~/styledComponents/shared";
 
 export default class WebLogin extends Component {
 
@@ -18,6 +20,7 @@ export default class WebLogin extends Component {
         this.state = {
             email: null,
             valword: null,
+            passwordType:{type: 'password', visible: false},
             redirectToReferrer: false,
             fadeEmail: false, //email 미입력시 에러메시지 여부
             fadeEmailType: false,
@@ -37,6 +40,19 @@ export default class WebLogin extends Component {
         //     console.log('window.location.protocol:' + window.location.protocol + 'redirecting to Https');
         //     window.location = 'https://blocery.com/producer/webLogin';  //HARD CODING
         // }
+    }
+
+    //password type 변경하는 함수
+    handlePasswordType = e => {
+        if(!this.state.passwordType.visible){
+            this.setState({
+                passwordType: { type: 'text', visible: true }
+            });
+        }else{
+            this.setState({
+                passwordType: { type: 'password', visible: false }
+            });
+        }
     }
 
     onLoginClicked = (event) => {
@@ -123,7 +139,7 @@ export default class WebLogin extends Component {
     }
 
     onJoinClick = () => {
-        this.props.history.push('/mypage/queInfo');
+        this.props.history.push('/producerCenter/join/intro');
     }
 
     togglePopup = () => {
@@ -201,11 +217,10 @@ export default class WebLogin extends Component {
                 <Fragment>
                     <div style={{width: 400}}>
                         <div className='d-flex justify-content-center align-items-center'>
-                            <MarketBlyLogoColorRectangle className={''} style={{textAlign:'center', width: 120, paddingTop: 10, paddingBottom: 10}}/>
+                            <MarketBlyMainLogo className={''} style={{textAlign:'center', width: 150, paddingBottom: 20}}/>
                         </div>
                         <p></p>
                         <Form onSubmit={this.onLoginClicked}>
-
                             <Row>
                                 <Col xs={12}>
                                     <Input className={classNames('rounded-0 mb-3', Style.textBox)} placeholder="생산자 아이디(이메일)"/>
@@ -215,7 +230,12 @@ export default class WebLogin extends Component {
                                     {
                                         this.state.fadeEmailType && <CustomFade>이메일 주소를 양식에 맞게 입력해 주세요.</CustomFade>
                                     }
-                                    <Input className={classNames('rounded-0 mb-3', Style.textBox)}  type="password" placeholder="비밀번호"/>
+                                    <Div relative className={classNames('mb-3')}>
+                                        <Input className={classNames('rounded-0',Style.textBox)} style={{imeMode:"inactive"}} type={this.state.passwordType.type} placeholder="비밀번호" />
+                                        <Div absolute cursor yCenter top={'50%'} right={19} onClick={this.handlePasswordType}>
+                                            {  this.state.passwordType.visible ? <FaEye /> : <FaEyeSlash />  }
+                                        </Div>
+                                    </Div>
                                     {
                                         this.state.fadePassword && <CustomFade>비밀번호를 입력해 주세요.</CustomFade>
                                     }
@@ -223,34 +243,20 @@ export default class WebLogin extends Component {
                                         this.state.fadeError && <CustomFade>아이디/비밀번호를 확인해 주세요.</CustomFade>
                                     }
                                     <Button type='submit' color='info' className={'rounded-0 p-2 mt-4 mb-3'} block ><span className='f17'>로그인</span></Button>
-
                                     <hr/>
                                     <div class='d-flex justify-content-center f13 text-secondary'>
                                         <span className='mr-2 cursor-pointer' onClick={this.onIdSearchClick}>아이디 찾기</span>
                                         <span className='mr-2'>|</span>
                                         <span className='mr-2 cursor-pointer' onClick={this.onPwSearchClick}>비밀번호 찾기</span>
                                         <span className='mr-2'>|</span>
-                                        <span className='mr-2 cursor-pointer' onClick={this.onJoinClick}>생산자 입점문의</span>
+                                        <span className='mr-2 cursor-pointer' onClick={this.onJoinClick}>샵블리 입점센터</span>
                                     </div>
                                 </Col>
                             </Row>
-
-                            {/*<FormGroup row>
-                                <Label for="email"><h6>이메일 ID</h6></Label>
-                                <Input type="text" name="email" value={this.state.email||''} onChange={this.onInputChange}/>
-                            </FormGroup>
-                            <FormGroup row>
-                                <Label for="password" ><h6>비밀번호</h6></Label>
-                                <Input type="password" name="valword" value={this.state.valword||''} onChange={this.onInputChange} />
-                            </FormGroup>
-                            <FormGroup row>
-                                <Button type='submit' block color='primary'> 로그인 </Button>
-                            </FormGroup>*/}
                         </Form>
                     </div>
-
                     {
-                        this.state.isOpen && this.state.type === 'id' && <ModalPopup title={'알림'} content={'가입 시 입력하신 성함, 이메일, 연락처 등과 함께 문의사항을 고객센터로(cs@blocery.io) 메일을 보내주시거나, 카카오채널(마켓블리) 1:1 채팅으로 문의주시면 확인 후 회신 드리도록 하겠습니다.'} onClick={this.onClose}></ModalPopup>
+                        this.state.isOpen && this.state.type === 'id' && <ModalPopup title={'알림'} content={'가입 시 입력하신 성함, 이메일, 연락처 등과 함께 문의사항을 고객센터로(cs@blocery.io) 메일을 보내주시거나, 카카오채널(샵블리) 1:1 채팅으로 문의주시면 확인 후 회신 드리도록 하겠습니다.'} onClick={this.onClose}></ModalPopup>
                     }
                     {
                         this.state.isOpen && this.state.type === 'pw' &&

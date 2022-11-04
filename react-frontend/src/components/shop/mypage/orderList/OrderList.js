@@ -1,42 +1,38 @@
-import React, { Component, Fragment } from 'react'
+import React, {Component, Fragment, useState} from 'react'
 import { Button, Modal, ModalBody, ModalFooter } from 'reactstrap'
 import { Server } from '~/components/Properties'
 import ComUtil from '~/util/ComUtil'
-
 import {FaGift} from 'react-icons/fa'
-
-
 import { BlockChainSpinner, ShopXButtonNav, ModalConfirm } from '~/components/common/index'
-import { getOrderDetailListByConsumerNo, getOrderDetailByOrderSeq, updateConsumerOkDate } from '~/lib/shopApi'
+import { getOrderDetailPagingByOrderGroup, getOrderDetailByOrderSeq, updateConsumerOkDate, updateConsumerOkDateForSubGroup } from '~/lib/shopApi'
 import { getLoginUser } from '~/lib/loginApi'
-
 import { toast } from 'react-toastify'     //토스트
 import { Button as Btn } from '~/styledComponents/shared/Buttons'
 import { Link } from '~/styledComponents/shared/Links'
-import { Div, Span, Img, Flex, Right, Hr, Sticky, Fixed } from '~/styledComponents/shared/Layouts'
+import {Div, Span, Img, Flex, Right, Hr, Sticky, Fixed, Space} from '~/styledComponents/shared/Layouts'
+import {BadgeSharp, EmptyBox} from "~/styledComponents/ShopBlyLayouts";
 import { Badge } from '~/styledComponents/mixedIn'
 import { Icon } from '~/components/common/icons'
-
 import styled from 'styled-components'
 import { color } from '~/styledComponents/Properties'
-
 import Skeleton from '~/components/common/cards/Skeleton'
+import BackNavigation from "~/components/common/navs/BackNavigation";
+import InfiniteScroll from "react-infinite-scroll-component";
+import {getPayMethodPgNm} from "~/util/bzLogic";
+import MathUtil from "~/util/MathUtil";
 
-const OrderDate = styled(Sticky)`
-    margin: 16px;
-    margin-bottom: -10px;
-    top: 56px;
-`;
-const OrderGroup = styled(Div)`
+
+const SubGroup = styled(Div)`
 `;
 
-const OrderGroupDetail = styled(Div)`
+const SubGroupDetail = styled(Div)`
     border: 1px solid ${color.light};
     margin: 16px;
+    margin-top: 0;
     
-    & > div {
-        border-bottom: 1px solid ${color.light};
-    }
+    // & > div {
+    //     border-bottom: 1px solid ${color.light};
+    // }
     
     & > div:last-child {
         border: 0;
@@ -44,107 +40,272 @@ const OrderGroupDetail = styled(Div)`
     
 `;
 
-const Order = ({orderSeq, orderCnt, goodsNo, goodsNm, orderPrice, cardPrice, orderBlctExchangeRate, blctToken, orderDate, orderImg, itemName, trackingNumber, farmName
-                   , trackingNumberTimestamp, consumerOkDate, payMethod, payStatus, expectShippingStart, expectShippingEnd, notDeliveryDate, onConfirmed, gift, partialRefundCount,
-                   hopeDeliveryFlag,
-                   hopeDeliveryDate,
-                   blyTimeGoods,        //블리타임 상품여부
-                   blyTimeReward,       //블리타임 리워드 %
-                   superRewardGoods,    //슈퍼리워드 상품 여부
-                   superRewardReward,   //슈퍼리워드 %
+const Order = ({
+                   orderSeq, orderCnt, goodsNo, goodsNm, goodsOptionNm, orderPrice, cardPrice, mypageOrderPrice, mypageCardPrice, mypageBlctToken, orderBlctExchangeRate, blctToken, orderDate, orderImg, itemName, trackingNumber, farmName, goodsKind,
+                   trackingNumberTimestamp, consumerOkDate, payMethod, payStatus, expectShippingStart, expectShippingEnd, onConfirmed, gift, partialRefundCount,
+                   hopeDeliveryFlag, hopeDeliveryDate,
+                   blyTimeGoods,       //블리타임 상품여부
+                   blyTimeReward,      //블리타임 리워드 %
+                   superRewardGoods,   //슈퍼리워드 상품 여부
+                   superRewardReward,  //슈퍼리워드 %
                    orderConfirm,       //판매자 주문확인 여부
-                    onePlusSubFlag      // 사은품여부
+                   onePlusSubFlag,     // 사은품여부
+                   pgProvider,         //kakaopay, naverpay, payco
+                   scheduleAtTime,     //예약결제시간
+                   subGroupListSize,  //여러건 주문(옵션주문 혹은 묶음주문)인지 판단용도.
+                   dpCancelReason,     //소비자에게 노출되는 취소 사유
 
                }) => (
-    <Div p={16}>
-        <Link to={`/mypage/orderDetail?orderSeq=${orderSeq}`} display={'block'}>
-            <Flex alignItems={'flex-start'}>
-                <Div width={63} height={63} mr={9} flexShrink={0}>
-                    <Img cover src={Server.getThumbnailURL()+orderImg} alt={'상품사진'}/>
-                </Div>
-
-                <Div flexGrow={1}>
-
-                    <Flex justifyContent={'flex-start'}>
-                        {
-                            gift && <Div fg={'danger'} mr={5}><FaGift /></Div>
-                        }
-                        {
-                            notDeliveryDate ? <Badge fg={'white'} bg={'danger'}>미배송</Badge> :
-                                (payStatus === 'cancelled') ? <Badge fg={'white'} bg={'danger'}>취소완료</Badge> :
-                                    consumerOkDate ? <Badge fg={'white'} bg={'green'}>구매확정</Badge> :
-                                        trackingNumber ? <Badge fg={'white'} bg={'green'}>배송중</Badge> :
-                                            orderConfirm === 'confirmed' ? <Badge fg={'white'} bg={'green'}>출고준비완료</Badge> : <Badge fg={'white'} bg={'secondary'}>발송예정</Badge>
-                        }
-                    </Flex>
-                    <Div>
-                        {goodsNm}
+    goodsKind === 2 ?   // dealGoods용 UI /////////////////////////////////////////////
+        <Div p={16}>
+            <Link to={`/mypage/orderDetail?orderSeq=${orderSeq}`} display={'block'}>
+                <Flex alignItems={'flex-start'}>
+                    <Div width={63} height={63} mr={9} flexShrink={0}>
+                        <Img cover src={Server.getThumbnailURL()+orderImg} alt={'상품사진'}/>
                     </Div>
-                    {
-                        onePlusSubFlag ?
-                            <Div>
-                                <Div mb={4} fontSize={14} bold>0원</Div>
-                                <Right fontSize={12} fg={'dark'}>수량 : {orderCnt} | 증정품</Right>
-                            </Div> :
-                            (payMethod === 'card') ?
-                                <Div>
-                                    <Div mb={4} fontSize={14} bold>{ComUtil.addCommas(orderPrice)}원</Div>
-                                    <Right fontSize={12} fg={'dark'}>수량 : {orderCnt} {partialRefundCount?'(+부분환불 ' + partialRefundCount + '건) ':''} | 카드결제
-                                        <Span fg={'danger'}>
-                                            {(superRewardGoods)?'(슈퍼리워드 적용)':''} {(blyTimeGoods)?'(블리타임 적용)':''}
-                                        </Span>
-                                    </Right>
-                                </Div>
-                                : payMethod === 'blct' ?
-                                <Div alignItems={'center'}>
-                                    <Div mb={4} fontSize={14} bold><Icon name={'blocery'}/>&nbsp;{ComUtil.addCommas(blctToken.toFixed(2))}({ComUtil.addCommas(orderPrice)}원)</Div>
-                                    <Right fontSize={12} fg={'dark'}>수량 : {orderCnt} {partialRefundCount?'(+부분환불 ' + partialRefundCount + '건) ':''}| BLY결제</Right>
-                                </Div>
-                                :
-                                <Div alignItems={'center'}>
-                                    <Div mb={4} fontSize={14} bold>
-                                        {ComUtil.addCommas(cardPrice)}원 +
-                                        <Icon name={'blocery'}/>&nbsp;{ComUtil.addCommas(blctToken.toFixed(2))}({ComUtil.addCommas(ComUtil.roundDown(blctToken*orderBlctExchangeRate, 1))}원)
-                                    </Div>
-                                    <Right fontSize={12} fg={'dark'}>수량 : {orderCnt} {partialRefundCount?'(+부분환불 ' + partialRefundCount + '건) ':''} | 카드+BLY결제
-                                        <Span fg={'danger'}>
-                                            {(superRewardGoods)?'(슈퍼리워드 적용)':''} {(blyTimeGoods)?'(블리타임 적용)':''}
-                                        </Span>
-                                    </Right>
-                                </Div>
-                    }
 
-                    {
-                        hopeDeliveryFlag && (
-                            <Div fontSize={12} fg={'dark'}>희망 수령일 : {ComUtil.utcToString(hopeDeliveryDate)}</Div>
-                        )
-                    }
+                    <Div flexGrow={1}>
 
-                </Div>
-            </Flex>
+                        <Flex justifyContent={'flex-start'}>
+                            {
+                                gift && <Div fg={'danger'} mr={5}><FaGift /></Div>
+                            }
+                            {
 
-        </Link>
-        {
-            notDeliveryDate || onePlusSubFlag ? null :
-                (payStatus === 'cancelled') ? null :
-                    consumerOkDate ? null :
-                        trackingNumber &&
-                        <Div mt={16}>
-                            <ModalConfirm title={'구매확정'} content={<div>구매확정 하시겠습니까?<br/>구매확정 후 교환 및 반품이 불가합니다.</div>} onClick={onConfirmed.bind(this, orderSeq)}>
-                                <Btn block bg={'green'} fg={'white'} rounded={5}>
-                                    구매확정
-                                    <Div fontSize={13} fg={'light'}>
+                                (payStatus === 'cancelled' || payStatus === 'revoked') ?
+                                    <BadgeSharp size={'sm'} bg={'danger'}>
                                         {
-                                            (cardPrice > 0 && (blyTimeGoods || superRewardGoods)) && (
-                                                `(지급 예정 리워드 ${ComUtil.addCommas(Math.round(cardPrice * ((blyTimeGoods ? blyTimeReward : superRewardReward) / 100)))}원)`
-                                            )
+                                            payStatus === 'cancelled' && '취소완료'
                                         }
-                                    </Div>
-                                </Btn>
-                            </ModalConfirm>
+                                        {
+                                            payStatus === 'revoked' && '예약취소완료'
+                                        }
+                                    </BadgeSharp>
+                                    :
+                                    consumerOkDate ? <BadgeSharp size={'sm'} bg={'green'}>구매확정</BadgeSharp> :
+                                        trackingNumber ? <BadgeSharp size={'sm'} bg={'green'}>배송중</BadgeSharp> :
+                                            orderConfirm === 'confirmed' ?
+                                                <BadgeSharp size={'sm'} bg={'green'}>출고대기</BadgeSharp>
+                                                :
+                                                (payStatus === 'scheduled') ?
+                                                    <>
+                                                        <BadgeSharp size={'sm'} bg={'dark'}>예약주문</BadgeSharp>
+                                                        <Span fontSize={9} fg={'dark'} ml={5}>
+                                                            {scheduleAtTime > 0 ? '(결제예정:'+ComUtil.longToDateMoment(scheduleAtTime).format("MM[월]DD[일]HH[시]")+')':''}
+                                                        </Span>
+                                                    </>
+                                                    :
+                                                    <BadgeSharp size={'sm'} bg={'dark'}>발송예정</BadgeSharp>
+                            }
+                        </Flex>
+                        <Div mt={5}>
+                            {goodsOptionNm}
                         </Div>
-        }
-    </Div>
+                        {
+                            onePlusSubFlag &&
+                            <Div>
+                                <Div mb={4} fontSize={14} bold>증정품</Div>
+                                <Right fontSize={12} fg={'dark'}>수량 : {orderCnt} | 증정품</Right>
+                            </Div>
+                        }
+                        {
+                            !onePlusSubFlag &&
+                            <>
+                                {
+                                    (payMethod === 'card') &&
+                                    <Div>
+                                        <Div mb={4} fontSize={14} bold>{ComUtil.addCommas(mypageOrderPrice)}원</Div>
+                                        <Right fontSize={12} fg={'dark'}>
+                                            수량 : {orderCnt} {partialRefundCount ? '(+부분환불 ' + partialRefundCount + '건) ' : ''} | {getPayMethodPgNm(payMethod, pgProvider)}
+                                            <Span fg={'danger'}>
+                                                {(superRewardGoods) ? '(슈퍼리워드 적용)' : ''} {(blyTimeGoods) ? '(블리타임 적용)' : ''}
+                                            </Span>
+                                        </Right>
+                                    </Div>
+                                }
+                                {
+                                    (payMethod === 'blct') &&
+                                    <Div alignItems={'center'}>
+                                        <Div mb={4} fontSize={14} bold>
+                                            <Icon name={'blocery'}/>&nbsp;{ComUtil.addCommas(mypageBlctToken.toFixed(2))}({ComUtil.addCommas(mypageOrderPrice)}원)
+                                        </Div>
+                                        <Right fontSize={12} fg={'dark'}>
+                                            수량 : {orderCnt} {partialRefundCount ? '(+부분환불 ' + partialRefundCount + '건) ' : ''}| {getPayMethodPgNm(payMethod, pgProvider)}
+                                        </Right>
+                                    </Div>
+                                }
+                                {
+                                    (payMethod === 'cardBlct') &&
+                                    <Div alignItems={'center'}>
+                                        <Div mb={4} fontSize={14}>
+                                            <b>{ComUtil.addCommas(mypageOrderPrice)}원</b> <Span fontSize={11}>({ComUtil.addCommas(mypageCardPrice)}원 +<Icon name={'blocery'}/>&nbsp;{ComUtil.addCommas(mypageBlctToken.toFixed(2))}({ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(mypageBlctToken,orderBlctExchangeRate)))}원))</Span>
+                                        </Div>
+                                        <Right fontSize={12} fg={'dark'}>
+                                            수량 : {orderCnt} {partialRefundCount ? '(+부분환불 ' + partialRefundCount + '건) ' : ''} | {getPayMethodPgNm(payMethod, pgProvider)}
+                                            <Span fg={'danger'}>
+                                                {(superRewardGoods) ? '(슈퍼리워드 적용)' : ''} {(blyTimeGoods) ? '(블리타임 적용)' : ''}
+                                            </Span>
+                                        </Right>
+                                    </Div>
+                                }
+                            </>
+                        }
+
+                        {
+                            hopeDeliveryFlag && (
+                                <Div fontSize={12} fg={'dark'}>희망 수령일 : {ComUtil.utcToString(hopeDeliveryDate)}</Div>
+                            )
+                        }
+
+                    </Div>
+                </Flex>
+
+            </Link>
+            {
+                onePlusSubFlag ? null :
+                    (payStatus === 'cancelled') ? null :
+                        consumerOkDate ? null :
+                            (subGroupListSize <= 1 && trackingNumber) && //쑥쑥 단건 구매확정.
+                            <Div mt={16}>
+                                <ModalConfirm title={'구매확정'} content={<div>구매확정 하시겠습니까?<br/>구매확정 후 교환 및 반품이 불가합니다.</div>} onClick={onConfirmed.bind(this, orderSeq)}>
+                                    <Btn block bg={'green'} fg={'white'} rounded={5}>
+                                        구매확정
+                                        {/* 쑥쑥 구매확정: 리워드 불필요.*/}
+                                        {/*<Div fontSize={13} fg={'light'}>*/}
+                                        {/*    {*/}
+                                        {/*        (cardPrice > 0 && (blyTimeGoods || superRewardGoods)) && (*/}
+                                        {/*            `(지급 예정 리워드 ${ComUtil.addCommas(Math.round(cardPrice * ((blyTimeGoods ? blyTimeReward : superRewardReward) / 100)))}원)`*/}
+                                        {/*        )*/}
+                                        {/*    }*/}
+                                        {/*</Div>*/}
+                                    </Btn>
+                                </ModalConfirm>
+                            </Div>
+            }
+        </Div> :  // directGoods용 UI /////////////////////////////////////////////
+        <Div p={16}>
+            <Link to={`/mypage/orderDetail?orderSeq=${orderSeq}`} display={'block'}>
+                <Flex alignItems={'flex-start'}>
+                    <Div width={63} height={63} mr={9} flexShrink={0}>
+                        <Img cover src={Server.getThumbnailURL()+orderImg} alt={'상품사진'}/>
+                    </Div>
+
+                    <Div flexGrow={1}>
+
+                        <Flex justifyContent={'flex-start'}>
+                            {
+                                gift && <Div fg={'danger'} mr={5}><FaGift /></Div>
+                            }
+                            {
+                                (payStatus === 'cancelled' || payStatus === 'revoked') ?
+                                    <Space spaceGap={10}>
+                                        <BadgeSharp size={'sm'} bg={'danger'}>
+                                            {
+                                                payStatus === 'cancelled' && '취소완료'
+                                            }
+                                            {
+                                                payStatus === 'revoked' && '예약취소완료'
+                                            }
+                                        </BadgeSharp>
+                                        {
+                                            dpCancelReason && (<Div fontSize={12}>사유 : {dpCancelReason}</Div>)
+                                        }
+                                    </Space>
+                                    :
+                                    consumerOkDate ? <BadgeSharp size={'sm'} bg={'green'}>구매확정</BadgeSharp> :
+                                        trackingNumber ? <BadgeSharp size={'sm'} bg={'green'}>배송중</BadgeSharp> :
+                                            orderConfirm === 'confirmed' ?
+                                                <BadgeSharp size={'sm'} bg={'green'}>출고대기</BadgeSharp>
+                                                :
+                                                (payStatus === 'scheduled') ?
+                                                    <BadgeSharp size={'sm'} bg={'dark'}>예약주문</BadgeSharp>
+                                                    :
+                                                    <BadgeSharp size={'sm'} bg={'dark'}>발송예정</BadgeSharp>
+                            }
+                        </Flex>
+                        <Div mt={5}>
+                            {goodsOptionNm}
+                        </Div>
+                        {
+                            onePlusSubFlag &&
+                            <Div>
+                                <Div mb={4} fontSize={14} bold>증정품</Div>
+                                <Right fontSize={12} fg={'dark'}>수량 : {orderCnt} | 증정품</Right>
+                            </Div>
+                        }
+                        {
+                            !onePlusSubFlag &&
+                            <>
+                                {
+                                    (payMethod === 'card') &&
+                                    <Div>
+                                        <Div mb={4} fontSize={14} bold>{ComUtil.addCommas(mypageOrderPrice)}원</Div>
+                                        <Right fontSize={12} fg={'dark'}>
+                                            수량 : {orderCnt} {partialRefundCount ? '(+부분환불 ' + partialRefundCount + '건) ' : ''} | {getPayMethodPgNm(payMethod, pgProvider)}
+                                            <Span fg={'danger'}>
+                                                {(superRewardGoods) ? '(슈퍼리워드 적용)' : ''} {(blyTimeGoods) ? '(블리타임 적용)' : ''}
+                                            </Span>
+                                        </Right>
+                                    </Div>
+                                }
+                                {
+                                    (payMethod === 'blct') &&
+                                    <Div alignItems={'center'}>
+                                        <Div mb={4} fontSize={14} bold>
+                                            <Icon name={'blocery'}/>&nbsp;{ComUtil.addCommas(mypageBlctToken.toFixed(2))}({ComUtil.addCommas(mypageOrderPrice)}원)
+                                        </Div>
+                                        <Right fontSize={12} fg={'dark'}>
+                                            수량 : {orderCnt} {partialRefundCount ? '(+부분환불 ' + partialRefundCount + '건) ' : ''}| {getPayMethodPgNm(payMethod, pgProvider)}</Right>
+                                    </Div>
+                                }
+                                {
+                                    (payMethod === 'cardBlct') &&
+                                    <Div alignItems={'center'}>
+                                        <Div mb={4} fontSize={14}>
+                                            <b>{ComUtil.addCommas(mypageOrderPrice)}원</b> <Span fontSize={11}>({ComUtil.addCommas(mypageCardPrice)}원 +<Icon name={'blocery'}/>&nbsp;{ComUtil.addCommas(mypageBlctToken.toFixed(2))}({ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(mypageBlctToken,orderBlctExchangeRate)))}원))</Span>
+                                        </Div>
+                                        <Right fontSize={12} fg={'dark'}>
+                                            수량 : {orderCnt} {partialRefundCount ? '(+부분환불 ' + partialRefundCount + '건) ' : ''} | {getPayMethodPgNm(payMethod, pgProvider)}
+                                            <Span fg={'danger'}>
+                                                {(superRewardGoods) ? '(슈퍼리워드 적용)' : ''} {(blyTimeGoods) ? '(블리타임 적용)' : ''}
+                                            </Span>
+                                        </Right>
+                                    </Div>
+                                }
+                            </>
+                        }
+
+                        {
+                            hopeDeliveryFlag && (
+                                <Div fontSize={12} fg={'dark'}>희망 수령일 : {ComUtil.utcToString(hopeDeliveryDate)}</Div>
+                            )
+                        }
+
+                    </Div>
+                </Flex>
+
+            </Link>
+            {
+                onePlusSubFlag ? null :
+                    (payStatus === 'cancelled') ? null :
+                        consumerOkDate ? null :
+                            (subGroupListSize <= 1 && trackingNumber) && //단건 구매확정.
+                            <Div mt={16}>
+                                <ModalConfirm title={'구매확정'} content={<div>구매확정 하시겠습니까?<br/>구매확정 후 교환 및 반품이 불가합니다.</div>} onClick={onConfirmed.bind(this, orderSeq)}>
+                                    <Btn block bg={'green'} fg={'white'} rounded={5}>
+                                        구매확정
+                                        <Div fontSize={13} fg={'light'}>
+                                            {
+                                                (cardPrice > 0 && (blyTimeGoods || superRewardGoods)) && (
+                                                    `(지급 예정 리워드 ${ComUtil.addCommas(Math.round(cardPrice * ((blyTimeGoods ? blyTimeReward : superRewardReward) / 100)))}원)`
+                                                )
+                                            }
+                                        </Div>
+                                    </Btn>
+                                </ModalConfirm>
+                            </Div>
+            }
+        </Div>
 )
 export default class OrderList extends Component {
     constructor(props) {
@@ -159,7 +320,11 @@ export default class OrderList extends Component {
             chainLoading: false,
             orderGroupNoList: [],
             orderGroupKeyList: [],
-            loading: true
+            loading: true,
+            tabId:'1', //즉시상품, 쑥쑥상품 탭 추가.
+            page: 0,
+            hasMore: true,
+            orderSubGroupList: undefined,
         }
     }
 
@@ -179,54 +344,89 @@ export default class OrderList extends Component {
             return;
         }
         const consumerNo = loginUser.uniqueNo;
-        this.getOrderList(); //consumerNo
+        this.fetchMoreData(true, '1'); //consumerNo
     }
 
-    getOrderList = async () => {
-        const response = await getOrderDetailListByConsumerNo();
+    fetchMoreData = async (isNewSearch, tabId) => {
+        let params = { isPaging: true, limit: 10, dealGoods:((tabId === '1')? false:true) }
 
+        if (isNewSearch) {
+            params.page = 1
+        }else{
+            params.page = this.state.page + 1
+        }
+        const {data} = await getOrderDetailPagingByOrderGroup(params);
+        const tempList = isNewSearch ? [] : this.state.orderList
+        let newList = tempList;
+        if(data.orderDetailList){
+            newList = tempList.concat(data.orderDetailList)
+        }
+        //console.log({newList});
+        const {orderList, orderGroupNoList, subGroupKeyList} = this.getAllData(newList);
 
-        const {data} = response
+        const tempSubGroupList = isNewSearch ? [] : this.state.orderSubGroupList;
+        let newSubGroupList = tempSubGroupList;
+        if(data.orderSubGroupList){
+            newSubGroupList = tempSubGroupList.concat(data.orderSubGroupList);
+        }
+        console.log({data});
 
+        //더이상 로딩 되지 않도록
+        let hasMore = true;
+        if (newList.length >= data.totalCount) {
+            hasMore = false;
+        }
+
+        if(data.orderDetailList.length == 0){
+            hasMore = false;
+        }
+
+        this.setState({
+            page: params.page,
+            hasMore,
+            tabId,
+            orderList,
+            orderGroupNoList,
+            subGroupKeyList,
+            orderSubGroupList: newSubGroupList,
+            loading:false
+        })
+    }
+
+    //tab만들면서 분리.
+    getAllData = (data) => {
         const orderGroupNoList = []
-        const orderGroupKeyList = []
+        const subGroupKeyList = []
 
 
         let orderGroupNo
-        let orderGroupKey = ''
+        let subGroupKey = ''
 
-        data.map(item => {
+        data && data//.filter(item => (tabId === '2')? item.dealGoods : !item.dealGoods )
+            .map(item => {
 
-            const compOrderGroupNo = item.orderGroupNo
-            if(orderGroupNo !== compOrderGroupNo)
-                orderGroupNoList.push(compOrderGroupNo)
+                if(item.orderGroupNo) {
+                    const compOrderGroupNo = item.orderGroupNo
+                    if (orderGroupNo !== compOrderGroupNo)
+                        orderGroupNoList.push(compOrderGroupNo)
 
-            const compKey = item.orderGroupNo + "_" + item.producerNo + "_" + item.producerWrapDelivered + "_" + item.directGoods
-            if (orderGroupKey !== compKey) {
-                orderGroupKeyList.push({
-                    orderGroupNo: item.orderGroupNo,
-                    producerNo: item.producerNo,
-                    producerWrapDelivered: item.producerWrapDelivered,
-                    directGoods: item.directGoods
-                })
-            }
+                    const compKey = item.orderGroupNo + "_" + item.orderSubGroupNo + "_" + item.directGoods
+                    if (subGroupKey !== compKey) {
+                        subGroupKeyList.push({
+                            orderGroupNo: item.orderGroupNo,
+                            orderSubGroupNo: item.orderSubGroupNo, //producerNo ->orderSubGroupNo 로 대체.
+                            directGoods: item.directGoods,
+                            couponType: item.couponType
+                        })
+                    }
 
-            orderGroupNo = compOrderGroupNo
-            orderGroupKey = compKey
-        })
+                    orderGroupNo = compOrderGroupNo
+                    subGroupKey = compKey
+                }
+            })
+        console.log({subGroupKeyList});
 
-        // console.log({orderGroupNoList, orderGroupKeyList})
-        //
-        // console.log(data)
-
-        this.setState({
-            orderList: data,
-            orderGroupNoList,
-            orderGroupKeyList,
-            loading: false
-        })
-
-
+        return {orderList: data, orderGroupNoList, subGroupKeyList}
     }
 
     // 주문 상세조회
@@ -236,65 +436,56 @@ export default class OrderList extends Component {
 
     // 구매확정
     onConfirmed = async (orderSeq, isConfirmed, e) => {
-        const { data : orderDetail } = await getOrderDetailByOrderSeq(orderSeq)
-        console.log('orderDetail : ', orderDetail);
+        //const { data : orderDetail } = await getOrderDetailByOrderSeq(orderSeq)
+        //console.log('orderDetail : ', orderDetail);
 
         if(isConfirmed) { // modal에서 확인 버튼을 누를 경우 true, 취소는 false
             this.setState({chainLoading: true});
 
-            /* backend 이동(shopService)
+            const {data:errRes} =  await updateConsumerOkDate(orderSeq);  //db에 저장
 
-            orderDetail.consumerOkDate = ComUtil.getNow();
-            const blctToWon = await BLCT_TO_WON();
-            orderDetail.delayPenaltyBlct = ComUtil.toNum(orderDetail.delayPenalty) / blctToWon;
-
-
-            if(orderDetail.payMethod === "blct") {
-                // 토큰결제 정산
-                // BLCT로 결제시 신용카드 수수료가 0이므로 BloceryOnlyFee에 신용카드 수수료율 포함해서 계산
-                orderDetail.bloceryOnlyFeeBlct = ComUtil.roundDown(orderDetail.blctToken * (ORDER_BLOCERY_ONLY_FEE + CREDIT_COMMISSION), 2);  //Blocery가 받는 수수료(BLCT)
-                orderDetail.consumerRewardBlct = ComUtil.roundDown(orderDetail.blctToken * ORDER_CONSUMER_REWARD, 2);   //소비자가 구매보상으로 받는 BLCT
-                orderDetail.producerRewardBlct = ComUtil.roundDown(orderDetail.blctToken * ORDER_PRODUCER_REWARD, 2);   //생산자가 판매보상으로 받는 BLCT
-
-                orderDetail.bloceryOnlyFee = exchangeBLCT2Won(orderDetail.bloceryOnlyFeeBlct);   //Blocery가 받는 수수료(원)
-                orderDetail.consumerReward = exchangeBLCT2Won(orderDetail.consumerRewardBlct);   //소비자가 구매보상으로 받는 금액(원)
-                orderDetail.producerReward = exchangeBLCT2Won(orderDetail.producerRewardBlct);   //생산자가 판매보상으로 받는 금액(원)
-            } else {
-                // 카드결제 정산
-                orderDetail.bloceryOnlyFee = ComUtil.roundDown(orderDetail.orderPrice * ORDER_BLOCERY_ONLY_FEE, 0);  //Blocery가 받는 수수료(원)
-                orderDetail.consumerReward = ComUtil.roundDown(orderDetail.orderPrice * ORDER_CONSUMER_REWARD, 0);   //소비자가 구매보상으로 받는 금액(원)
-                orderDetail.producerReward = ComUtil.roundDown(orderDetail.orderPrice * ORDER_PRODUCER_REWARD, 0);   //생산자가 판매보상으로 받는 금액(원)
-
-                orderDetail.bloceryOnlyFeeBlct = exchangeWon2BLCT(orderDetail.bloceryOnlyFee);   //Blocery가 받는 수수료(BLCT)
-                orderDetail.consumerRewardBlct = exchangeWon2BLCT(orderDetail.consumerReward);   //소비자가 구매보상으로 받는 BLCT
-                orderDetail.producerRewardBlct = exchangeWon2BLCT(orderDetail.producerReward);   //생산자가 판매보상으로 받는 BLCT
-
-                let creditCommission = ComUtil.roundDown(orderDetail.orderPrice * CREDIT_COMMISSION, 0);
-                orderDetail.creditCardCommission = creditCommission;
-            }
-
-            let feeAndReward = orderDetail.bloceryOnlyFee + orderDetail.consumerReward + orderDetail.producerReward;
-            let res_calculateOrderBlct = await scOntCalculateOrderBlct(orderDetail.orderSeq, orderDetail.delayPenalty, feeAndReward, orderDetail.delayPenaltyBlct, orderDetail.consumerRewardBlct, orderDetail.producerRewardBlct, orderDetail.depositBlct);
-            */
-
-            const tokenRewardResult =  await updateConsumerOkDate(orderDetail);  //db에 저장
-            if(tokenRewardResult) {
-                this.setState({
-                    chainLoading: false,
-                    reviewModalOpen: true,
-                    orderSeq: orderDetail.orderSeq,
-                    goodsNo: orderDetail.goodsNo
-                });
-
-            } else {
-                alert('구매확정에 실패하였습니다. 다시 한번 시도해주세요. ');
+            if(errRes.resCode) {
+                alert(errRes.errMsg); //구매확정 실패 오류
                 this.setState({
                     chainLoading: false
                 });
 
+            } else { //resCode==0이면 구매확정 성공.
+                this.setState({
+                    chainLoading: false,
+                    reviewModalOpen: true,
+                    orderSeq: orderSeq,
+                    //goodsNo: orderDetail.goodsNo //미사용이라 막음 2022.04
+                });
+
             }
         }
-        this.getOrderList(orderDetail.consumerNo);
+        this.fetchMoreData(true, this.state.tabId);
+        // this.getOrderList(orderDetail.consumerNo);
+    }
+
+    // 주문그룹단위별 구매확정
+    onSubGroupConfirmed = async (orderSubGroupNo, isConfirmed, e) => {
+        if(isConfirmed) { // modal에서 확인 버튼을 누를 경우 true, 취소는 false
+            this.setState({chainLoading: true});
+
+            const {data:errRes} =  await updateConsumerOkDateForSubGroup(orderSubGroupNo);  //db에 저장
+
+            if(errRes.resCode) {
+                alert(errRes.errMsg); //구매확정 실패 오류
+                this.setState({
+                    chainLoading: false
+                });
+
+            } else { //resCode==0이면 구매확정 성공.
+                this.setState({
+                    chainLoading: false,
+                    reviewModalOpen: true
+                });
+            }
+        }
+        this.fetchMoreData(true, this.state.tabId);
+        // this.getOrderList(orderDetail.consumerNo);
     }
 
     toggle = () => {
@@ -314,6 +505,99 @@ export default class OrderList extends Component {
         });
     }
 
+
+    onHeaderClick = (pTabId) => {
+        // 탭버튼이 너무 늦게 반응하는 경우가 있어 탭버튼 활성화 및 로딩 적용 22.05.11 david
+        this.setState({
+            tabId:pTabId,
+            loading:true
+        });
+        // this.setAllData(pTabId, this.state.orderList);
+        this.fetchMoreData(true, pTabId)
+    }
+
+    onSubGroupPayCancelReq = (orderDetail) => {
+        // if(orderDetail.usedCouponNo > 0 && !orderDetail.dealGoods) {
+        //     if(!window.confirm('쿠폰으로 구매한 상품입니다. 결제취소시 쿠폰이 재발급 되지 않습니다. 취소하시겠습니까?'))
+        //         return
+        // }
+
+        //subGroup취소도 orderSeq하나만 넣으면 orderCancel.js 내부에서 subGroup인지 판단.
+        this.props.history.push(`/mypage/orderCancel?orderSeq=${orderDetail.orderSeq}`)
+    }
+
+    //subGroup(list 1개이상)의 구매확정 가능여부 check.
+
+    isPossibleSubGroupConfirm = (orderList) => {
+        //(취소안된것중) 구매확정된것이나, trackingNumber없는게 있으면 false.
+        if ( orderList.find( orderDetail =>  (orderDetail.payStatus!=='cancelled' && orderDetail.payStatus!=='revoked') && (orderDetail.consumerOkDate || !orderDetail.trackingNumber)) )
+            return false;
+
+        //다 취소됬으면 확정불가
+        let cancelledList = orderList.filter( orderDetail => (orderDetail.payStatus ==='cancelled' || orderDetail.payStatus==='revoked') )
+        console.log('isPossibleSubGroupConfirm cancelledList:', cancelledList )
+
+        if ( cancelledList && cancelledList.length == orderList.length)
+            return false;
+
+        return true;
+    }
+
+    //subGroup(list 1개이상)의 취소 가능여부 check.
+    isPossibleSubGroupCancel = (orderList) => {
+
+        //다 취소됬으면 취소 불가
+        let cancelledList = orderList.filter( orderDetail => (orderDetail.payStatus ==='cancelled' || orderDetail.payStatus==='revoked') )
+        if ( cancelledList && cancelledList.length == orderList.length)
+            return false;
+
+        //배송중이거나 출고대기면 취소 불가
+        // orderDetail.trackingNumber
+        //orderDetail => orderDetail.orderConfirm === 'confirmed' || orderDetail.orderConfirm === 'shipping'
+        if( orderList.find(orderDetail => orderDetail.orderConfirm === 'confirmed' || orderDetail.orderConfirm === 'shipping' || orderDetail.trackingNumber) )
+            return false;
+
+        //하나라도 취소 가능하면 return true: TODO 맞는지 check필요.
+        if ( orderList.find( orderDetail =>  !orderDetail.consumerOkDate && orderDetail.payStatus!=='cancelled' && orderDetail.payStatus!=='revoked' && orderDetail.orderConfirm != 'confirmed' ))
+            return true;
+
+        //참고소스 OrderDetail.js:
+        //  if(orderPayStatus !== 'cancelled' && orderPayStatus !== 'revoked'){
+        //     // 운송장번호 대신 orderConfirm이용.  // if(!orderDetail.trackingNumber){
+        //     (orderDetail.orderConfirm != 'confirmed'    //&& !orderDetail.onePlusSubFlag){
+        //     }
+        //  }
+
+        return false;
+    }
+
+    //subGroup의 배송비 표시 (card, blct결제금액까지)
+    sumOrderListAdminDeliveryFee = (orderList) => {
+        const subGroupList = Object.assign([],this.state.orderSubGroupList);
+
+        const subGroup = subGroupList && subGroupList.filter(item => item.orderSubGroupNo === orderList[0].orderSubGroupNo);
+        // console.log(subGroup)
+
+        if(subGroup.length === 0)
+            return;
+
+        let deliveryFee = '0원'
+        let deliveryFlag = false;
+        if(subGroup[0].deliveryFee > 0) {
+            deliveryFee = (subGroup[0].deliveryBlctToken > 0)? `${ComUtil.addCommas(subGroup[0].deliveryFee)}원 (${ComUtil.addCommas(subGroup[0].deliveryCardPrice)}원 + ${subGroup[0].deliveryBlctToken}BLY)`
+                : `${ComUtil.addCommas(subGroup[0].deliveryFee)}원` //BLY없을때 원화만 출력.
+            deliveryFlag = true;
+        }
+
+        // console.log({deliveryFlag})
+        // console.log({deliveryFee})
+        if (!deliveryFlag)
+            return;
+
+        return deliveryFee;
+        // return orderList.reduce((sum, orderDetail)=> sum + orderDetail.adminDeliveryFee, 0);
+    }
+
     render() {
         const data = this.state.orderList;
         return(
@@ -321,63 +605,128 @@ export default class OrderList extends Component {
                 {
                     this.state.chainLoading && <BlockChainSpinner/>
                 }
-                <ShopXButtonNav underline fixed historyBack>주문목록</ShopXButtonNav>
-                <Flex fontSize={14} m={16}>
-                    <Div bold>총 <Span fg='green'>{(data)?data.length + '개':'0개'}</Span> 주문목록</Div>
+                {/*<ShopXButtonNav underline fixed historyBack>주문목록</ShopXButtonNav>*/}
+                <BackNavigation>주문목록</BackNavigation>
+                <Flex bg={'white'} px={16} py={16} custom={`
+                    & > div:nth-child(1){
+                        border-right: 0;
+                        border-top-right-radius: 0;
+                        border-bottom-right-radius: 0;
+                    }
+                    & > div:nth-child(2){
+                        border-left: 0;
+                        border-top-left-radius: 0;
+                        border-bottom-left-radius: 0;
+                    }
+                `}>
+                    <HeaderButton active={this.state.tabId === '1'} onClick={this.onHeaderClick.bind(this, '1')} >즉시상품</HeaderButton>
+                    <HeaderButton active={this.state.tabId === '2'} onClick={this.onHeaderClick.bind(this, '2')} >쑥쑥-계약재배</HeaderButton>
                 </Flex>
-                {
-                    this.state.loading && <Skeleton count={2} bc={'light'} m={16}/>
-                }
-                {
-                    this.state.orderGroupNoList.map(orderGroupNo => {
-                        const orderGroupKeyList = this.state.orderGroupKeyList.filter(orderGroupKey => orderGroupKey.orderGroupNo === orderGroupNo)
 
-                        return(
-                            <OrderGroup key={orderGroupNo}>
-                                {
-                                    orderGroupKeyList.map(({orderGroupNo, producerNo, producerWrapDelivered, directGoods}, pIndex) => {
-                                        const orderList = this.state.orderList.filter(order =>
-                                            order.orderGroupNo === orderGroupNo
-                                            && order.producerNo === producerNo
-                                            && order.producerWrapDelivered === producerWrapDelivered
-                                            && order.directGoods === directGoods)
-                                        return (
-                                            <Fragment key={'orderGroup'+pIndex}>
-                                                {
-                                                    pIndex === 0 && <OrderDate fontSize={14} bg={'white'} fg={'dark'}>{ComUtil.utcToString(orderList[0].orderDate)}</OrderDate>
-                                                }
-
-                                                <OrderGroupDetail key={orderGroupNo+"_"+producerNo+"_"+pIndex} bg={'white'}>
+                {
+                    this.state.loading ?
+                        <Skeleton count={5} bc={'light'} m={16}/> :
+                        (
+                            this.state.orderGroupNoList.length > 0 ? (
+                                <InfiniteScroll
+                                    dataLength={this.state.orderList.length}
+                                    next={this.fetchMoreData.bind(this, false, this.state.tabId)}
+                                    hasMore={this.state.hasMore}
+                                    loader={<Skeleton.List count={1} />}
+                                    refreshFunction={this.fetchMoreData.bind(this, true, this.state.tabId)}
+                                    pullDownToRefresh
+                                    pullDownToRefreshThreshold={100}
+                                    pullDownToRefreshContent={
+                                        <Div textAlign={'center'} fg={'green'}>
+                                            &#8595; 아래로 당겨서 업데이트
+                                        </Div>
+                                    }
+                                    releaseToRefreshContent={
+                                        <Div textAlign={'center'} fg={'green'}>
+                                            &#8593; 업데이트 반영
+                                        </Div>
+                                    }
+                                >
+                                    {
+                                        this.state.orderGroupNoList.map(orderGroupNo => {
+                                            const subGroupKeyList = this.state.subGroupKeyList.filter(subGroupKey => subGroupKey.orderGroupNo === orderGroupNo)
+                                            return(
+                                                <SubGroup key={orderGroupNo}>
                                                     {
-                                                        orderList.map((order, index) =><Order key={'order_'+index} {...order} onConfirmed={this.onConfirmed}/>)
+                                                        subGroupKeyList.map(({orderGroupNo, orderSubGroupNo, directGoods, couponType}, pIndex) => {
+                                                            const orderList = this.state.orderList.filter(order =>
+                                                                order.orderGroupNo === orderGroupNo
+                                                                && order.orderSubGroupNo === orderSubGroupNo  //producerNo ->orderSubGroupNo 로 대체.
+                                                                && order.directGoods === directGoods)
+                                                            return (
+                                                                <Fragment key={'subGroup'+pIndex} fg={'darkBlack'}>
+                                                                    {
+                                                                        pIndex === 0 && (
+                                                                            <Flex mb={6} fontSize={13} px={16}>
+                                                                                <div>{ComUtil.utcToString(orderList[0].orderDate)}</div>
+                                                                                <Right>
+                                                                                    <Span fg={'dark'}>주문그룹번호</Span> {orderSubGroupNo}
+                                                                                </Right>
+                                                                            </Flex>
+                                                                        )
+                                                                    }
+                                                                    <SubGroupDetail key={orderGroupNo+"_"+ orderSubGroupNo + "_" + pIndex} bg={'white'}>
+                                                                        {
+                                                                            orderList.map((order, index) =><Order key={'order_'+order.orderSeq} {...order} onConfirmed={this.onConfirmed}/>)
+                                                                        }
+
+                                                                        { //(묶음)배송비 : any Order의 adminDeliveryFee 존재시 출력.
+                                                                            (orderList.length > 1) && this.sumOrderListAdminDeliveryFee(orderList) &&
+                                                                            <Flex mr={16} ml={16} pb={16} lineHeight={'1'}>
+                                                                                <Flex> <Span>배송비</Span> <Div ml={3} fontSize={12}>{couponType === 'deliveryCoupon' ? "(배송비 지원쿠폰 사용)" : ""}</Div></Flex>
+                                                                                <Right>
+                                                                                    <Div> {this.sumOrderListAdminDeliveryFee(orderList)}</Div>
+                                                                                </Right>
+                                                                            </Flex>
+                                                                        }
+                                                                        {//SubGroup구매확정
+                                                                            (orderList.length > 1) && this.isPossibleSubGroupConfirm(orderList) &&//1subGroup이 다건 주문일때만 (=orderDetail.subGroupListSize>1 과 동일)
+                                                                            <Div pr={16} pb={16} pl={16}>
+                                                                                <ModalConfirm
+                                                                                    title={'전체 구매확정'}
+                                                                                    content={<div>구매확정 하시겠습니까?<br/>구매확정 후 교환 및 반품이 불가합니다.</div>}
+                                                                                    onClick={this.onSubGroupConfirmed.bind(this, orderSubGroupNo)}>
+                                                                                    <Btn mr={16}
+                                                                                         block bg={'green'} fg={'white'}
+                                                                                         rounded={5}>
+                                                                                        전체 구매확정
+                                                                                    </Btn>
+                                                                                </ModalConfirm>
+                                                                            </Div>
+                                                                        }
+                                                                        {// SubGroup취소
+                                                                            (orderList.length > 1) && this.isPossibleSubGroupCancel(orderList) &&
+                                                                            <Div pr={16} pb={16} pl={16}>
+                                                                                <Btn block bg={'danger'} fg={'white'} rounded={5}
+                                                                                     onClick={this.onSubGroupPayCancelReq.bind(this, orderList[0])}>
+                                                                                    전체 취소요청
+                                                                                </Btn>
+                                                                            </Div>
+                                                                        }
+                                                                    </SubGroupDetail>
+
+                                                                </Fragment>
+                                                            )
+                                                        })
                                                     }
-                                                </OrderGroupDetail>
-                                            </Fragment>
-                                        )
-                                    })
-                                }
-                            </OrderGroup>
+                                                </SubGroup>
+                                            )
+                                        })
+                                    }
+                                </InfiniteScroll>
+                            ) : (
+                                <EmptyBox>주문 내역이 없습니다.</EmptyBox>
+                                // <div className='w-100 h-100 d-flex justify-content-center align-items-center p-5 text-dark'>주문 내역이 없습니다.</div>
+
+                            )
+
                         )
-                    })
                 }
-
-                {/*{*/}
-                {/*this.state.orderGroupKeyList.map(({orderGroupNo, producerNo, producerWrapDelivered, directGoods}, pIndex) => {*/}
-                {/*const orderList = this.state.orderList.filter(order =>*/}
-                {/*order.orderGroupNo === orderGroupNo*/}
-                {/*&& order.producerNo === producerNo*/}
-                {/*&& order.producerWrapDelivered === producerWrapDelivered*/}
-                {/*&& order.directGoods === directGoods)*/}
-                {/*return (*/}
-                {/*<OrderGroupDetail key={orderGroupNo+"_"+producerNo+"_"+pIndex} m={16} bg={'white'} bc={'secondary'}>*/}
-                {/*{*/}
-                {/*orderList.map((order, index) =><Order key={'order_'+index} {...order}/>)*/}
-                {/*}*/}
-                {/*</OrderGroupDetail>*/}
-                {/*)*/}
-                {/*})*/}
-                {/*}*/}
-
                 <Modal isOpen={this.state.reviewModalOpen} centered>
                     <ModalBody>리뷰작성 하시겠습니까?</ModalBody>
                     <ModalFooter>
@@ -388,4 +737,19 @@ export default class OrderList extends Component {
             </Fragment>
         )
     }
+}
+
+
+const HeaderButton = ({children, active, onClick, disabled}) => {
+    return(
+        <Div flexGrow={1} py={10}
+             textAlign={'center'} cursor={1}
+             fg={active ? 'black':'secondary'}
+             custom={`
+                border-bottom: 2px solid ${active ? color.dark : color.white};
+             `}
+            // style={{borderBottom:active?'solid':''}}
+             onClick={disabled ? null:onClick}
+        >{children}</Div>
+    )
 }

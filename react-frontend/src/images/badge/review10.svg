@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 26.0.2, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="레이어_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px"
+	 y="0px" viewBox="0 0 82 82" style="enable-background:new 0 0 82 82;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#FFFFFF;}
+	.st1{fill:#00A460;stroke:#252E30;stroke-width:1.7998;stroke-linecap:round;stroke-linejoin:round;}
+	.st2{fill:#FF6470;stroke:#252E30;stroke-width:1.7998;stroke-linecap:round;stroke-linejoin:round;}
+	.st3{fill:#FF6470;stroke:#252E30;stroke-width:1.1787;stroke-linecap:round;stroke-linejoin:round;}
+	.st4{fill:#FFFFFF;stroke:#252E30;stroke-width:1.7998;stroke-linejoin:round;}
+	.st5{fill:#FFFFFF;stroke:#252E30;stroke-width:1.7998;stroke-linecap:round;stroke-linejoin:round;}
+	.st6{fill:none;stroke:#00A460;stroke-width:1.607;stroke-linecap:round;stroke-linejoin:round;}
+	.st7{fill:none;stroke:#FF6470;stroke-width:1.607;stroke-linecap:round;stroke-linejoin:round;}
+	.st8{fill:none;stroke:#FDBC33;stroke-width:1.607;stroke-linecap:round;stroke-linejoin:round;}
+</style>
+<g>
+	<g>
+		<circle class="st0" cx="41" cy="41" r="41"/>
+		<g>
+			<g>
+				<rect x="44.76" y="17.06" class="st1" width="15.28" height="19.03"/>
+				<g>
+					<line class="st1" x1="47.93" y1="21.38" x2="56.87" y2="21.38"/>
+					<line class="st1" x1="47.93" y1="24.84" x2="56.87" y2="24.84"/>
+					<line class="st1" x1="47.93" y1="28.3" x2="56.87" y2="28.3"/>
+					<line class="st1" x1="47.93" y1="31.76" x2="56.87" y2="31.76"/>
+				</g>
+			</g>
+			<g>
+				<rect x="47.9" y="20.2" class="st1" width="15.28" height="19.03"/>
+				<g>
+					<line class="st1" x1="51.08" y1="24.53" x2="60.01" y2="24.53"/>
+					<line class="st1" x1="51.08" y1="27.99" x2="60.01" y2="27.99"/>
+					<line class="st1" x1="51.07" y1="31.45" x2="60.01" y2="31.45"/>
+					<line class="st1" x1="51.07" y1="34.9" x2="60.01" y2="34.91"/>
+				</g>
+			</g>
+			<g>
+				<g>
+					<polygon class="st2" points="54.13,61.15 49.93,55.98 52.74,55.31 55.54,54.64 					"/>
+					
+						<rect x="43.3" y="25.38" transform="matrix(0.9726 -0.2326 0.2326 0.9726 -5.2274 11.5085)" class="st2" width="5.77" height="5.08"/>
+				</g>
+				
+					<rect x="49.05" y="50.79" transform="matrix(0.9726 -0.2324 0.2324 0.9726 -10.6491 13.4904)" class="st3" width="5.77" height="2.31"/>
+				
+					<rect x="49.58" y="53.03" transform="matrix(0.9726 -0.2326 0.2326 0.9726 -11.1659 13.6921)" class="st3" width="5.77" height="2.31"/>
+				
+					<rect x="48.51" y="48.54" transform="matrix(0.9726 -0.2326 0.2326 0.9726 -10.1493 13.3162)" class="st3" width="5.77" height="2.31"/>
+				<polygon class="st2" points="49.58,29.72 51.79,38.95 53.93,47.9 48.32,49.25 47.24,44.75 43.97,31.06 				"/>
+			</g>
+			<g>
+				<path class="st4" d="M20.68,48.36c0-3.53,2.86-6.4,6.4-6.4h3.2c3.53,0,6.4,2.86,6.4,6.4v12.78H20.68V48.36z"/>
+				<path class="st5" d="M32.94,43.52c1.22-0.51,2.31-1.26,3.23-2.18c0.92-0.92,1.66-2.02,2.18-3.23c0.51-1.22,0.8-2.55,0.8-3.96
+					c0-1.4-0.28-2.74-0.8-3.96c-0.51-1.22-1.26-2.31-2.18-3.23c-0.92-0.92-2.02-1.66-3.23-2.18c-1.22-0.51-2.55-0.8-3.96-0.8
+					c-1.4,0-2.74,0.28-3.96,0.8c-1.22,0.51-2.31,1.26-3.23,2.18c-0.92,0.92-1.66,2.02-2.18,3.23c-0.51,1.22-0.8,2.55-0.8,3.96
+					c0,1.4,0.28,2.74,0.8,3.96c0.51,1.22,1.26,2.31,2.18,3.23c0.92,0.92,2.02,1.67,3.23,2.18c1.22,0.51,2.55,0.8,3.96,0.8"/>
+				<path class="st4" d="M30.06,46.88l6.08,1.34l1.29,0.29l8.39-5.36c1.39-0.89,3.23-0.48,4.11,0.91c0.03,0.05,0.05,0.1,0.08,0.15
+					c0.77,1.37,0.36,3.11-0.98,3.96L39.6,54.2c-0.66,0.42-1.48,0.57-2.25,0.4l-8.57-1.89"/>
+				<g>
+					<g>
+						<line class="st5" x1="27.36" y1="32.46" x2="27.36" y2="34.02"/>
+						<line class="st5" x1="34.51" y1="32.46" x2="34.51" y2="34.02"/>
+					</g>
+					<path class="st5" d="M33.78,37.31c-0.73,0.73-1.73,1.18-2.84,1.18l0,0l0,0c-1.11,0-2.11-0.45-2.84-1.18"/>
+				</g>
+			</g>
+		</g>
+	</g>
+	<g>
+		<line class="st6" x1="9.35" y1="44.32" x2="12.02" y2="44.32"/>
+		<line class="st6" x1="10.69" y1="42.98" x2="10.69" y2="45.65"/>
+	</g>
+	<g>
+		<line class="st7" x1="68.73" y1="29.62" x2="71.39" y2="29.62"/>
+		<line class="st7" x1="70.06" y1="28.29" x2="70.06" y2="30.96"/>
+	</g>
+	<g>
+		<line class="st8" x1="32.31" y1="15.72" x2="34.98" y2="15.72"/>
+		<line class="st8" x1="33.64" y1="14.39" x2="33.64" y2="17.06"/>
+	</g>
+</g>
+</svg>

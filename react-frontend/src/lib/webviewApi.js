@@ -72,10 +72,27 @@ export const Webview = {
     appLog: function(log) { //RN에서 로그출력.
         if (ComUtil.isMobileApp()) {
             const data = {url: 'AppLog:' + log, type: 'APP_LOG'}
-            window.ReactNativeWebView.postMessage(JSON.stringify(data))
+            window.ReactNativeWebView.postMessage(JSON.stringify(data))  // 실제 log-android에서 로그를 찍는 것
         }
     },
 
+
+    objAppLog: function(data) { //RN에서 로그출력.
+        if (ComUtil.isMobileApp()) {
+            let url;
+            let type = 'APP_LOG2'
+            let params = {};
+
+            if(typeof data === "string") {
+                url = data
+            }else{
+                url = JSON.stringify(data)
+            }
+            params.url = url
+            params.type = type
+            window.ReactNativeWebView.postMessage(JSON.stringify(params))  // 실제 log-android에서 로그를 찍는 것
+        }
+    },
 
     appRefresh: function() { //RN Refresh
         if (ComUtil.isMobileApp()) {
@@ -129,7 +146,7 @@ export const Webview = {
      @Warning :
      @Param : none
      *******************************************************/
-    kakaoAppLogin: function(){
+     kakaoAppLogin: function(){
 
         //this.appLog('Webview.kakaoApplogin call');
         //일반 웹접속일 경우(개발환경 등에서는 그냥 이동
@@ -210,17 +227,17 @@ export const Webview = {
      @Warning :
      @Param :
      *******************************************************/
-    loginUpdate: function(){
-
-        //일반 웹접속일 경우(개발환경 등에서는 그냥 이동
-        if (!ComUtil.isMobileApp()) {
-            return;
-        }
-
-        const data = {url: '', type: 'LOGIN_UPDATE'};
-        window.ReactNativeWebView.postMessage(JSON.stringify(data));
-
-    },
+    // loginUpdate: function(){
+    //
+    //     //일반 웹접속일 경우(개발환경 등에서는 그냥 이동
+    //     if (!ComUtil.isMobileApp()) {
+    //         return;
+    //     }
+    //
+    //     const data = {url: '', type: 'LOGIN_UPDATE'};
+    //     window.ReactNativeWebView.postMessage(JSON.stringify(data));
+    //
+    // },
 
 
     /**********************************************************************
@@ -289,15 +306,26 @@ export const Webview = {
         window.ReactNativeWebView.postMessage(JSON.stringify(data));
     },
 
-    qrcodeScan: function (){
-        const data = {type: 'QRCODE_SCAN'};
+    qrcodeScan: function (params){
+        const data = {type: 'QRCODE_SCAN', payload:params};
         window.ReactNativeWebView.postMessage(JSON.stringify(data));
     },
 
     clipboardPaste: function() {
         const data = {type: 'CLIPBOARD_TEXT'};
         window.ReactNativeWebView.postMessage(JSON.stringify(data));
-    }
+    },
+
+    // 폰에서 외부 브라우저로 페이지 띄우기
+    openBrowser: function(url){
+        //일반 웹접속일 경우(개발환경 등에서는 그냥 이동
+        if (!ComUtil.isMobileApp()) {
+            window.location = url;
+            return;
+        }
+        const data = {url: url, type: 'OPEN_BROWSER'};
+        window.ReactNativeWebView.postMessage(JSON.stringify(data));
+    },
 
 
 }

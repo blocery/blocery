@@ -1,4 +1,4 @@
-export { default as FarmDiaryCard } from './FarmDiaryCard'                          //소비자 - 재배일지 - 아이템
+export { default as BoardCard } from './BoardCard'                                  //게시판
 export { default as FarmersVisitorSummaryCard } from './FarmersVisitorSummaryCard'
 export { default as GoodsItemCard } from './GoodsItemCard'
 export { default as MainGoodsCard } from './MainGoodsCard'

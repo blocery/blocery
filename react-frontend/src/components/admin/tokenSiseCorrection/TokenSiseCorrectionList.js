@@ -7,7 +7,7 @@ import { ExcelDownload } from '~/components/common'
 import ComUtil from '~/util/ComUtil'
 import { getReservedOrderByBlctPaid } from "~/lib/adminApi";
 import FilterContainer from "~/components/common/gridFilter/FilterContainer";
-import {FilterGroup, Hr} from "~/styledComponents/shared";
+import {Div, FilterGroup, Flex, Hr, Right, Space} from "~/styledComponents/shared";
 import InputFilter from "~/components/common/gridFilter/InputFilter";
 import CheckboxFilter from "~/components/common/gridFilter/CheckboxFilter";
 
@@ -55,7 +55,7 @@ const TokenSiseCorrection = (props) => {
     const [excelData, setExcelData] = useState();
     const [totalCorrectionBlct, setTotalCorrectionBlct] = useState();
     const [gridApi, setGridApi] = useState(null)
-
+    const [columnApi, setColumnApi] = useState()
     useEffect(() => {
         getData();
 
@@ -126,12 +126,13 @@ const TokenSiseCorrection = (props) => {
     const onGridReady = (params) => {
         //API init
         setGridApi(params.api)
+        setColumnApi(params.columnApi)
     }
     return (
-        <div className="m-2">
+        <Div p={16}>
 
             {/* filter START */}
-            <FilterContainer gridApi={gridApi} excelFileName={'예약상품토큰보정 목록'}>
+            <FilterContainer gridApi={gridApi} columnApi={columnApi} excelFileName={'예약상품토큰보정 목록'}>
                 <FilterGroup>
                     <InputFilter
                         gridApi={gridApi}
@@ -160,21 +161,21 @@ const TokenSiseCorrection = (props) => {
             </FilterContainer>
             {/* filter END */}
 
+            <Flex mb={10}>
+                <Space>
 
-            <div className="d-flex p-1">
-
-                <div className="mr-3">
-                    총 보정토큰 : {totalCorrectionBlct} BLCT
-                </div>
-                <ExcelDownload data={excelData}
-                               fileName="토큰보정내역"
-                               sheetName="토큰보정내역"
-                />
-                <div className="flex-grow-1 text-right">
-                    총 {data.length} 건
-                </div>
-            </div>
-
+                    <ExcelDownload data={excelData}
+                                   fileName="토큰보정내역"
+                                   sheetName="토큰보정내역"
+                    />
+                </Space>
+                <Right>
+                    <Space>
+                        <div>총 보정토큰 : {totalCorrectionBlct} BLCT</div>
+                        <div>총 {data.length} 건</div>
+                    </Space>
+                </Right>
+            </Flex>
 
             <div
                 className="ag-theme-balham mt-3"
@@ -198,7 +199,7 @@ const TokenSiseCorrection = (props) => {
                     onGridReady={onGridReady.bind(this)}   //그리드 init(최초한번실행)
                 />
             </div>
-        </div>
+        </Div>
     )
 }
 

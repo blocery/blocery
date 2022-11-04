@@ -1,34 +1,31 @@
 import React from 'react';
 import styled, {css} from 'styled-components';
-import {color, responsive} from '../Properties'
+import {activeColor, color, responsive} from '../Properties'
 import {getValue, hasValue} from '../Util'
-import {position, margin, padding, sticky, fixed, noti, notiNew, spin} from '../CoreStyles'
+import {position, margin, padding, border, sticky, fixed, noti, notiNew, spin} from '../CoreStyles'
+import aniKey from "~/styledComponents/Keyframes";
+
+import TextareaAutoSize from 'react-textarea-autosize';
 
 
 const defaultStyle = css`
     width: ${props => props.width && getValue(props.width)};
     height: ${props => props.height && getValue(props.height)};
     font-size: ${props => getValue(props.fontSize) || 'inherit'};
-    line-height: ${props => getValue(props.lineHeight)};blctToWon
+    line-height: ${props => hasValue(props.lineHeight) ? getValue(props.lineHeight) : 'inherit'};
     font-weight: ${props => props.bold ? 'bold' : 'inherit'};
     ${props => props.fw && `font-weight: ${props.fw};`};
     ${props => props.bold && `font-weight: bold;`}
-    ${props => props.lighter && `font-weight: lighter;`}
     
     text-align: ${props => props.textAlign};
-    color: ${props => color[props.fg] || 'inherit'};
+    color: ${props => hasValue(props.fg) ? (color[props.fg] || props.fg) : 'inherit'};
     ${props => props.bg && `
         background-color: ${color[props.bg] || props.bg}
     `};    
     
     ${props => (props.bgFrom || props.bgTo) && `background: linear-gradient(${props.deg || 145}deg, ${hasValue(props.bgFrom) ? (color[props.bgFrom] || props.bgFrom) : color.white}, ${hasValue(props.bgTo) ? (color[props.bgTo] || props.bgTo) : color.white});`};
-    
-    border: ${props => props.bc ? `1px solid ${color[props.bc] || props.bc}` : '0'};
-    border-top: ${props => props.bt && `${getValue(props.bt)} solid ${color[props.bc]}`};
-    border-right: ${props => props.br && `${getValue(props.br)} solid ${color[props.bc]}`};
-    border-bottom: ${props => props.bb && `${getValue(props.bb)} solid ${color[props.bc]}`};
-    border-left: ${props => props.bl && `${getValue(props.bl)} solid ${color[props.bc]}`};
-    
+   
+    ${border}; 
     ${position};
     ${margin}; 
     ${padding};
@@ -70,27 +67,71 @@ const defaultStyle = css`
     
     ${props => props.dot && `
         &::before {
-            content: '·';
-            display: block;
-            margin-right: 8px;
+            content: "\\2022";
+            color: ${color.secondary};
+            display: inline-block;
+            margin-right: 4px;
         }
     `}
+  
+    ${props => props.hoverUnderline && `
+        &:hover {
+            text-decoration: underline;
+        }
+    `}        
     
+    ${props => props.lineClamp && `
+        display: -webkit-box;
+        overflow: hidden;                                                                
+        text-overflow: ellipsis;
+        -webkit-line-clamp: ${props.lineClamp || 2};
+        -webkit-box-orient: vertical;
+    `}
     
+    //커스텀 css
+    ${props => props.custom && props.custom}
+    
+    //이전 모바일웹뷰 지원안됨(gap은 display: grid 일 경우만 지원 되는것 같음)
+    // ${props => hasValue(props.gap) && `gap: ${getValue(props.gap)}`};     
+    // grid-column-gap: ${props => hasValue(props.colGap) && getValue(props.colGap)};
+    // grid-row-gap: ${props => hasValue(props.rowGap) && getValue(props.rowGap)};
+     
+  
+    //클릭시 회색
+    ${props => props.doActive && `
+        &:active {
+            background-color: ${ activeColor[props.bg] || color.veryLight};
+        }
+    `}  
 `;
 
 export const Div = styled.div`
     ${defaultStyle};
 `;
+
+export const Article = styled.article`
+    ${defaultStyle};
+`
+
 export const Span = styled.span`
     ${defaultStyle};
 `;
-export const Img = styled.img`
-    width: ${props => getValue(props.width) || '100%'};
-    height: ${props => getValue(props.height) || '100%'};
-    object-fit: ${props => props.cover && 'cover'};
+export const Ul = styled.ul`
     ${defaultStyle};
 `;
+
+export const Img = styled.img`
+    ${defaultStyle};
+    width: ${props => hasValue(props.width) ? getValue(props.width) : '100%'};
+    height: ${props => getValue(props.height) || '100%'};
+    object-fit: ${props => props.cover && 'cover'};
+        
+    animation: ${aniKey.fadeIn} 0.3s forwards;        
+    ${props => props.noLazy && `animation: unset;` }        
+`;
+
+
+
 
 export const Flex = styled(Div)`
     display: flex;
@@ -100,6 +141,7 @@ export const Flex = styled(Div)`
     flex-wrap: ${props => props.flexWrap};
     flex-direction: ${props => props.column && 'column'};
     margin-left: ${props => props.right && 'auto'};
+    
 `;
 
 export const Right = styled(Div)`
@@ -129,7 +171,7 @@ export const Fixed = styled(Div)`
     max-width: ${props => getValue(props.maxWidth)};
 `;
 
-export const Mask = styled.div`
+export const Mask = styled(Fixed)`
     ${fixed};
     top: ${props => props.underNav ? '56px' : '0'};
     width: 100%;
@@ -137,6 +179,21 @@ export const Mask = styled.div`
     background-color: rgba(0,0,0, 0.7);   
     z-index: 50;     
 `;
+
+export const AbsoluteMask = styled.div`
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.4);
+    color: white;
+    font-weight: bold;
+    top:0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1;
+`
 
 export const ShadowBox = styled(Div)`
     background: ${color.white};
@@ -178,7 +235,94 @@ export const Spin = styled(Div)`
 
 export const GridColumns = styled(Div)`
     display: grid;
-    grid-template-columns: ${props => hasValue(props.repeat) ? `repeat(${props.repeat}, 1fr)` : props.tempColumns };
-    grid-column-gap: ${props => props.colGap ? getValue(props.colGap) : getValue(34)};
-    grid-row-gap: ${props => props.rowGap ? getValue(props.rowGap) : getValue(34)};
+    grid-template-columns: repeat(${props => props.repeat}, 1fr);
+    ${props => hasValue(props.colGap) && `
+        grid-column-gap: ${getValue(props.colGap)};
+    `}
+    ${props => hasValue(props.rowGap) && `
+        grid-row-gap: ${getValue(props.rowGap)};
+    `}
 `;
+
+export const Grid = styled(Div)`
+    display: grid;
+    grid-template-columns: ${props => props.templateColumns};
+    ${props => hasValue(props.colGap) && `grid-column-gap: ${getValue(props.colGap)};`}
+    ${props => hasValue(props.colGap) && `grid-row-gap: ${getValue(props.colGap)};`}
+`;
+
+//리스트 사이에 회색 공백을 띄운다
+export const JustListSpace = styled.div`
+    ${margin};
+    ${padding};
+    
+    & > * {
+        margin-bottom: ${props => props.space ? getValue(props.space) : getValue(15)};        
+    }
+    & > *:last-child {
+        margin-bottom: ${props => props.lastSpace ? getValue(props.lastSpace) : '0'};
+    }
+  
+    ${props => props.custom && props.custom}
+`
+
+
+
+//리스트 사이에 회색 공백을 띄운다
+export const ListSpace = styled(JustListSpace)`
+    background-color: ${props => props.bg ? (color[props.bg] || props.bg) : color.veryLight};    
+`
+
+export const ListBorder = styled(Div)`
+    & > * {
+        border-bottom: 1px solid ${props => props.spaceColor ? color[props.spaceColor] || props.spaceColor :  color.light};        
+    }
+    
+    ${props => props.firstBorder && `
+        & > *:first-child {
+            border-top: 1px solid ${props => props.spaceColor ? color[props.spaceColor] || props.spaceColor :  color.light};
+        }    
+    `}
+    
+    
+    & > *:last-child {
+        border: 0;
+    }
+`;
+
+export const Divider = styled(Div)`
+    height: ${props => props.height ? getValue(props.height) : getValue(10)};
+    background-color: ${props => props.bg ? (color[props.bg] || props.bg) : color.veryLight};
+    border-top: 1px solid ${props => hasValue(props.bc) ? color[props.bc] || props.bc : color.light};
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+`
+
+export const WhiteSpace = styled(Div)`
+    white-space: pre-line;
+    word-break: ${props => props.wordBreak || 'break-word'}; 
+`
+
+export const Space = styled(Flex)`
+    & > * {
+        margin-right: ${props => getValue(props.spaceGap || 10)};
+    }
+    & > *:last-child {
+        margin: 0;
+    }
+     
+    // ${props => !hasValue(props.gap) && `gap: ${getValue(10)}`} //이전 모바일웹뷰 지원안됨(gap은 display: grid 일 경우만 지원 되는것 같음)
+`
+
+export const Textarea = styled(TextareaAutoSize)`
+    border-color: ${color.light}!important;    
+`
+
+//밑줄이 있는 strong 타입
+export const Strong = styled.span`
+    // text-decoration-line: underline;
+    font-weight: bold;
+    ${p => p.fg && `color: ${color[p.fg] || p.fg}`};
+    ${p => hasValue(p.fontSize) && `font-size: ${getValue(p.fontSize)}`};
+`

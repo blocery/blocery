@@ -8,7 +8,6 @@ import {
     ProducerFullModalPopupWithNav,
     AdminModalWithNav,
     ProducerProfileCard,
-    ExcelDownload,
     Cell
 } from '~/components/common'
 import ComUtil from '~/util/ComUtil'
@@ -16,17 +15,15 @@ import Goods from '~/components/shop/goods'
 import moment from 'moment-timezone'
 
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
-
 import DatePicker from "react-datepicker";
 import "react-datepicker/src/stylesheets/datepicker.scss";
 
 import OrderCardTempReReg from './OrderCardTempReReg'
-import {FilterGroup, Hr} from "~/styledComponents/shared";
+import {Div, FilterGroup, Hr, Space} from "~/styledComponents/shared";
 import InputFilter from "~/components/common/gridFilter/InputFilter";
 import CheckboxFilter from "~/components/common/gridFilter/CheckboxFilter";
 import FilterContainer from "~/components/common/gridFilter/FilterContainer";
+import {MenuButton, SmButton} from "~/styledComponents/shared/AdminLayouts";
 
 export default class OrderCardTempList extends Component {
     constructor(props) {
@@ -63,7 +60,7 @@ export default class OrderCardTempList extends Component {
                 {headerName: "상품명", field: "goodsNm", width: 150},
                 {headerName: "상품종류", field: "directGoods", width: 90,
                     valueGetter: function(params) {
-                        return params.data.directGoods ? "즉시" : "예약";
+                        return params.data.directGoods ? "즉시" : (params.data.dealGoods) ? "공동구매" : "예약";
                     }
                 },
                 {
@@ -79,15 +76,15 @@ export default class OrderCardTempList extends Component {
                 },
                 {headerName: "총주문금액(원)", field: "orderPrice", width: 120},
                 {headerName: "상품구분", field: "timeSaleGoods", width: 100, cellRenderer: "timeSaleRenderer",
-                valueGetter: function(params) {
-                    const item = params.data
-                    return item.timeSaleGoods ? "포텐타임" : ( item.blyTimeGoods? "블리타임" : (item.superRewardGoods? "슈퍼리워드" : "일반상품"));
-                }},
+                    valueGetter: function(params) {
+                        const item = params.data
+                        return item.timeSaleGoods ? "포텐타임" : ( item.blyTimeGoods? "블리타임" : (item.superRewardGoods? "슈퍼리워드" : "일반상품"));
+                    }},
                 // {headerName: "커미션(%)", field: "feeRate", width: 90},
                 {headerName: "과세여부", field: "vatFlag", cellRenderer: "vatRenderer", width: 80,
-                valueGetter: function (params){
-                    return params.vatFlag ? '과세' : '면세'
-                }},
+                    valueGetter: function (params){
+                        return params.vatFlag ? '과세' : '면세'
+                    }},
                 {headerName: "카드결제(원)", field: "cardPrice", width: 110},
                 {headerName: "토큰결제(bly)", field: "blctToken", width: 130},
                 {headerName: "쿠폰", field: "usedCouponNo", width: 90,
@@ -128,7 +125,6 @@ export default class OrderCardTempList extends Component {
             },
             overlayLoadingTemplate: '<span class="ag-overlay-loading-center">...로딩중입니다...</span>',
             overlayNoRowsTemplate: '<span class="ag-overlay-loading-center">조회된 내역이 없습니다</span>',
-            rowHeight: 35,
             selOrderGroupNo:"",
             selOrderNo:"",
             selGoodsNm:"",
@@ -144,6 +140,7 @@ export default class OrderCardTempList extends Component {
     onGridReady(params) {
         //API init
         this.gridApi = params.api
+        this.columnApi = params.columnApi
         //this.gridColumnApi = params.columnApi
         // console.log("onGridReady");
     }
@@ -229,11 +226,13 @@ export default class OrderCardTempList extends Component {
     }
 
     reOrderRenderer = ({value, data:rowData}) => {
-        return (
-            <Cell textAlign="left">
-                <Button block size='sm' color={'info'} onClick={this.reOrder.bind(this, rowData)} >주문처리</Button>
-            </Cell>
-        );
+        if(!rowData.dealGoods) {
+            return (
+                <SmButton onClick={this.reOrder.bind(this, rowData)}>주문처리</SmButton>
+            );
+        }else{
+            return null;
+        }
     };
 
     reOrder = (rowData) => {
@@ -254,6 +253,10 @@ export default class OrderCardTempList extends Component {
 
         if(order.consumerOkDate) {
             orderStatus = '구매확정'
+        } else if(order.payStatus === 'scheduled') {
+            orderStatus = '주문예약'
+        } else if(order.payStatus === 'revoked') {
+            orderStatus = '주문예약취소'
         } else if(order.payStatus === 'cancelled') {
             orderStatus = '취소완료'
         } else if(order.trackingNumber) {
@@ -386,9 +389,9 @@ export default class OrderCardTempList extends Component {
         );
 
         return(
-            <div>
-                <div className="d-flex align-items-center p-1">
-                    <div className='ml-2'>
+            <Div p={16}>
+                <Div p={10} mb={10} bc={'secondary'}>
+                    <Space>
                         <DatePicker
                             selected={new Date(moment().set('year',this.state.search.year))}
                             onChange={this.onSearchDateChange}
@@ -396,11 +399,10 @@ export default class OrderCardTempList extends Component {
                             dateFormat="yyyy"
                             customInput={<ExampleCustomDateInput />}
                         />
-                    </div>
-                    <div className='ml-2'>
                         <Input type='select'
                                name='searchMonth'
                                id='searchMonth'
+                               style={{width: 100}}
                                onChange={this.onSearchDateMonthChange}
                                value={this.state.search.month}
                         >
@@ -417,16 +419,11 @@ export default class OrderCardTempList extends Component {
                             <option name='month' value='11'>11월</option>
                             <option name='month' value='12'>12월</option>
                         </Input>
-                    </div>
-                    <div className='ml-2 mr-2'>
-                        <Button color={'info'} onClick={this.search}>검색</Button>
-                    </div>
-                    <div className="flex-grow-1 text-right">
-                        총 {this.state.data.length} 건
-                    </div>
-                </div>
+                        <MenuButton onClick={this.search}>검색</MenuButton>
+                    </Space>
+                </Div>
 
-                <FilterContainer gridApi={this.gridApi} excelFileName={'주문취소 내역'}>
+                <FilterContainer gridApi={this.gridApi} columnApi={this.columnApi} excelFileName={'주문취소 내역'}>
                     <FilterGroup>
                         <InputFilter
                             gridApi={this.gridApi}
@@ -455,6 +452,7 @@ export default class OrderCardTempList extends Component {
                             data={[
                                 {value: '즉시', name: '즉시'},
                                 {value: '예약', name: '예약'},
+                                {value: '공동구매', name: '공동구매'}
                             ]}
                         />
                         <CheckboxFilter
@@ -474,8 +472,7 @@ export default class OrderCardTempList extends Component {
                             data={[
                                 {value: '일반상품', name: '일반상품'},
                                 {value: '슈퍼리워드', name: '슈퍼리워드'},
-                                {value: '포텐타임', name: '포텐타임'},
-                                {value: '블리타임', name: '블리타임'},
+                                {value: '포텐타임', name: '포텐타임'}
                             ]}
                         />
                         <CheckboxFilter
@@ -507,14 +504,10 @@ export default class OrderCardTempList extends Component {
                         }}
                     >
                         <AgGridReact
-                            // enableSorting={true}                //정렬 여부
-                            // enableFilter={true}                 //필터링 여부
                             columnDefs={this.state.columnDefs}  //컬럼 세팅
                             defaultColDef={this.state.defaultColDef}
-                            rowHeight={this.state.rowHeight}
+                            getRowHeight={35}
                             frameworkComponents={this.state.frameworkComponents}
-                            // components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
-                            // enableColResize={true}              //컬럼 크기 조정
                             overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                             overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
                             onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
@@ -550,7 +543,7 @@ export default class OrderCardTempList extends Component {
                         />
                     </AdminModalWithNav>
                 </div>
-            </div>
+            </Div>
         );
     }
 }

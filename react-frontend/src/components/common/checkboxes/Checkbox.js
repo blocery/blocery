@@ -3,6 +3,7 @@ import { Div, Flex, Span } from '~/styledComponents/shared'
 import {color} from '~/styledComponents/Properties'
 import styled, {css}from 'styled-components'
 import { GoCheck } from "react-icons/go";
+import {getValue, hasValue} from "~/styledComponents/Util";
 
 const HiddenCheckboxElement = styled.input.attrs({ type: 'checkbox' })`
   // Hide checkbox visually but remain accessible to screen readers.
@@ -23,13 +24,13 @@ const StyledCheckbox = styled(Div)`
     display: flex;
     align-items: center;
     justify-content: center;
-    
+    flex-shrink: 0;
+        
     ${props => !props.checked && `
         background-color: white;
         border-width: 2px;
     `}
-    
-    
+        
     ${props => props.checked && `
         background-color: ${props.bg || color.primary};
         color: white;
@@ -68,17 +69,19 @@ const StyledCheckbox = styled(Div)`
 
 const CheckboxLabel = styled.label`
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     cursor: pointer;
     margin: 0;
 `;
 const CheckboxContainer = styled(Flex)`
     ${props => props.className && props.className}
-
+    ${props => props.style && props.style}
 `;
 
 const Checkbox = (props) => {
-    const {id, name, icon = GoCheck, value, checked, margin = 0, labelMargin = 5, onChange, disabled, children, className, size = 'sm', bg = 'dark'} = props
+    const {id, name, icon = GoCheck, value, checked, margin = 0, labelMargin = 5, onChange, disabled, children, className, style, size = 'sm', bg = 'dark',
+        innerRef
+    } = props
     const [isChecked, setIsChecked] = useState(checked)
     function onHandleChange(e) {
         if(!disabled){
@@ -96,7 +99,7 @@ const Checkbox = (props) => {
 
 
     return (
-        <CheckboxContainer className={className}>
+        <CheckboxContainer className={className} style={style}>
             <CheckboxLabel>
                 <HiddenCheckboxElement
                     id={id || null}
@@ -106,11 +109,14 @@ const Checkbox = (props) => {
                     // onChange={!disabled ? onChange : null}
                     onChange={onHandleChange}
                 />
-                <StyledCheckbox checked={isChecked} size={size} bg={bg} disabled={disabled} rounded={3} bc={'dark'} >
+                {/* div인 경우 tabIndex 를 -1로 하면 오직 스크립트에서만 focus 가 먹히게 됨 */}
+                <StyledCheckbox tabIndex={-1} ref={innerRef} checked={isChecked} size={size} bg={bg} disabled={disabled} rounded={3} bc={'dark'} >
                     {isChecked ? icon() : ''}
                 </StyledCheckbox>
                 {
-                    children && <Span ml={labelMargin} mr={labelMargin - margin} style={{lineHeight: '1.2rem'}}>{children}</Span>
+                    children && <Span ml={labelMargin} mr={labelMargin - margin}
+                                      // style={{lineHeight: '1.2rem'}}
+                    >{children}</Span>
                 }
             </CheckboxLabel>
         </CheckboxContainer>

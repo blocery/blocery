@@ -1,7 +1,10 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { Button } from 'reactstrap';
+
 import Checkbox from '~/components/common/checkboxes/Checkbox'
+import {Flex, Button, Div} from "~/styledComponents/shared";
+import {MdClose} from "react-icons/all";
+import {getValue} from "~/styledComponents/Util";
 
 const CartHeader  = (props) => {
     const onChange = (e) => {
@@ -25,17 +28,22 @@ const CartHeader  = (props) => {
     const {totCount, checkedCount} = props
 
     return (
-    <div className='d-flex align-items-center pl-2 pt-2 pb-2 mb-2' style={{backgroundColor: '#F4F4F4'}}>
-
-        <Checkbox bg={'green'} onChange={onChange} checked={totCount === checkedCount} size={'sm'}>전체선택 ({checkedCount}/{totCount})</Checkbox>
-
-        <div className='ml-auto'>
-            {
-                checkedCount > 0 && totCount > 0 && <Button size='sm' color={'info'} outline onClick={onDelete}>삭제({checkedCount})</Button>
-            }
-
-        </div>
-    </div>
+        <Flex minHeight={55} bg={'background'} px={16}>
+            <Checkbox bg={'green'} onChange={onChange} checked={totCount === checkedCount} size={'sm'}>전체선택 ({checkedCount}/{totCount})</Checkbox>
+            <div className='ml-auto'>
+                {
+                    checkedCount > 0 && totCount > 0 &&
+                    <Button bc={'green'} fg={'green'} fontSize={13} rounded={1} px={8} py={0} minHeight={30} onClick={onDelete}>
+                        <Flex>
+                            <MdClose color={'dark'} style={{marginRight:getValue(8)}} size={getValue(20)}/>
+                            <Div lineHeight={30}>
+                                선택 삭제({checkedCount})
+                            </Div>
+                        </Flex>
+                    </Button>
+                }
+            </div>
+        </Flex>
     )
 }
 

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { Container, Row, Col, Input } from 'reactstrap'
+import React, { useState, useEffect, useRef } from 'react'
+import {Container, Row, Col, ModalHeader} from 'reactstrap'
 import ComUtil from '~/util/ComUtil'
 
 //임시로 쓰는 api
@@ -11,172 +11,134 @@ import { SlideItemHeaderImage, SlideItemContent } from '~/components/common/slid
 import Css from './Search.module.scss'
 import { IconStore, IconSearch, IconBackArrow } from '~/components/common/icons'
 import { Server } from '~/components/Properties'
+import CombinedSwiperContent from "~/components/shop/hashTag/CombinedSwiperContent";
+import {Button, Div, Flex, GridColumns, Input, Span} from "~/styledComponents/shared";
+import {useRecoilState} from "recoil";
+import {boardTagModalState} from "~/recoilState";
+import styled from 'styled-components'
+import {getValue} from "~/styledComponents/Util";
+import {RiSearchLine} from 'react-icons/ri'
+import {color} from "~/styledComponents/Properties";
+import ArrowBackButton from "~/components/common/buttons/ArrowBackButton";
+
+import {withRouter} from 'react-router-dom'
+import {HiHashtag} from "react-icons/hi";
+import {GridList} from "~/styledComponents/ShopBlyLayouts";
+import VerticalGoodsCard from "~/components/common/cards/VerticalGoodsCard";
+import {addSearchKeyword} from "~/lib/shopApi";
+
 
 //팝업창 닫기
 function onCloseClick() {
     Webview.closePopup()
 }
 
+const SearchInput = styled(Input)`
+    width: 100%;
+    height: 100%;
+    border: 0;     
+    padding-top: ${getValue(4)};
+    font-size: ${getValue(17)};    
+`
+function checkValidation(value) {
+    if (!value) {
+        alert('검색할 내용을 입력해 주세요.')
+        return false
+    }
+    return true
+}
 
-const Search = (props) => {
-    const params = ComUtil.getParams(props)
-    const [keyword, setKeyword] = useState(params.keyword || undefined)
-    const [loading, setLoading] = useState(false)
-    const [goodsList, setGoodsList] = useState([])
+const SearchBar = withRouter(({history}) => {
+    const [tagModalState, setTagModalState] = useRecoilState(boardTagModalState)
+    const [searchValue, setSearchValue] = useState('')
+    const inputRef = useRef();
 
     useEffect(() => {
-
-        let localKeyword = sessionStorage.getItem('searchKeyword');
-        if (localKeyword) {
-            //console.log('sessionStorage:keyword=' + localKeyword);
-
-            setKeyword(localKeyword); //밑에 useEffect실행.
-        }
-        else if(keyword)
-            search();
-
+        inputRef.current.focus()
     }, [])
 
-    //keyword 바뀌었을때 실행.
     useEffect(() => {
-        if (sessionStorage.getItem('searchKeyword')) {
-            search();
-            //sessionStorage.setItem('searchKeyword', ''); //임시변수 clear
+        setSearchValue(tagModalState.tag)
+    }, [tagModalState.tag])
+
+    const onKeyUp = e => {
+        if (e.key === 'Enter'){
+            if (checkValidation(e.target.value)){
+                onSearchClick()
+            }
         }
-    }, [keyword])
-
-
-    //상품클릭
-    function onGoodsClick(goods) {
-        // Webview.closePopupAndMovePage(`/goods?goodsNo=${goods.goodsNo}`)
-        //console.log(props.history)
-
-        props.history.push(`/goods?goodsNo=${goods.goodsNo}`)
     }
 
-
-    async function search() { //옵션:withLocalKeyworkd
-
-        if(!keyword || keyword.length <= 0) return
-
-        sessionStorage.setItem('searchKeyword', keyword); //재진입시 사용 용도.
-
-        setLoading(true)
-        const {data} = await getConsumerGoodsByKeyword(keyword)
-        setGoodsList(data)
-        setLoading(false)
-
-
+    const onInputChange = e => {
+        setSearchValue(e.target.value)
     }
 
-    //조회
-    async function onSearchClick() {
-        search()
-    }
+    const onSearchClick = () => {
+        if (checkValidation(searchValue)){
+            setTagModalState({
+                tag: searchValue
+            })
 
-    function onKeywordChange(event) {
-        const { value } = event.target
-        setKeyword(value)
-    }
-
-    function onKeywordKeUp(event) {
-        // if(event.keyCode === 13)
-        // console.log('keyup')
-    }
-    function onSubmit(event){
-        event.preventDefault();
-        search()
+            //검색 키워드 저장
+            addSearchKeyword({keyword: searchValue, source: "직접검색", pageName: "통합검색"}).catch(() => {})
+        }
     }
 
     return(
+        <Flex height={60} custom={`
+            border-bottom: 1px solid ${color.green};
+        `}>
+            <Flex bg={'white'} doActive cursor={1} width={30} height={'100%'} justifyContent={'center'} onClick={() => history.goBack()}>
+                <ArrowBackButton />
+            </Flex>
+            <Div flexGrow={1}>
+                <SearchInput ref={inputRef} value={searchValue} onKeyUp={onKeyUp} onChange={onInputChange} placeholder={'검색어를 입력하세요'}/>
+            </Div>
+            <Flex onClick={onSearchClick} cursor={1} width={60} height={'100%'} bg={'white'} doActive justifyContent={'center'}>
+                <RiSearchLine size={20}/>
+            </Flex>
+        </Flex>
+    )
+})
+
+
+// const GoodsListContainer = () => {
+//     const [tagModalState] = useRecoilState(boardTagModalState)
+//     const [goodsList, setGoodsList] = useState()
+//
+//     useEffect(() => {
+//         if (tagModalState.tag) {
+//             search()
+//         }
+//     }, [tagModalState.tag])
+//
+//     async function search() { //옵션:withLocalKeyworkd
+//         const {data} = await getConsumerGoodsByKeyword(tagModalState.tag.toLowerCase())
+//         setGoodsList(data)
+//     }
+//
+//     if (!goodsList || goodsList.length <= 0) return null
+//
+//     return(
+//         <GridList p={16} pb={0}>
+//             {
+//                 goodsList.map(goods =>
+//                     <VerticalGoodsCard.Medium key={goods.goodsNo}
+//                                               isThumnail={true}
+//                                               goods={goods}
+//                     />
+//                 )
+//             }
+//         </GridList>
+//     )
+// }
+
+const Search = (props) => {
+    return(
         <div>
-            {/* ======================= Nav(start) ======================= */}
-            <div style={{height: 56}} className={'d-flex align-items-center p-2 pl-3 pr-3 text-dark'}>
-
-                { /* 뒤로가기 */ }
-                {/*<span c
-                lassName={'mr-3'} onClick={onCloseClick}>*/}
-                {/*<FontAwesomeIcon*/}
-                {/*//className={'text-white'}*/}
-                {/*icon={faAngleLeft}*/}
-                {/*size={'lg'}*/}
-                {/*/>*/}
-                {/*</span>*/}
-
-                { /* 검색바 */ }
-                <span className={'flex-grow-1 mr-3'}>
-                    <form onSubmit={onSubmit}>
-                    <Input className={'border-0 rounded-0 font-weight-bold'}
-                           placeholder={'검색어를 입력하세요'}
-                           onChange={onKeywordChange}
-                           value={keyword}
-                    />
-                    </form>
-                </span>
-
-                { /* 돋보기 버튼 */ }
-                <span onClick={onSearchClick}>
-                    <IconSearch />
-                </span>
-            </div>
-            {/* ======================= Nav(end) ======================= */}
-            <div className={Css.back} onClick={()=>props.history.goBack()}>
-                <IconBackArrow />
-            </div>
-
-            <hr className={'m-0 border-info'}/>
-
-            <div className={'p-2'}>
-                <Container>
-                    <Row>
-                        <Col className={'p-0 mb-2 lead f4'}>
-                            <span>{`검색결과 : ${ComUtil.addCommas(goodsList.length)} 건`}</span>
-                        </Col>
-                    </Row>
-                </Container>
-                <Container>
-                    <Row>
-                        {
-                            loading ? <Col><SpinnerBox /></Col> : (
-                                goodsList.map(goods =>
-                                    <Col key={'goods_'+goods.goodsNo}
-                                         xs={12} sm={12} md={6} lg={6} xl={6}
-                                         className={'p-0 mb-2'} >
-                                        <div style={{zIndex:1}} className={'d-flex'} onClick={onGoodsClick.bind(this, goods)}>
-                                            <SlideItemHeaderImage
-                                                imageUrl={Server.getThumbnailURL() + goods.goodsImages[0].imageUrl}
-                                                imageWidth={100}
-                                                imageHeight={100}
-                                                discountRate={Math.round(goods.discountRate)}
-                                                remainedCnt={goods.remainedCnt}
-                                                blyReview={goods.blyReviewConfirm}
-                                                buyingRewardFlag={goods.buyingRewardFlag}
-                                            />
-                                            <div className={Css.content}>
-                                                <div className={Css.farmersInfo} onClick={onGoodsClick.bind(this, goods)} >
-                                                    <div><IconStore style={{marginRight: 6}}/></div>
-                                                    {/* goods.level 농가등급 */}
-                                                    <div>{goods.farmName}</div>
-                                                </div>
-                                                <SlideItemContent
-                                                    style={{padding: 5}}
-                                                    directGoods={goods.directGoods}
-                                                    goodsNm={goods.goodsNm}
-                                                    currentPrice={goods.currentPrice}
-                                                    consumerPrice={goods.consumerPrice}
-                                                    discountRate={goods.discountRate}
-                                                    onClick={onGoodsClick.bind(this, goods)}
-                                                />
-                                            </div>
-                                        </div>
-                                    </Col>
-                                )
-                            )
-                        }
-                    </Row>
-                </Container>
-            </div>
-
+            <SearchBar />
+            {/*<GoodsListContainer />*/}
+            <CombinedSwiperContent />
         </div>
     )
 }

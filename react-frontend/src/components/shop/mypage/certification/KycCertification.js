@@ -5,6 +5,7 @@ import { Div, Img, Button, Link } from '~/styledComponents/shared'
 import kycSampleImg3 from '~/images/kyc/licence_man_none.svg';
 
 import styled from 'styled-components'
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 const KycBody = styled(Div)`
     height: calc(100vh - 56px - 54px);
@@ -46,7 +47,8 @@ export default class KycCertification extends Component {
     render() {
         return (
             <Fragment>
-                <ShopXButtonNav underline historyBack>KYC 신원 확인</ShopXButtonNav>
+                {/*<ShopXButtonNav underline historyBack>KYC 신원 확인</ShopXButtonNav>*/}
+                <BackNavigation>KYC 신원 확인</BackNavigation>
                 {
                     this.state.loginUser === 'notRender' ? <Div></Div> :
                         <KycBody>
@@ -75,14 +77,14 @@ export default class KycCertification extends Component {
                     this.state.modalOpen &&
                     <ModalPopup title={'KYC 신원 확인 안내'}
                                 content={
-                                    <div>KYC 신원 확인은 마켓블리(MarketBly) App 내에서 토큰(BLY)출금 등 자산과 관련된 서비스를 이용하는데 있어 필요한 신원 확인 및 보증 절차입니다.
+                                    <div>KYC 신원 확인은 샵블리(ShopBly) App 내에서 토큰(BLY)출금 등 자산과 관련된 서비스를 이용하는데 있어 필요한 신원 확인 및 보증 절차입니다.
                                     <br/><br/> 현재 계정 보안 자금 세탁과 테러 자금 조달 방지를 위해 출금 금액이 제한되어 있으며, KYC 신원 확인을 완료하면 출금 제한이 상향 조정됩니다.
                                     {/*<br/><br/> -KYC 신원 확인 전 : 일 한도 1,250BLY <br/> -KYC 신원 확인 후 : 일 한도 250,000BLY</div>}*/}
                                     {/*<br/><br/> -KYC 신원 확인 전 : 일 한도 500BLY <br/> -KYC 신원 확인 후 : 일 한도 5,000BLY</div>}*/}
-                                    <br/><br/> -KYC 신원 확인 전 : 일 한도 500BLY <br/>
-                                    -KYC 신원 확인 후 : <br/>
-                                    a. DON에어드랍 이벤트 기간 까지( ~ 3/7) : 한도 제한 없음 <br/>
-                                    b. DON에어드랍 이벤트 기간 이후(3/7 ~) : 5,000BLY
+                                    <br/><br/> -KYC 신원 확인 전 : 출금 제한 <br/>
+                                    -KYC 신원 확인 후 : 출금 가능<br/>
+                                    {/*a. DON에어드랍 이벤트 기간 까지( ~ 3/7) : 한도 제한 없음 <br/>*/}
+                                    {/*b. DON에어드랍 이벤트 기간 이후(3/7 ~) : 5,000BLY*/}
                                     </div>
                                     }
 

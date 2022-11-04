@@ -7,6 +7,7 @@ import { BlocerySpinner, SingleImageUploader, FooterButtonLayer } from '~/compon
 import { DateRangePicker } from 'react-dates';
 
 import { setHomeBannerSave, getHomeBanner } from '~/lib/adminApi'
+import SummernoteEditor from "~/components/common/summernoteEditor";
 
 export default class HomeBannerReg extends Component {
     constructor(props){
@@ -229,7 +230,7 @@ export default class HomeBannerReg extends Component {
                                 defaultCount={1}
                                 isShownMainText={false}
                                 onChange={this.onHomeBannerImagesChange}
-                                isNoResizing={true}
+                                quality={1}
                             />
                         </div>
                         <span className={'small text-secondary'}>

@@ -1,7 +1,10 @@
 import React from 'react'
-import { Route, Redirect } from 'react-router-dom'
+import { Route, Redirect, useHistory } from 'react-router-dom'
 import { Webview } from '../lib/webviewApi'
 import ComUtil from '../util/ComUtil'
+import {useRecoilState} from "recoil";
+import {consumerState} from "~/recoilState";
+import Login from "~/components/shop/login/Login";
 
 const fakeAuth = {
     isAuthenticated: function(){
@@ -16,21 +19,42 @@ const fakeAuth = {
 }
 
 export function PrivateRoute({ component: Component, userType, ...rest }) {
+    const [consumer] = useRecoilState(consumerState)
+
     return (
         <Route
             {...rest}
             render={
                 props => {
-                    const isLoggedIn = fakeAuth.isAuthenticated()
-                    //console.log('in privateRoute: userType, isLoggedIn', userType, isLoggedIn);
-                    //console.log('consumer, isLoggedIn? '+isLoggedIn)
-                    return isLoggedIn ? (
+                    return consumer ? (
                         <Component {...props} />
                     ) : (
-                        Webview.openPopup('/login')
+                        <Redirect to={{
+                            pathname: '/login',
+                            state: {from: props.location} //사용자가 이동 하려고 한 url
+                        }} />
+                        // Webview.openPopup('/login')
                     )
                 }
             }
         />
     );
+    // return (
+    //     <Route
+    //         {...rest}
+    //         render={
+    //             props => {
+    //                 const isLoggedIn = fakeAuth.isAuthenticated()
+    //                 //console.log('in privateRoute: userType, isLoggedIn', userType, isLoggedIn);
+    //                 //console.log('consumer, isLoggedIn? '+isLoggedIn)
+    //                 return isLoggedIn ? (
+    //                     <Component {...props} />
+    //                 ) : (
+    //                     history.push('/login')
+    //                     // Webview.openPopup('/login')
+    //                 )
+    //             }
+    //         }
+    //     />
+    // );
 }

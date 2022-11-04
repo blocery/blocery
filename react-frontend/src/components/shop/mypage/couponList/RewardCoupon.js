@@ -1,11 +1,11 @@
-import React, {useState, useEffect, Fragment} from 'react';
+import React, {useState, useEffect} from 'react';
 import {useModal} from "~/util/useModal";
-import {Modal, ModalBody, ModalFooter, ModalHeader} from "reactstrap";
-import {B2cGoodsSelSearch} from "~/components/common";
+import {Modal, ModalBody, ModalHeader} from "reactstrap";
 import {getRewardCoupon} from '~/lib/shopApi'
 import {Div, Flex, Right, Span, Coupon, Button} from "~/styledComponents/shared";
 import ComUtil from "~/util/ComUtil";
 import {BLCT_TO_WON, calcBlyToWon} from "~/lib/exchangeApi";
+import MathUtil from "~/util/MathUtil";
 
 const Item = ({consumerOk, goodsNm, blyAmount, orderDate}) =>
     <Flex my={16} fontSize={12} alignItems={'flex-start'}>
@@ -48,14 +48,14 @@ const ModalContent = ({consumerCoupon}) => {
                     <Div>사용가능</Div>
                     <Right>
                         <Span mr={5}>{`${ComUtil.roundDown(couponAmount,2)}BLY`}</Span>
-                        <Span fontSize={13}>({ComUtil.addCommas(ComUtil.roundDown(couponAmount * blctToWon, 0))}원)</Span>
+                        <Span fontSize={13}>({ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(couponAmount,blctToWon)))}원)</Span>
                     </Right>
                 </Flex>
                 <Flex fg={'darkBlack'} className="mt-1">
                     <Div>적립예정</Div>
                     <Right>
                         <Span mr={5}>{`${ComUtil.roundDown(_expectedAmount,2)}BLY`}</Span>
-                        <Span fontSize={13}>({ComUtil.addCommas(ComUtil.roundDown(_expectedAmount * blctToWon, 0))}원)</Span>
+                        <Span fontSize={13}>({ComUtil.addCommas(MathUtil.roundHalf(MathUtil.multipliedBy(_expectedAmount,blctToWon)))}원)</Span>
                     </Right>
                 </Flex>
             </Div>
@@ -77,9 +77,9 @@ const ModalContent = ({consumerCoupon}) => {
                 <Flex dot alignItems={'flex-start'} my={8}>
                     <Div>쿠폰은 나누어 사용 할 수 없습니다.</Div>
                 </Flex>
-                <Flex dot alignItems={'flex-start'} my={8}>
-                    <Div>사용된 쿠폰은 결제 취소시 소멸되니 주의 바랍니다. 단, 생산자 주문 취소에 한하여 동일한 BLY쿠폰이 재발급됩니다.</Div>
-                </Flex>
+                {/*<Flex dot alignItems={'flex-start'} my={8}>*/}
+                {/*    <Div>사용된 쿠폰은 결제 취소시 소멸되니 주의 바랍니다. 단, 생산자 주문 취소에 한하여 동일한 BLY쿠폰이 재발급됩니다.</Div>*/}
+                {/*</Flex>*/}
                 <Flex dot alignItems={'flex-start'} my={8}>
                     <Div>쿠폰 유효기간은 적립될때 마다 자동 연장 되며, <br/>유효기간 만료 시 내역에서 삭제됩니다.</Div>
                 </Flex>
@@ -138,7 +138,7 @@ const RewardCoupon = ({data: rewardCoupon},props) => {
     const useEndDay = endDay && endDay.substr(0,4) + '.' + endDay.substr(4,2) + '.' + endDay.substr(6,2)
 
     return (
-        <Div p={20}>
+        <Div textAlign={'center'} alignItems={'center'}>
             {/*<Div>*/}
             {/*    /!*<Div fontSize={12} mb={5}>*!/*/}
             {/*    /!*    My 적립 현황*!/*/}
@@ -160,11 +160,8 @@ const RewardCoupon = ({data: rewardCoupon},props) => {
             {/*    </Div>*/}
             {/*</Div>*/}
 
-            <Div my={20} p={20} bc={'light'} bg={'white'} rounded={2}>
-                <Div fontSize={20} my={15}><b>차곡차곡 쌓이는 적립형 쿠폰</b></Div>
-                {
-                    (!useStartDay && !useEndDay) ? null : <Div fontSize={15}>{useStartDay} ~ {useEndDay}</Div>
-                }
+            <Div p={25} bc={'light'} bg={'white'} rounded={2} alignItems={'center'}>
+                <Div fontSize={17} mb={15}><b>차곡차곡 쌓이는 적립형 쿠폰</b></Div>
                 {
                     (rewardCoupon && rewardCoupon.minOrderBlyAmount && rewardCoupon.minOrderBlyAmount !== 0) ? (
                         <Div fontSize={15} mb={15}>
@@ -172,20 +169,23 @@ const RewardCoupon = ({data: rewardCoupon},props) => {
                         </Div>
                     ) : null
                 }
-                <Flex fontSize={20}
-                      fg={'bly'}><b>{`사용가능 ${(rewardCoupon && rewardCoupon.couponBlyAmount) ? ComUtil.roundDown(rewardCoupon.couponBlyAmount, 2) : 0}BLY`}</b>
-                    <Span ml={10} fg={'dark'}
-                          fontSize={15}>/ {(rewardCoupon && rewardCoupon.couponBlyAmount) ? ComUtil.addCommas(calcBlyToWon(rewardCoupon.couponBlyAmount)):0}원</Span>
-                </Flex>
-                <Flex fontSize={15}>{`적립예정 ${ComUtil.roundDown(expectedAmount, 2)}BLY`}
-                    <Span ml={10} fg={'dark'} fontSize={15}>/ {ComUtil.addCommas(calcBlyToWon(expectedAmount))}원</Span>
-                </Flex>
+                <Div bold fontSize={23} fg={'green'} mb={8}>
+                    <b>{`사용가능 ${(rewardCoupon && rewardCoupon.couponBlyAmount) ? ComUtil.roundDown(rewardCoupon.couponBlyAmount, 2) : 0}BLY`}</b>
+                    <Span ml={5} fg={'dark'} fontSize={15}>({(rewardCoupon && rewardCoupon.couponBlyAmount) ? ComUtil.addCommas(calcBlyToWon(rewardCoupon.couponBlyAmount)):0}원)</Span>
+                </Div>
+                <Div bold fontSize={15} mb={32}>{`적립예정 ${ComUtil.roundDown(expectedAmount, 2)}BLY`}
+                    <Span ml={5}>({ComUtil.addCommas(calcBlyToWon(expectedAmount))}원)</Span>
+                </Div>
+
                 {/*<Span textAlign={'center'} fontSize={20} fg={'bly'} bold>{`사용가능 ${consumerCoupon ? ComUtil.roundDown(consumerCoupon.couponBlyAmount,2) : 0}BLY`}</Span>*/}
                 {/*<Span mx={10}>|</Span>*/}
                 {/*<Span textAlign={'center'} fontSize={15}>{`적립예정 ${ComUtil.roundDown(expectedAmount,2)}BLY`}</Span>*/}
+                {
+                    (!useStartDay && !useEndDay) ? null : <Div fontSize={15} mt={20} fg={'dark'}>쿠폰 유효기간 : {useStartDay} ~ {useEndDay}</Div>
+                }
             </Div>
             <Div my={10} textAlign={'center'}>
-                <Button onClick={toggle} px={10} bg={'green'} fg={'white'}>자세히보기</Button>
+                <Button block onClick={toggle} py={20} bg={'green'} fg={'white'}>자세히보기</Button>
             </Div>
 
 

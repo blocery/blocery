@@ -6,13 +6,12 @@ import { getServerToday } from '~/lib/commonApi'
 import ComUtil from '~/util/ComUtil'
 
 import { getLoginProducerUser } from '~/lib/loginApi'
-import { getNoticeList } from '~/lib/adminApi'
+import { getNoticeList } from '~/lib/shopApi'
 import { NoticeTemplate } from '~/components/common/templates'
 
 //ag-grid
 import { AgGridReact } from 'ag-grid-react';
-// import 'ag-grid-community/dist/styles/ag-grid.css';
-// import 'ag-grid-community/dist/styles/ag-theme-balham.css';
+import {Cell} from "~/components/common";
 
 export default class WebNoticeList extends Component{
     constructor(props) {
@@ -37,7 +36,8 @@ export default class WebNoticeList extends Component{
                 formatDateRenderer: this.formatDateRenderer
             },
             frameworkComponents: {
-                titleRenderer: this.titleRenderer
+                titleRenderer: this.titleRenderer,
+                typeRenderer: this.typeRenderer
             },
             rowSelection: 'single',
             overlayLoadingTemplate: '<span class="ag-overlay-loading-center">...로딩중입니다...</span>',
@@ -77,6 +77,7 @@ export default class WebNoticeList extends Component{
                     return rowNo;
                 }
             },
+            {headerName: "공지유형", field: "noticeType", cellStyle:this.getCellStyle({'cellAlign':'center'}), cellRenderer: "typeRenderer"},
             {
                 headerName: "제목", field: "title",
                 width: 500,
@@ -96,7 +97,7 @@ export default class WebNoticeList extends Component{
                 },
                 valueGetter: function(params) {
                     //기공된 필터링 데이터로 필터링 되게 적용 (UTCDate 변환)
-                    return ComUtil.utcToString(params.data.regDate,'YYYY-MM-DD HH:MM');
+                    return ComUtil.utcToString(params.data.regDate,'YYYY-MM-DD HH:mm');
                 }
             }
         ];
@@ -131,6 +132,18 @@ export default class WebNoticeList extends Component{
     //Ag-Grid Cell 제목 렌더러
     titleRenderer = ({value, data:rowData}) => {
         return (<span className='text-primary' a href="#" onClick={this.onTitleClick.bind(this, rowData)}><u>{rowData.title}</u></span>);
+    }
+    typeRenderer = ({value, data:rowData}) => {
+        return (
+            <Cell textAlign="left">
+                <div>
+                    {rowData.noticeType === 'event' ? '이벤트' :
+                        rowData.noticeType === 'check' ?  '점검' :
+                            rowData.noticeType === 'etc' ? '기타' : '공지'
+                    }
+                </div>
+            </Cell>
+        )
     }
 
     //Ag-Grid 주문상태 필터링용 온체인지 이벤트 (데이터 동기화)
@@ -186,17 +199,17 @@ export default class WebNoticeList extends Component{
         let dataParams = {
             producerNo:this.state.producerNo
         };
-        const {status, data} = await getNoticeList('producer')
-
+        let params = {userType: 'producer', isPaging: true, limit: 100, page: 1}
+        const {status, data} = await getNoticeList(params)
         console.log(data);
         if(status !== 200){
             alert('응답이 실패 하였습니다');
             return
         }
-
+        ComUtil.sortDate(data.noticeList, 'regDate', true);
         this.setState({
-            data: data,
-            totalListCnt: data.length,
+            data: data.noticeList,
+            totalListCnt: data.totalCount,
             columnDefs: this.getColumnDefs()
         })
 
@@ -265,7 +278,7 @@ export default class WebNoticeList extends Component{
                 </div>
 
                 {/* 공지 내용 확인 모달 */}
-                <Modal isOpen={this.state.modal} toggle={this.modalToggle} centered>
+                <Modal size={'xl'} isOpen={this.state.modal} toggle={this.modalToggle} centered>
                     <ModalHeader toggle={this.modalToggle}>공지사항</ModalHeader>
                     <ModalBody>
                         <NoticeTemplate {...this.state.notice}/>

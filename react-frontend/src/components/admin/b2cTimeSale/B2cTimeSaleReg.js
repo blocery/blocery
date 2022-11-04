@@ -8,8 +8,9 @@ import { SingleDatePicker } from 'react-dates';
 import {FaSearchPlus} from 'react-icons/fa'
 import {BlocerySpinner, B2cGoodsSelSearch} from '~/components/common'
 import ComUtil from '~/util/ComUtil'
+import MathUtil from "~/util/MathUtil";
 import {getPotenCouponMaster, getTimeSaleAdmin, setTimeSaleRegist, setTimeSaleUpdate} from '~/lib/adminApi'
-import Style from './B2cTimeSaleReg.module.scss'
+import {Div, Flex, Span} from "~/styledComponents/shared";
 
 export default class B2cTimeSaleReg extends Component{
     constructor(props) {
@@ -91,11 +92,15 @@ export default class B2cTimeSaleReg extends Component{
         timeSaleGoods.discountRate = obj.discountRate;
         timeSaleGoods.timeSaleFeeRate = obj.feeRate;
         timeSaleGoods.potenCouponDiscount = obj.potenCouponDiscount;
+        //202205 eventFlag 옵션에 추가.
+        timeSaleGoods.eventOptionPrice = obj.eventOptionPrice;
+        timeSaleGoods.eventOptionName = obj.eventOptionName;
 
-        if(timeSaleGoods.timeSalePrice) {
-            let v_disCountRate = (100 - (100 * (ComUtil.toNum(timeSaleGoods.timeSalePrice) / ComUtil.toNum(timeSaleGoods.consumerPrice)))) || 0;
-            timeSaleGoods.timeSaleDiscountRate = Math.round(v_disCountRate, 0);
-        }
+        //202205:미사용인듯.
+        // if(timeSaleGoods.timeSalePrice) {
+        //     let v_disCountRate = (100 - (100 * (ComUtil.toNum(timeSaleGoods.timeSalePrice) / ComUtil.toNum(timeSaleGoods.consumerPrice)))) || 0;
+        //     timeSaleGoods.timeSaleDiscountRate = Math.round(v_disCountRate, 0);
+        // }
 
         this.setState({
             timeSaleGoods
@@ -155,10 +160,11 @@ export default class B2cTimeSaleReg extends Component{
         //     return false;
         // }
 
-        if(ComUtil.toNum(timeSaleGoods.currentPrice) < ComUtil.toNum(timeSaleGoods.timeSalePrice)) {
-            alert("판매가보다 포텐타임가 금액큽니다.");
-            return false;
-        }
+        //feeRate로 바꿔서 필요없음.
+        // if(ComUtil.toNum(timeSaleGoods.currentPrice) < ComUtil.toNum(timeSaleGoods.timeSalePrice)) {
+        //     alert("판매가보다 포텐타임가 금액큽니다- 현재가:" + timeSaleGoods.currentPrice + ", 포텐가:" + timeSaleGoods.timeSalePrice);
+        //     return false;
+        // }
 
         if(ComUtil.toNum(timeSaleGoods.timeSaleFeeRate) <= 0 || ComUtil.toNum(timeSaleGoods.timeSaleFeeRate) < 5) {
             alert("타임세일가 수수료는 필수 입니다.(최소 5% 이상)");
@@ -199,9 +205,13 @@ export default class B2cTimeSaleReg extends Component{
             timeSaleGoods.timeSaleFeeRate = data.timeSaleFeeRate;
             timeSaleGoods.timeSaleSupportPrice = data.timeSaleSupportPrice;
             timeSaleGoods.potenCouponDiscount = potenCouponInfo.potenCouponDiscount;
-            timeSaleGoods.timeSalePayoutAmount = potenCouponInfo.potenCouponGoodsPrice * (1 - data.timeSaleFeeRate/100);
-
+            timeSaleGoods.timeSalePayoutAmount = MathUtil.multipliedBy(potenCouponInfo.potenCouponGoodsPrice,(1 - MathUtil.dividedBy(data.timeSaleFeeRate,100)));
             timeSaleGoods.timeSalePriority = data.timeSalePriority; //202104 추가
+            //202205 eventFlag 옵션에 추가.
+            timeSaleGoods.eventOptionPrice = data.eventOptionPrice;
+            timeSaleGoods.eventOptionName = data.eventOptionName;
+            timeSaleGoods.eventGoodsNm = data.eventGoodsNm; //2022.05추가
+
 
             let v_startDateTime =  moment(data.timeSaleStart);
             let v_endDateTime = moment(data.timeSaleEnd);
@@ -224,7 +234,7 @@ export default class B2cTimeSaleReg extends Component{
                 //이번주 목요일 오전10시 일자 구하기
                 let nowDate = moment().day(4).hours(10).minutes(0).seconds(0).milliseconds(0).toDate();
                 let v_startDate = moment(nowDate).format('YYYY-MM-DD');
-                let v_endDate = moment(v_startDate).add("days", 1).format('YYYY-MM-DD');
+                let v_endDate = moment(v_startDate).add(1,"days").format('YYYY-MM-DD');
                 this.setState({
                     timeSaleStart: v_startDate, timeSaleEnd: v_endDate
                 });
@@ -233,7 +243,7 @@ export default class B2cTimeSaleReg extends Component{
                 let next_thurs = moment().weekday(7+4);
                 let nowDate = next_thurs.hours(10).minutes(0).seconds(0).milliseconds(0).toDate();
                 let v_startDate = moment(nowDate).format('YYYY-MM-DD');
-                let v_endDate = moment(v_startDate).add("days", 1).format('YYYY-MM-DD');
+                let v_endDate = moment(v_startDate).add(1,"days").format('YYYY-MM-DD');
                 this.setState({
                     timeSaleStart: v_startDate, timeSaleEnd: v_endDate
                 });
@@ -310,7 +320,9 @@ export default class B2cTimeSaleReg extends Component{
         timeSaleGoods[name] = value;
 
         if(name === "timeSalePayoutAmount") {
-            timeSaleGoods.timeSaleFeeRate = (1 - (ComUtil.toNum(value) / timeSaleGoods.currentPrice)) * 100;
+            //timeSaleGoods.timeSaleFeeRate = (1 - (ComUtil.toNum(value) / timeSaleGoods.eventOptionPrice)) * 100;
+            timeSaleGoods.timeSaleFeeRate = MathUtil.multipliedBy((1 - MathUtil.dividedBy(ComUtil.toNum(value),timeSaleGoods.eventOptionPrice)),100);
+
         }
 
         // if(name == "timeSalePrice"){
@@ -370,11 +382,15 @@ export default class B2cTimeSaleReg extends Component{
         timeSaleGoods.timeSaleStart = startDate;
         timeSaleGoods.timeSaleEnd = endDate;
         timeSaleGoods.timeSale = true;
-        timeSaleGoods.timeSalePrice = ComUtil.toNum(timeSaleGoods.currentPrice)
+        timeSaleGoods.timeSalePrice = ComUtil.toNum(timeSaleGoods.eventOptionPrice)
         //202104 노출우선순위 추가
         timeSaleGoods.timeSalePriority = ComUtil.toNum(timeSaleGoods.timeSalePriority)
-        // timeSaleGoods.timeSalePrice = ComUtil.toNum(timeSaleGoods.currentPrice*(1-(timeSaleGoods.potenCouponDiscount/100)))
-        // timeSaleGoods.timeSaleFeeRate = ComUtil.toNum(timeSaleGoods.potenCouponDiscount);
+
+        if(!timeSaleGoods.eventGoodsNm) {
+            alert("이벤트용 상품명은 필수 입니다.");
+            return false;
+        }
+
 
         let params = timeSaleGoods;
 
@@ -385,6 +401,14 @@ export default class B2cTimeSaleReg extends Component{
                 return
             }
             if (status === 200) {
+                if(data === -1){
+                    alert('로그인을 다시 해야 합니다.');
+                    return
+                }
+                else if(data === -9){
+                    alert('포텐타임 쿠폰 등록이 안되어 있습니다.');
+                    return
+                }
                 // 닫기 및 목록 재조회
                 let params = {
                     refresh: true
@@ -417,92 +441,112 @@ export default class B2cTimeSaleReg extends Component{
 
 
         return (
-            <div className={Style.wrap}>
+            <Div custom={`
+                  position: relative;
+                  z-index:1019 !important;
+            `}>
 
                 <div className='pt-0 pl-2 pr-2 pb-1'>
                     <FormGroup>
                         <Alert color={'secondary'} className='small'>
+                            <Span fg={'danger'}>[포텐타임쿠폰]을 먼저 등록하고 진행해 주세요.</Span> <br/>
                             필수 항목 {star}을 모두 입력해야 등록이 가능합니다.<br/>
                             설정된 기간에 포텐타임이 APP에 노출되오니 정확하게 입력해 주세요.
                         </Alert>
                     </FormGroup>
 
-                    <FormGroup>
-                        <Label className={'font-weight-bold text-secondary small'}>기간 {star}</Label>
-                        <div className="d-flex align-items-center">
-                            <SingleDatePicker
-                                placeholder="시작일"
-                                date={this.state.timeSaleStart ? moment(this.state.timeSaleStart) : null}
-                                onDateChange={this.onCalendarDatesChange.bind(this,'start')}
-                                focused={this.state['timeSaleStartDateFocused']}
-                                onFocusChange={({ focused }) => this.setState({ ['timeSaleStartDateFocused']:focused })}
-                                id={"timeSaleStartDate"}
-                                numberOfMonths={1}
-                                withPortal
-                                small
-                                readOnly
-                                calendarInfoPosition="top"
-                                enableOutsideDays
-                                // daySize={45}
-                                verticalHeight={700}
-                                renderCalendarInfo={this.renderStartCalendarInfo.bind(this)}
-                            />
-                            <div className="pl-1" style={{width: '100px'}}>
-                                <Select
-                                    name={'timeSaleStartHH'}
-                                    options={this.state.hourOptions}
-                                    value={this.state.timeSaleStartHH ? this.state.hourOptions.find(itemHH => itemHH.value === this.state.timeSaleStartHH) : '00'}
-                                    onChange={this.onStartHHChange}
+                    <Flex>
+                        <FormGroup>
+                            <Label className={'font-weight-bold text-secondary small'}>기간 {star}</Label>
+                            <div className="d-flex align-items-center">
+                                <SingleDatePicker
+                                    placeholder="시작일"
+                                    date={this.state.timeSaleStart ? moment(this.state.timeSaleStart) : null}
+                                    onDateChange={this.onCalendarDatesChange.bind(this,'start')}
+                                    focused={this.state['timeSaleStartDateFocused']}
+                                    onFocusChange={({ focused }) => this.setState({ ['timeSaleStartDateFocused']:focused })}
+                                    id={"timeSaleStartDate"}
+                                    numberOfMonths={1}
+                                    withPortal
+                                    small
+                                    readOnly
+                                    calendarInfoPosition="top"
+                                    enableOutsideDays
+                                    // daySize={45}
+                                    verticalHeight={700}
+                                    renderCalendarInfo={this.renderStartCalendarInfo.bind(this)}
                                 />
-                            </div>
-                            <div className="pl-1" style={{width: '100px'}}>
-                                <Select
-                                    name={'timeSaleStartMM'}
-                                    options={this.state.minuteOptions}
-                                    value={this.state.timeSaleStartMM ? this.state.minuteOptions.find(itemMM => itemMM.value === this.state.timeSaleStartMM) : '00'}
-                                    onChange={this.onStartMMChange}
+                                <div className="pl-1" style={{width: '100px'}}>
+                                    <Select
+                                        name={'timeSaleStartHH'}
+                                        options={this.state.hourOptions}
+                                        value={this.state.timeSaleStartHH ? this.state.hourOptions.find(itemHH => itemHH.value === this.state.timeSaleStartHH) : '00'}
+                                        onChange={this.onStartHHChange}
+                                    />
+                                </div>
+                                <div className="pl-1" style={{width: '100px'}}>
+                                    <Select
+                                        name={'timeSaleStartMM'}
+                                        options={this.state.minuteOptions}
+                                        value={this.state.timeSaleStartMM ? this.state.minuteOptions.find(itemMM => itemMM.value === this.state.timeSaleStartMM) : '00'}
+                                        onChange={this.onStartMMChange}
+                                    />
+                                </div>
+                                <div className="pl-1 pr-1"><span>~</span></div>
+                                <SingleDatePicker
+                                    placeholder="종료일"
+                                    date={this.state.timeSaleEnd ? moment(this.state.timeSaleEnd) : null}
+                                    onDateChange={this.onCalendarDatesChange.bind(this,'end')}
+                                    focused={this.state['timeSaleEndDateFocused']}
+                                    onFocusChange={({ focused }) => this.setState({ ['timeSaleEndDateFocused']:focused })}
+                                    id={"timeSaleEndDate"}
+                                    numberOfMonths={1}
+                                    withPortal
+                                    small
+                                    readOnly
+                                    calendarInfoPosition="top"
+                                    enableOutsideDays
+                                    // daySize={45}
+                                    verticalHeight={700}
+                                    renderCalendarInfo={this.renderEndCalendarInfo.bind(this)}
                                 />
+                                <div className="pl-1" style={{width: '100px'}}>
+                                    <Select
+                                        name={'timeSaleEndHH'}
+                                        options={this.state.hourOptions}
+                                        value={this.state.timeSaleEndHH ? this.state.hourOptions.find(itemHH => itemHH.value === this.state.timeSaleEndHH) : '00'}
+                                        onChange={this.onEndHHChange}
+                                    />
+                                </div>
+                                <div className="pl-1" style={{width: '100px'}}>
+                                    <Select
+                                        name={'timeSaleEndMM'}
+                                        options={this.state.minuteOptions}
+                                        value={this.state.timeSaleEndMM ? this.state.minuteOptions.find(itemMM => itemMM.value === this.state.timeSaleEndMM) : '00'}
+                                        onChange={this.onEndMMChange}
+                                    />
+                                </div>
                             </div>
-                            <div className="pl-1 pr-1"><span>~</span></div>
-                            <SingleDatePicker
-                                placeholder="종료일"
-                                date={this.state.timeSaleEnd ? moment(this.state.timeSaleEnd) : null}
-                                onDateChange={this.onCalendarDatesChange.bind(this,'end')}
-                                focused={this.state['timeSaleEndDateFocused']}
-                                onFocusChange={({ focused }) => this.setState({ ['timeSaleEndDateFocused']:focused })}
-                                id={"timeSaleEndDate"}
-                                numberOfMonths={1}
-                                withPortal
-                                small
-                                readOnly
-                                calendarInfoPosition="top"
-                                enableOutsideDays
-                                // daySize={45}
-                                verticalHeight={700}
-                                renderCalendarInfo={this.renderEndCalendarInfo.bind(this)}
-                            />
-                            <div className="pl-1" style={{width: '100px'}}>
-                                <Select
-                                    name={'timeSaleEndHH'}
-                                    options={this.state.hourOptions}
-                                    value={this.state.timeSaleEndHH ? this.state.hourOptions.find(itemHH => itemHH.value === this.state.timeSaleEndHH) : '00'}
-                                    onChange={this.onEndHHChange}
-                                />
+                            <span className={'small text-secondary'}>
+                                * 포텐타임이 APP에 노출되는 기간을 선택해 주세요.
+                            </span>
+                        </FormGroup>
+                        <FormGroup>
+                            <Label className={'font-weight-bold text-secondary small'}>이벤트 상품명 {star}</Label>
+                            <div className="input-group">
+                                <input type="text"
+                                       name={'eventGoodsNm'}
+                                       className="ml-1"
+                                       style={{width:'300px'}}
+                                       value={timeSaleGoods.eventGoodsNm||""}
+                                       placeholder={'이벤트기간에만 누출(필수 입력)'}
+                                       onChange={this.onInputTimeSaleGoodsChange} />
                             </div>
-                            <div className="pl-1" style={{width: '100px'}}>
-                                <Select
-                                    name={'timeSaleEndMM'}
-                                    options={this.state.minuteOptions}
-                                    value={this.state.timeSaleEndMM ? this.state.minuteOptions.find(itemMM => itemMM.value === this.state.timeSaleEndMM) : '00'}
-                                    onChange={this.onEndMMChange}
-                                />
-                            </div>
-                        </div>
-                        <span className={'small text-secondary'}>
-                            * 포텐타임이 APP에 노출되는 기간을 선택해 주세요.
-                        </span>
-                    </FormGroup>
-
+                            <span className={'small text-secondary'}>
+                                * 설정된 시간동안 상품명에 적용됩니다.
+                            </span>
+                        </FormGroup>
+                    </Flex>
                     <FormGroup>
                         <Label className={'font-weight-bold text-secondary small'}>포텐타임 상품등록 {star}</Label>
                         <div className="d-flex">
@@ -513,7 +557,7 @@ export default class B2cTimeSaleReg extends Component{
                                         <input type="text"
                                                name={'mdPickProducerNo'}
                                                className="ml-1"
-                                               style={{width:'100px'}}
+                                               style={{width:'50px'}}
                                                value={timeSaleGoods.producerNo||""}
                                                readOnly='readonly'
                                                placeholder={'생산자번호'}
@@ -521,7 +565,7 @@ export default class B2cTimeSaleReg extends Component{
                                         <input type="text"
                                                name={'mdPickProducerFarmNm'}
                                                className="ml-1"
-                                               style={{width:'200px'}}
+                                               style={{width:'100px'}}
                                                value={timeSaleGoods.producerFarmNm||""}
                                                readOnly='readonly'
                                                placeholder={'생산자명'}
@@ -529,8 +573,8 @@ export default class B2cTimeSaleReg extends Component{
                                         <input type="text"
                                                name={'mdPickGoodsNm'}
                                                className="ml-1"
-                                               style={{width:'300px'}}
-                                               value={timeSaleGoods.goodsNm||""}
+                                               style={{width:'450px'}}
+                                               value={timeSaleGoods.goodsNm ||""}
                                                readOnly='readonly'
                                                placeholder={'상품명'}
                                                onChange={this.onInputTimeSaleGoodsChange} />
@@ -555,6 +599,10 @@ export default class B2cTimeSaleReg extends Component{
 
                             </div>
                         </div>
+                        {timeSaleGoods.goodsNm &&
+                            <div> 선택된 이벤트옵션: {timeSaleGoods.eventOptionName} </div>
+                        }
+
                         {
                             (timeSaleGoods.goodsNo) && (
                                 <div>
@@ -569,15 +617,18 @@ export default class B2cTimeSaleReg extends Component{
                                                onChange={this.onInputChange}
                                         /> (동일시간 시작시, 우선순위 낮은값일수록 우선노출)
                                     </div>
-                                    <div className="mt-1">소비자가 : {ComUtil.addCommas(timeSaleGoods.consumerPrice)} 원</div>
-                                    <div className="mt-1">판매가 : {ComUtil.addCommas(timeSaleGoods.currentPrice)} 원 ({ComUtil.addCommas(Math.round(timeSaleGoods.discountRate,0))}%)</div>
+                                    {/*<div className="mt-1">소비자가 : {ComUtil.addCommas(timeSaleGoods.consumerPrice)} 원</div>*/}
+                                    <div className="mt-1">
+                                        판매가 : {ComUtil.addCommas(timeSaleGoods.eventOptionPrice)} 원
+                                        {/*({ComUtil.addCommas(Math.round(timeSaleGoods.discountRate,0))}%)*/}
+                                    </div>
                                     <div className="mt-1">
                                         포텐타임가 : <input type="number"
                                                        name={'timeSalePrice'}
                                                        className="ml-1"
-                                                       style={{width:'100px'}}
+                                                       style={{width:'150px'}}
                                                        // value={timeSaleGoods.currentPrice}
-                                                       value={timeSaleGoods.currentPrice*(1-(timeSaleGoods.potenCouponDiscount/100))}
+                                                       value={MathUtil.multipliedBy(timeSaleGoods.eventOptionPrice,(1-MathUtil.dividedBy(timeSaleGoods.potenCouponDiscount,100)))}
                                                        // value={timeSaleGoods.timeSalePrice||""}
                                                        placeholder={'포텐타임가'}
                                                        // onChange={this.onInputChange}
@@ -651,7 +702,7 @@ export default class B2cTimeSaleReg extends Component{
                     </ModalFooter>
                 </Modal>
 
-            </div>
+            </Div>
         )
     }
 }

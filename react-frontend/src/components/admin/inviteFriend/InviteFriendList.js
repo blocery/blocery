@@ -1,15 +1,21 @@
-import React, {Component} from "react";
-import {BlocerySpinner, ExcelDownload} from "~/components/common";
+import React, {useEffect, useState} from "react";
+import {ExcelDownload} from "~/components/common";
 import {AgGridReact} from "ag-grid-react";
 import ComUtil from "~/util/ComUtil";
 import {getLoginAdminUser} from "~/lib/loginApi";
 import {getInviteFriendList} from"~/lib/adminApi";
-import {Flex, Div, Span} from '~/styledComponents/shared'
+import {Flex, Div, Span, FilterGroup, Hr} from '~/styledComponents/shared'
+import {Button, Modal, ModalBody, ModalFooter, ModalHeader} from "reactstrap";
+import {useModal} from "~/util/useModal";
+import moment from "moment-timezone";
+
 import AbuserRenderer from "~/components/common/agGridRenderers/AbuserRenderer";
 import StoppedUserRenderer from "~/components/common/agGridRenderers/StoppedUserRenderer";
-import {Button, Modal, ModalBody, ModalFooter, ModalHeader} from "reactstrap";
 import ConsumerDetail from "~/components/common/contents/ConsumerDetail";
-
+import SearchDates from '~/components/common/search/SearchDates'
+import FilterContainer from "~/components/common/gridFilter/FilterContainer";
+import InputFilter from "~/components/common/gridFilter/InputFilter";
+import CheckboxFilter from "~/components/common/gridFilter/CheckboxFilter";
 
 const FriendAbuserRenderer = (props) => {
     const data = {
@@ -19,144 +25,167 @@ const FriendAbuserRenderer = (props) => {
         data={data}
     />
 }
+const InviteFriendList = (props) => {
 
-export default class InviteFriendList extends Component{
-    constructor(props) {
-        super(props);
-        this.state = {
-            isOpen: false,
-            modalValue: null,
-            loading: false,
-            data: [],
-            excelData: null,
-            columnDefs: [
-                {headerName: "고객번호", field: "consumerNo", width: 100, cellStyle:this.getCellStyle({cellAlign: 'center'})},
-                {headerName: "이름", field: "name", width: 100, cellRenderer: "nameRenderer", cellStyle:this.getCellStyle({cellAlign: 'center'})},
-                {headerName: "어뷰징", field: "abuser",
-                    suppressFilter: true,   //no filter
-                    suppressSorting: true,  //no sort
-                    cellRenderer: "abuserRenderer"},
-                {headerName: "탈퇴", field: "abuser",
-                    suppressFilter: true,   //no filter
-                    suppressSorting: true,  //no sort
-                    cellRenderer: "stoppedUserRenderer"},
-                {headerName: "이메일", field: "email", width: 200, cellStyle:this.getCellStyle({cellAlign: 'center'})},
-                {headerName: "연락처", field: "phone", width: 130, cellStyle:this.getCellStyle({cellAlign: 'center'})},
-                {headerName: "지급금액", field: "rewardWon", width: 130, cellStyle:this.getCellStyle({cellAlign: 'center'}), cellRenderer: 'formatCurrencyRenderer'},
-                {headerName: "지급BLY", field: "blyAmount", width: 130, cellStyle:this.getCellStyle({cellAlign: 'center'})},
-                {headerName: "환율", field: "exchangeRate", width: 130, cellStyle:this.getCellStyle({cellAlign: 'center'})},
-                {headerName: "친구 이름", field: "friendName", width: 100, cellStyle:this.getCellStyle({cellAlign: 'center'}), cellRenderer: "friendNameRenderer"},
-                {headerName: "어뷰징", field: "abuser",
-                    suppressFilter: true,   //no filter
-                    suppressSorting: true,  //no sort
-                    cellRenderer: "friendAbuserRenderer"},
-                {headerName: "친구 이메일", field: "friendEmail", width: 200, cellStyle:this.getCellStyle({cellAlign: 'center'})},
-                {headerName: "친구 전화", field: "friendPhone", width: 200, cellStyle:this.getCellStyle({cellAlign: 'center'})},
-                {headerName: "친추코드입력일", field: "joinTime", width: 200, cellStyle:this.getCellStyle({cellAlign: 'center'}), cellRenderer: 'formatDateTimeRenderer'},
-            ],
-            defaultColDef: {
-                width: 110,
-                resizable: true,
-                filter: true,
-                sortable: true,
-                floatingFilter: false,
-                filterParams: {
-                    newRowsAction: 'keep'
-                }
-            },
-            frameworkComponents: {
+    const [gridApi, setGridApi] = useState(null);
 
-                nameRenderer: this.nameRenderer,
-                abuserRenderer: AbuserRenderer,
+    const [modalOpen, setModalOpen, selected, setSelected, setModalState] = useModal()
 
-                friendNameRenderer: this.friendNameRenderer,
-                friendAbuserRenderer: FriendAbuserRenderer,
+    const [search, setSearch] = useState({
+        isSearch:true,
+        selectedGubun: 'day', //'week': 최초화면을 오늘(day)또는 1주일(week)로 설정.
+        startDate: moment(moment().toDate()),
+        endDate: moment(moment().toDate()),
+    });
+
+    const [dataList, setDataList] = useState([]);
+    const [excelData, setDataExcel] = useState([]);
+
+    const [totalCount, setTotalCount] = useState(0);
+    const [totalWon, setTotalWon] = useState(0);
+    const [totalBly, setTotalBly] = useState(0);
 
 
-                stoppedUserRenderer: StoppedUserRenderer,
-                formatCurrencyRenderer: this.formatCurrencyRenderer,
-                formatDateTimeRenderer: this.formatDateTimeRenderer
-            },
-            overlayLoadingTemplate: '<span class="ag-overlay-loading-center">...로딩중입니다...</span>',
-            overlayNoRowsTemplate: '<span class="ag-overlay-loading-center">조회된 내역이 없습니다</span>',
-            totalCount: 0,
-            totalWon: 0,
-            totalBly: 0,
-        }
-    }
+    const agGrid = {
+        columnDefs: [
+            {headerName: "고객번호", field: "consumerNo", width: 100, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'})},
+            {headerName: "이름", field: "name", width: 100, cellRenderer: "nameRenderer", cellStyle:ComUtil.getCellStyle({cellAlign: 'center'})},
+            {headerName: "어뷰징", field: "abuser",
+                suppressFilter: true,   //no filter
+                suppressSorting: true,  //no sort
+                cellRenderer: "abuserRenderer"},
+            {headerName: "탈퇴", field: "abuser",
+                suppressFilter: true,   //no filter
+                suppressSorting: true,  //no sort
+                cellRenderer: "stoppedUserRenderer"},
+            {headerName: "이메일", field: "email", width: 200, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'})},
+            {headerName: "연락처", field: "phone", width: 130, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'})},
+            {headerName: "지급금액", field: "rewardWon", width: 130, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}), cellRenderer: 'formatCurrencyRenderer'},
+            {headerName: "지급BLY", field: "blyAmount", width: 130, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'})},
+            {headerName: "환율", field: "exchangeRate", width: 130, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'})},
+            {headerName: "친구 이름", field: "friendName", width: 100, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}), cellRenderer: "friendNameRenderer"},
+            {headerName: "어뷰징", field: "abuser",
+                suppressFilter: true,   //no filter
+                suppressSorting: true,  //no sort
+                cellRenderer: "friendAbuserRenderer"},
+            {headerName: "친구 이메일", field: "friendEmail", width: 200, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'})},
+            {headerName: "친구 전화", field: "friendPhone", width: 200, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'})},
+            {headerName: "친추코드입력일", field: "joinTime", width: 200, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}), cellRenderer: 'formatDateTimeRenderer'},
+            {headerName: "리워드일", field: "rewardDate", width: 200, cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}), cellRenderer: 'formatUtcDateTimeRenderer'},
+        ],
+        defaultColDef: {
+            width: 110,
+            resizable: true,
+            filter: true,
+            sortable: true,
+            floatingFilter: true,
+            filterParams: {
+                newRowsAction: 'keep'
+            }
+        },
+        rowHeight:35,
+        frameworkComponents: {
+            nameRenderer: nameRenderer,
+            abuserRenderer: AbuserRenderer,
+            friendNameRenderer: friendNameRenderer,
+            friendAbuserRenderer: FriendAbuserRenderer,
+            stoppedUserRenderer: StoppedUserRenderer,
+            formatCurrencyRenderer: formatCurrencyRenderer,
+            formatDateTimeRenderer: formatDateTimeRenderer,
+            formatUtcDateTimeRenderer: formatUtcDateTimeRenderer
+        },
+        overlayLoadingTemplate: '<span class="ag-overlay-loading-center">...로딩중입니다...</span>',
+        overlayNoRowsTemplate: '<span class="ag-overlay-loading-center">조회된 내역이 없습니다</span>'
+    };
+
+    //[이벤트] 그리드 로드 후 callback 이벤트 API init
+    const onGridReady = params => {
+        setGridApi(params.api);
+    };
 
     //Ag-Grid Cell 숫자콤마적용 렌더러
-    formatCurrencyRenderer = ({value, data: rowData}) => {
+    function formatCurrencyRenderer ({value, data: rowData}) {
         //console.log("rowData",rowData);
         return ComUtil.addCommas(value);
     };
     //Ag-Grid Cell 날짜변환 렌더러
-    formatDateTimeRenderer = ({value, data: rowData}) => {
+    function formatDateTimeRenderer ({value, data: rowData}) {
         let strDate = String(value);
         let result = strDate.slice(0,4) + "-" + strDate.slice(4,6) + "-" + strDate.slice(6,8) + " " + strDate.slice(8,10) + ":" + strDate.slice(10,12);
         return result;
     };
-
-    // Ag-Grid Cell 스타일 기본 적용 함수
-    getCellStyle ({cellAlign,color,textDecoration,whiteSpace, fontWeight}){
-        if(cellAlign === 'left') cellAlign='flex-start';
-        else if(cellAlign === 'center') cellAlign='center';
-        else if(cellAlign === 'right') cellAlign='flex-end';
-        else cellAlign='flex-start';
-        return {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: cellAlign,
-            color: color,
-            textDecoration: textDecoration,
-            whiteSpace: whiteSpace,
-            fontWeight: fontWeight
-        }
+    //Ag-Grid Cell 날짜변환 렌더러
+    function formatUtcDateTimeRenderer ({value, data: rowData}) {
+        let result = ComUtil.utcToString(value,"YYYY-MM-DD HH:mm")
+        return result;
+    };
+    function nameRenderer ({value, data}) {
+        return <Span fg={'primary'} onClick={onNameClick.bind(this, data.consumerNo)}><u>{value}</u></Span>
+    }
+    function friendNameRenderer ({value, data}) {
+        return <Span fg={'primary'} onClick={onNameClick.bind(this, data.friendNo)}><u>{value}</u></Span>
     }
 
-    async componentDidMount() {
-        let user = await getLoginAdminUser();
-        if (!user || user.email.indexOf('ezfarm') < 0) {
-            //admin은 웹전용이라서, window로 이동하는 것이 더 잘됨. //this.props.history.push('/admin');
-            window.location = '/admin/login';
+    useEffect(() => {
+        async function fetch() {
+            const user = await getLoginAdminUser();
+            if (!user || user.email.indexOf('ezfarm') < 0) {
+                //admin은 웹전용이라서, window로 이동하는 것이 더 잘됨. //this.props.history.push('/admin');
+                window.location = '/admin/login';
+            }
+
+            await getSearch();
         }
+        fetch();
 
-        this.search();
-    }
+    }, []);
 
-    search = async () => {
-        this.setState({loading: true});
-        const {status, data} = await getInviteFriendList();
+    const getSearch = async (searchButtonClicked) => {
+
+        if(searchButtonClicked) {
+            if (!search.startDate || !search.endDate) {
+                alert('시작일과 종료일을 선택해주세요')
+                return;
+            }
+        }
+        if(gridApi) {
+            //ag-grid 레이지로딩중 보이기
+            gridApi.showLoadingOverlay();
+        }
+        const params = {
+            startDate:search.startDate ? moment(search.startDate).format('YYYYMMDD'):null,
+            endDate:search.endDate ? moment(search.endDate).format('YYYYMMDD'):null
+        };
+        const {status, data} = await getInviteFriendList(params);
         if (status !== 200) {
             alert('응답이 실패 하였습니다');
             return;
         }
-        console.log(data);
-        this.setExcelData(data);
+        setExcelData(data);
 
-        let totalWon = 0;
-        let totalBly = 0;
+        let iTotalWon = 0;
+        let iTotalBly = 0;
         data.map(item => {
-            totalBly = ComUtil.doubleAdd(totalBly, item.blyAmount);
-            totalWon += item.rewardWon;
+            iTotalBly = ComUtil.doubleAdd(iTotalBly, item.blyAmount);
+            iTotalWon += item.rewardWon;
         })
 
-        this.setState({
-            data: data,
-            loading: false,
-            totalCount : data.length,
-            totalWon : totalWon,
-            totalBly : totalBly
-        })
+        setDataList(data);
+        setTotalCount(data.length);
+        setTotalWon(iTotalWon);
+        setTotalBly(iTotalBly);
+
+        //ag-grid api
+        if(gridApi) {
+            //ag-grid 레이지로딩중 감추기
+            gridApi.hideOverlay()
+        }
     }
 
-    setExcelData = (data) => {
-        let excelData = this.getExcelData(data);
-        this.setState({
-            excelData: excelData
-        })
+    const setExcelData = (data) => {
+        setDataExcel(getExcelData(data))
     }
-    getExcelData = (dataList) => {
+    const getExcelData = (dataList) => {
 
         const columns = [
             '고객번호', '이름', '이메일', '연락처', '지급금액', '지급BLY',
@@ -177,92 +206,131 @@ export default class InviteFriendList extends Component{
             data: data
         }]
     }
-    onNameClick = (consumerNo) => {
-        // console.log({data})
-        this.setState({
-            modalValue: consumerNo
-        }, () => this.toggle())
+    const onNameClick = (consumerNo) => {
+        setSelected(consumerNo)
+        setModalOpen(true);
     }
 
-    nameRenderer = ({value, data}) => {
-        return <Span fg={'primary'} onClick={this.onNameClick.bind(this, data.consumerNo)}><u>{value}</u></Span>
+    const onToggle = () => {
+        setModalOpen(!modalOpen)
     }
-
-    friendNameRenderer = ({value, data}) => {
-        return <Span fg={'primary'} onClick={this.onNameClick.bind(this, data.friendNo)}><u>{value}</u></Span>
-    }
-
-
-    toggle = () => {
-        const isOpen = !this.state.isOpen
-        this.setState({
-            isOpen: isOpen
-        })
-    }
-    copy = ({value}) => {
+    const copy = ({value}) => {
         ComUtil.copyTextToClipboard(value, '', '');
     }
-    render() {
-        return (
-            <div>
-                {
-                    this.state.loading && <BlocerySpinner/>
-                }
 
-                <Flex mt={10}>
-                    <div className="p-1 pl-3 pt-2">
-                        총 건수 : {ComUtil.addCommas(this.state.totalCount)}명, 친구초대 회원가입 적립금: {ComUtil.toCurrency(this.state.totalWon)}원, ({ComUtil.toCurrency(this.state.totalBly)} BLY)
-                    </div>
-                    <div className="flex-grow-1 text-right mr-1">
-                        <ExcelDownload data={this.state.excelData}
-                                       fileName="친구초대 가입이벤트"
-                                       size={'md'}
-                                       buttonName="Excel 다운로드"
-                        />
-                    </div>
-                </Flex>
-
-                <div className="p-1">
-                    <div
-                        id="myGrid"
-                        className="ag-theme-balham"
-                        style={{
-                            height: '700px'
-                        }}
-                    >
-                        <AgGridReact
-                            // enableSorting={true}                //정렬 여부
-                            // enableFilter={true}                 //필터링 여부
-                            floatingFilter={true}               //Header 플로팅 필터 여부
-                            columnDefs={this.state.columnDefs}  //컬럼 세팅
-                            defaultColDef={this.state.defaultColDef}
-                            // components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
-                            frameworkComponents={this.state.frameworkComponents}
-                            // enableColResize={true}              //컬럼 크기 조정
-                            overlayLoadingTemplate={this.state.overlayLoadingTemplate}
-                            overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
-                            // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
-                            rowData={this.state.data}
-                            rowHeight={35}
-                            onCellDoubleClicked={this.copy}
-                        >
-                        </AgGridReact>
-                    </div>
-                </div>
-                <Modal size="lg" isOpen={this.state.isOpen}
-                       toggle={this.toggle} >
-                    <ModalHeader toggle={this.toggle}>
-                        소비자 상세 정보
-                    </ModalHeader>
-                    <ModalBody>
-                        <ConsumerDetail consumerNo={this.state.modalValue}
-                                        onClose={this.toggle} />
-                    </ModalBody>
-                    <ModalFooter>
-                        <Button color="secondary" onClick={this.toggle}>닫기</Button>
-                    </ModalFooter>
-                </Modal>
-            </div>
-        )
+    const onDatesChange = async (data) => {
+        const search = Object.assign({}, search);
+        search.startDate = data.startDate;
+        search.endDate = data.endDate;
+        search.selectedGubun = data.gubun;
+        search.isSearch = data.isSearch;
+        setSearch(search);
     }
+
+    return (
+        <div>
+            <div className="ml-2 mt-2 mr-2">
+                <Flex bc={'secondary'} m={3} p={7}>
+                    <Div pl={10} pr={20} py={1}> 기 간 (리워드일) </Div>
+                    <Div ml={10} >
+                        <Flex>
+                            <SearchDates
+                                gubun={search.selectedGubun}
+                                startDate={search.startDate}
+                                endDate={search.endDate}
+                                onChange={onDatesChange}
+                            />
+                            <Button className="ml-3" color="primary" onClick={() => getSearch(true)}> 검 색 </Button>
+                        </Flex>
+                    </Div>
+                </Flex>
+            </div>
+
+            {/* filter START */}
+            <FilterContainer gridApi={gridApi} excelFileName={'친추가입 적립내역'}>
+                <FilterGroup>
+                    <InputFilter
+                        gridApi={gridApi}
+                        columns={[
+                            {field: 'consumerNo', name: '고객번호'},
+                            {field: 'name', name: '이름'},
+                            {field: 'email', name: '이메일'},
+                            {field: 'phone', name: '연락처'},
+                            {field: 'friendName', name: '친구이름'},
+                            {field: 'friendEmail', name: '친구이메일'},
+                            {field: 'friendPhone', name: '친구전화'},
+                        ]}
+                        isRealTime={true}
+                    />
+                </FilterGroup>
+                {/*<Hr/>*/}
+                {/*<FilterGroup>*/}
+                {/*    <CheckboxFilter*/}
+                {/*        gridApi={gridApi}*/}
+                {/*        field={'authType'}*/}
+                {/*        name={'가입경로'}*/}
+                {/*        data={[*/}
+                {/*            {value: '0', name: '일반'},*/}
+                {/*            {value: '1', name: '카카오'},*/}
+                {/*        ]}*/}
+                {/*    />*/}
+                {/*    <CheckboxFilter*/}
+                {/*        gridApi={gridApi}*/}
+                {/*        field={'stoppedUser'}*/}
+                {/*        name={'탈퇴여부'}*/}
+                {/*        data={[*/}
+                {/*            {value: true, name: '탈퇴'},*/}
+                {/*            {value: false, name: '미탈퇴'},*/}
+                {/*        ]}*/}
+                {/*    />*/}
+                {/*</FilterGroup>*/}
+            </FilterContainer>
+            {/* filter END */}
+
+            <Flex mt={10}>
+                <div className="p-1 pl-3 pt-2">
+                    총 건수 : {ComUtil.addCommas(totalCount)}명, 친구초대 회원가입 적립금: {ComUtil.toCurrency(totalWon)}원, ({ComUtil.toCurrency(totalBly)} BLY)
+                </div>
+                <div className="flex-grow-1 text-right mr-1">
+                    <ExcelDownload data={excelData}
+                                   fileName="친추가입 적립내역"
+                                   size={'md'}
+                                   buttonName="Excel 다운로드"
+                    />
+                </div>
+            </Flex>
+
+            <div className="p-1">
+                <div
+                    id="myGrid"
+                    className="ag-theme-balham"
+                    style={{
+                        height: '550px'
+                    }}
+                >
+                    <AgGridReact
+                        gridOptions={agGrid}
+                        rowData={dataList}
+                        onGridReady={onGridReady}
+                        onCellDoubleClicked={copy}
+                    >
+                    </AgGridReact>
+                </div>
+            </div>
+            <Modal size="lg" isOpen={modalOpen}
+                   toggle={onToggle} >
+                <ModalHeader toggle={onToggle}>
+                    소비자 상세 정보
+                </ModalHeader>
+                <ModalBody>
+                    <ConsumerDetail consumerNo={selected} onClose={onToggle} />
+                </ModalBody>
+                <ModalFooter>
+                    <Button color="secondary" onClick={onToggle}>닫기</Button>
+                </ModalFooter>
+            </Modal>
+        </div>
+    )
+
 }
+export default InviteFriendList

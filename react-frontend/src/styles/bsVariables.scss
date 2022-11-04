@@ -1,0 +1,9 @@
+/* 부트스트랩 컬러 오버라이드 : bootstrap color roverride */
+
+/* 기본 텍스트 색상(아무것도 지정하지 않으면 아래 색상으로 됨) : ~/styledComponents/Properties.js 의 color 과 맞춰야 됨 */
+$gray-900: #333738;   //color.black
+$success: #5a9267;    //color.green
+$cyan: #5a9267;       //color.green
+$blue: #1d57ae;       //color.primary
+$red: #ff3a25;        //color.danger
+@import "~bootstrap/scss/bootstrap";

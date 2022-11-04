@@ -8,6 +8,7 @@ import { setMissionClear } from "~/lib/eventApi"
 import TextCss from "~/styles/Text.module.scss"
 
 import DaumPostcode from 'react-daum-postcode';
+import BackNavigation from "~/components/common/navs/BackNavigation";
 export default class AddressModify extends Component {
     constructor(props){
         super(props);
@@ -18,6 +19,7 @@ export default class AddressModify extends Component {
             receiverName: '',
             phone: '',
             addr: '',
+            roadAddr: '',
             addrDetail: '',
             zipNo: '',
             modal: false,
@@ -38,15 +40,15 @@ export default class AddressModify extends Component {
 
         if(this.props.location){
             const params = new URLSearchParams(this.props.location.search)
-            index = params.get('index')
-            flag = params.get('flag')
+            index = params.get('index')||null;
+            flag = params.get('flag')||'';
         }else{
-            index = this.props.index
-            flag = this.props.flag
+            index = this.props.index||null;
+            flag = this.props.flag||'';
         }
 
-        this.setState({ flag: flag })
         this.setState({
+            flag: flag,
             addressIndex: index
         })
 
@@ -56,7 +58,7 @@ export default class AddressModify extends Component {
     search = async () => {
         const {data:loginUser} = await getConsumer();
 
-        console.log(loginUser)
+        //console.log(loginUser)
 
         this.setState({
             consumerNo: loginUser.consumerNo,
@@ -70,12 +72,11 @@ export default class AddressModify extends Component {
                 receiverName: modifyAddress.receiverName,
                 phone: modifyAddress.phone,
                 addr: modifyAddress.addr,
+                roadAddr: modifyAddress.roadAddr,
                 addrDetail: modifyAddress.addrDetail,
-                zipNo: modifyAddress.zipNo
+                zipNo: modifyAddress.zipNo,
+                isCheckedDefault: modifyAddress.basicAddress === 1 ? true:false
             })
-            if(modifyAddress.basicAddress === 1) {
-                this.setState({ isCheckedDefault: true })
-            }
         }
 
     }
@@ -109,6 +110,7 @@ export default class AddressModify extends Component {
 
         let zipNo = data.zonecode;
         let fullAddress = data.address;
+        let roadFullAddress = data.roadAddress;
         let extraAddress = '';
 
         if (data.userSelectedType === 'R') { // 사용자가 도로명 주소를 선택했을 경우
@@ -117,19 +119,20 @@ export default class AddressModify extends Component {
             fullAddress = data.jibunAddress;
         }
 
+        if (data.bname !== '') {
+            extraAddress += data.bname;
+        }
+        if (data.buildingName !== '') {
+            extraAddress += (extraAddress !== '' ? `, ${data.buildingName}` : data.buildingName);
+        }
         if (data.addressType === 'R') {
-            if (data.bname !== '') {
-                extraAddress += data.bname;
-            }
-            if (data.buildingName !== '') {
-                extraAddress += (extraAddress !== '' ? `, ${data.buildingName}` : data.buildingName);
-            }
             fullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
         }
-        let v_address = fullAddress;
+        roadFullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
 
         this.setState({
             addr: fullAddress,
+            roadAddr:roadFullAddress,
             zipNo: zipNo
         });
 
@@ -154,31 +157,34 @@ export default class AddressModify extends Component {
 
         let data = {};
         let modifiedAddress = {};
-        const index = this.state.addressIndex
+        const index = state.addressIndex
         if (index !== null) {       // 배송지 수정일
-            this.state.addresses[index].addrName = this.state.addrName;
-            this.state.addresses[index].receiverName = this.state.receiverName;
-            this.state.addresses[index].phone = this.state.phone;
-            this.state.addresses[index].addr = this.state.addr;
-            this.state.addresses[index].addrDetail = this.state.addrDetail;
-            this.state.addresses[index].zipNo = this.state.zipNo;
+            state.addresses[index].addrName = state.addrName;
+            state.addresses[index].receiverName = state.receiverName;
+            state.addresses[index].phone = state.phone;
+            state.addresses[index].addr = state.addr;
+            state.addresses[index].roadAddr = state.roadAddr;
+            state.addresses[index].addrDetail = state.addrDetail;
+            state.addresses[index].zipNo = state.zipNo;
 
             modifiedAddress = Object.assign({
-                addrName: this.state.addresses[index].addrName,
-                receiverName: this.state.addresses[index].receiverName,
-                phone: this.state.addresses[index].phone,
-                addr: this.state.addresses[index].addr,
-                addrDetail: this.state.addresses[index].addrDetail,
-                zipNo: this.state.addresses[index].zipNo
+                addrName: state.addresses[index].addrName,
+                receiverName: state.addresses[index].receiverName,
+                phone: state.addresses[index].phone,
+                addr: state.addresses[index].addr,
+                roadAddr: state.addresses[index].roadAddr,
+                addrDetail: state.addresses[index].addrDetail,
+                zipNo: state.addresses[index].zipNo
             })
         } else {
-            data.addrName = this.state.addrName;
-            data.receiverName = this.state.receiverName;
-            data.phone = this.state.phone;
-            data.addr = this.state.addr;
-            data.addrDetail = this.state.addrDetail;
-            data.zipNo = this.state.zipNo;
-            if (this.state.addresses.length === 0) {
+            data.addrName = state.addrName;
+            data.receiverName = state.receiverName;
+            data.phone = state.phone;
+            data.addr = state.addr;
+            data.roadAddr = state.roadAddr;
+            data.addrDetail = state.addrDetail;
+            data.zipNo = state.zipNo;
+            if (state.addresses.length === 0) {
                 data.basicAddress = 1
             } else {
                 data.basicAddress = 0
@@ -186,27 +192,27 @@ export default class AddressModify extends Component {
             modifiedAddress = Object.assign(data)
         }
 
-        if (this.state.isCheckedDefault) {                  // 기본배송지로 저장 체크O
-            if (this.state.addressIndex !== null) {         // 배송지 수정일 때
-                for (var i = 0; i < this.state.addresses.length; i++) {
-                    this.state.addresses[i].basicAddress = 0
+        if (state.isCheckedDefault) {                  // 기본배송지로 저장 체크O
+            if (state.addressIndex !== null) {         // 배송지 수정일 때
+                for (let i = 0; i < state.addresses.length; i++) {
+                    state.addresses[i].basicAddress = 0
                 }
-                this.state.addresses[index].basicAddress = 1
+                state.addresses[index].basicAddress = 1
             } else {
-                for (var i = 0; i < this.state.addresses.length; i++) {
-                    this.state.addresses[i].basicAddress = 0
+                for (let i = 0; i < state.addresses.length; i++) {
+                    state.addresses[i].basicAddress = 0
                 }
                 data.basicAddress = 1
             }
         } else {                                            // 기본배송지로 저장 체크X
-            if (this.state.addressIndex !== null) {         // 배송지 수정일 때
-                if (this.state.addresses.length <= 0) {
-                    this.state.addresses[index].basicAddress = 1
+            if (state.addressIndex !== null) {         // 배송지 수정일 때
+                if (state.addresses.length <= 0) {
+                    state.addresses[index].basicAddress = 1
                 } else {
-                    this.state.addresses[index].basicAddress = 0
+                    state.addresses[index].basicAddress = 0
                 }
             } else {
-                if (this.state.addresses.length <= 0) {
+                if (state.addresses.length <= 0) {
                     data.basicAddress = 1
                 } else {
                     data.basicAddress = 0
@@ -225,17 +231,18 @@ export default class AddressModify extends Component {
         let modified = await putAddress(addresses)
 
         if (modified.data === 1) {
-            if (this.state.isCheckedDefault) {
+            if (state.isCheckedDefault) {
                 //기본배송지를 저장했다면 mission8번 clear.
                 //setMissionClear(8).then( (response) => console.log('base Delivery SET:missionEvent8:' + response.data )); //기본배송지를 저장
             }
 
-            alert('배송지 정보 저장이 완료되었습니다.')
-            if(this.state.flag === 'order') {
+            if(state.flag === 'order') {
+                alert('배송지 정보 저장이 완료되었습니다.')
                 this.props.onClose({
                     ...modifiedAddress
                 })
             } else {
+                //alert('배송지 정보 저장이 완료되었습니다.')
                 this.props.history.goBack();
             }
         } else {
@@ -267,7 +274,7 @@ export default class AddressModify extends Component {
         return (
             <Fragment>
                 {
-                    this.state.flag === 'mypage' && <ShopXButtonNav historyBack>배송지 추가/수정</ShopXButtonNav>
+                    this.state.flag === 'mypage' && <BackNavigation>배송지 추가/수정</BackNavigation>
                 }
                 <div className={TextCss.textUnderlineWrap}>
                 <Container fluid>

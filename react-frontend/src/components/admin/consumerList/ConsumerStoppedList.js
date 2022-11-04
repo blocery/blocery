@@ -11,21 +11,27 @@ import { ExcelDownload } from '~/components/common'
 
 import {Button, Modal, ModalBody, ModalFooter, ModalHeader} from 'reactstrap'
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
-import {Span} from "~/styledComponents/shared";
+import {Div, FilterGroup, Flex, Hr, Right, Space, Span} from "~/styledComponents/shared";
 import ConsumerDetail from "~/components/common/contents/ConsumerDetail";
 import AbuserRenderer from "~/components/common/agGridRenderers/AbuserRenderer";
-import StoppedUserRenderer from "~/components/common/agGridRenderers/StoppedUserRenderer";
+import FilterContainer from "~/components/common/gridFilter/FilterContainer";
+import InputFilter from "~/components/common/gridFilter/InputFilter";
+import CheckboxFilter from "~/components/common/gridFilter/CheckboxFilter";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
+import SearchDates from "~/components/common/search/SearchDates";
+import moment from "moment-timezone";
 
 export default class ConsumerStoppedList extends Component{
 
     constructor(props) {
         super(props);
         this.state = {
+            selectedGubun: 'day', //'week': 최초화면을 오늘(day)또는 1주일(week)로 설정.
+            startDate: moment(moment().toDate()),
+            endDate: moment(moment().toDate()),
+
             isOpen: false,
             modalValue: null,
-            loading: false,
             data: [],
             excelData: {
                 columns: [],
@@ -46,6 +52,13 @@ export default class ConsumerStoppedList extends Component{
                 {headerName: "BLY", field: "blct", cellRenderer: "blyRenderer", width: 150},
                 {headerName: "탈퇴일", field: "stoppedDateUTC", width: 100},
                 {headerName: "가입일", field: "timestampUtc", width: 150}
+            ],
+            searchColumnDefs: [
+                {headerName: "소비자번호", field: "consumerNo"},
+                {headerName: "이름", field: "name", cellRenderer: "nameRenderer"},
+                {headerName: "email", field: "email", width: 200},
+                {headerName: "phone", field: "phone", width: 200},
+                {headerName: "가입일", field: "timestampUtc", width: 200},
             ],
             defaultColDef: {
                 width: 130,
@@ -85,32 +98,32 @@ export default class ConsumerStoppedList extends Component{
     onGridReady(params) {
         //API init
         this.gridApi = params.api
-        this.gridColumnApi = params.columnApi
-
-        console.log("onGridReady");
-        //리스트 조회
-        this.search()
+        this.columnApi = params.columnApi
     }
 
+    search = async (searchButtonClicked) => {
 
-    search = async () => {
-        console.log('consumerList: search start');
+        if (searchButtonClicked) {
+            if (!this.state.startDate || !this.state.endDate) {
+                alert('시작일과 종료일을 선택해주세요')
+                return;
+            }
+        }
 
-        this.setState({loading: true})
-        const { status, data } = await getStoppedConsumers()
+        if(this.gridApi) {
+            //ag-grid 레이지로딩중 보이기
+            this.gridApi.showLoadingOverlay();
+        }
+
+        const params = {
+            startDate: this.state.startDate ? moment(this.state.startDate).format('YYYYMMDD') : null,
+            endDate: this.state.endDate ? moment(this.state.endDate).format('YYYYMMDD') : null
+        };
+        const { status, data } = await getStoppedConsumers(params)
         if(status !== 200){
             alert('응답이 실패 하였습니다')
             return
         }
-
-        // manager를 data맨 위에 넣기
-        // let managerAccount = await this.getBaseAccount();
-        // let manager = {
-        //     consumerNo: 0,
-        //     name: '매니저',
-        //     account: managerAccount
-        // }
-        // data.unshift(manager);
 
         data.map((item) => {
 
@@ -129,11 +142,16 @@ export default class ConsumerStoppedList extends Component{
         })
 
         this.setState({
-            data: data,
-            loading: false
+            data: data
         })
 
         this.setExcelData();
+
+        //ag-grid api
+        if(this.gridApi) {
+            //ag-grid 레이지로딩중 감추기
+            this.gridApi.hideOverlay()
+        }
 
     }
 
@@ -150,15 +168,12 @@ export default class ConsumerStoppedList extends Component{
     }
 
     toggle = () => {
+        this.setState(prevState => ({
+            isOpen: !prevState.isOpen
+        }));
 
-        const isOpen = !this.state.isOpen
-
-        this.setState({
-            isOpen: isOpen
-        })
-
-        if (!isOpen)
-            this.search();
+        // if (!isOpen)
+        //     this.search();
     }
 
 
@@ -171,7 +186,7 @@ export default class ConsumerStoppedList extends Component{
     }
 
     authIdRenderer = ({value, data:rowData}) => {
-        return (rowData.authType == 1? <span className='text-danger'>{rowData.authId}</span> : <span></span>)
+        return (rowData.authType == 1 ? <span className='text-danger'>{rowData.authId}</span> : <span></span>)
     }
 
     getBaseAccount = async () => {
@@ -191,17 +206,6 @@ export default class ConsumerStoppedList extends Component{
         await this.setState({showBlctBalance:true});
 
         this.search();    // refresh
-    }
-
-    onSelectionChanged = (event) => {
-        //const selected = Object.assign([], this.state.selectedConsumer)
-        const rowNodes = event.api.getSelectedNodes()
-        const rows = rowNodes.map((rowNode => rowNode.data))
-        const selectedConsumerNo = rows.map((consumer => consumer.consumerNo))
-
-        this.setState({
-            selectedConsumer: selectedConsumerNo
-        })
     }
 
     setExcelData = () => {
@@ -234,26 +238,84 @@ export default class ConsumerStoppedList extends Component{
         ComUtil.copyTextToClipboard(value, '', '');
     }
 
+    onDatesChange = async (data) => {
+        await this.setState({
+            startDate: data.startDate,
+            endDate: data.endDate,
+            selectedGubun: data.gubun
+        });
+        if(data.isSearch) {
+            await this.search();
+        }
+    }
+
     render() {
-        if(this.state.data.length <= 0)
-            return null;
-
         return (
-            <div>
+            <Div p={16}>
 
-                <div className="d-flex p-1">
-                    <div  className="d-flex">
+                <Div p={10} bc={'secondary'} mb={10}>
+                    <Space>
+                        <Div>기 간 (탈퇴일)</Div>
+                        <Div>
+                            <Space>
+                                <SearchDates
+                                    isHiddenAll={true}
+                                    isCurrenYeartHidden={true}
+                                    gubun={this.state.selectedGubun}
+                                    startDate={this.state.startDate}
+                                    endDate={this.state.endDate}
+                                    onChange={this.onDatesChange}
+                                />
+                                <MenuButton onClick={() => this.search(true)}> 검 색 </MenuButton>
+                            </Space>
+                        </Div>
+                    </Space>
+                </Div>
+
+                {/* filter START */}
+                <FilterContainer gridApi={this.gridApi} columnApi={this.columnApi} excelFileName={'탈퇴회원 목록'}>
+                    <FilterGroup>
+                        <InputFilter
+                            gridApi={this.gridApi}
+                            columns={[
+                                {field: 'consumerNo', name: '소비자번호'},
+                                {field: 'name', name: '소비자명'},
+                                {field: 'email', name: '이메일'},
+                                {field: 'authId', name: '카카오ID'},
+                                {field: 'phone', name: '연락처'},
+                                {field: 'account', name: 'account'},
+                                {field: 'stoppedDateUTC', name: '탈퇴일'},
+                            ]}
+                            isRealTime={true}
+                        />
+                    </FilterGroup>
+                    <Hr/>
+                    <FilterGroup>
+                        <CheckboxFilter
+                            gridApi={this.gridApi}
+                            field={'authType'}
+                            name={'가입경로'}
+                            data={[
+                                {value: '0', name: '일반'},
+                                {value: '1', name: '카카오'},
+                            ]}
+                        />
+                    </FilterGroup>
+                </FilterContainer>
+                {/* filter END */}
+
+                <Flex mb={10}>
+                    <Space>
                         <ExcelDownload data={this.state.excelData}
                                        fileName="탈퇴회원조회"
                                        buttonName = "Excel 다운로드"
                         />
-                        <div className="ml-3">
-                            <Button color="secondary" onClick={this.showBlctBalanceButtonClick.bind(this)}> Blct잔고 출력 </Button>
-                        </div>
-                    </div>
-                    <div className="flex-grow-1 text-right">총 {this.state.data.length}명</div>
-                </div>
-
+                        <MenuButton onClick={this.showBlctBalanceButtonClick.bind(this)}> Blct잔고 출력 </MenuButton>
+                    </Space>
+                    <Right>
+                        총 {this.state.data.length}명
+                    </Right>
+                </Flex>
 
                 <div
                     className="ag-theme-balham"
@@ -262,19 +324,13 @@ export default class ConsumerStoppedList extends Component{
                     }}
                 >
                     <AgGridReact
-                        // enableSorting={true}                //정렬 여부
-                        // enableFilter={true}                 //필터링 여부
                         columnDefs={this.state.columnDefs}  //컬럼 세팅
-                        rowSelection={'multiple'}
                         defaultColDef={this.state.defaultColDef}
-                        // components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
-                        // enableColResize={true}              //컬럼 크기 조정
                         overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                         overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
-                        // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
+                        onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
                         rowData={this.state.data}
                         frameworkComponents={this.state.frameworkComponents}
-                        onRowClicked={this.onSelectionChanged.bind(this)}       // 클릭된 row
                         onCellDoubleClicked={this.copy}
                     >
                     </AgGridReact>
@@ -292,7 +348,7 @@ export default class ConsumerStoppedList extends Component{
                         <Button color="secondary" onClick={this.toggle}>닫기</Button>
                     </ModalFooter>
                 </Modal>
-            </div>
+            </Div>
         )
     }
 }

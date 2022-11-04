@@ -7,6 +7,7 @@ import { Server } from "../../../Properties";
 import moment from 'moment'
 import {Div, Flex, Img} from "~/styledComponents/shared";
 import RewardCoupon from '~/images/icons/ic_rewardCoupon.png'
+import {LazyLoadImage} from "react-lazy-load-image-component";
 
 function SlideImage(props){
     const { size = 'sm', imageUrl, imageWidth, imageHeight, saleEnd, discountRate, blyReview, remainedCnt = 0,
@@ -71,7 +72,18 @@ function SlideImage(props){
                 }
             </Flex>
 
-            <img className={Css.img} src={`${imageUrl}`} alt="상품사진" />
+            <LazyLoadImage
+                alt={'goods of timeSale'}
+                // height={image.height}
+                src={imageUrl} // use normal <img> attributes as props
+                // width={image.width}
+                effect="blur"
+                width={'100%'}
+                placeholderSrc={'/lazy/gray_lazy_1_1.jpg'}
+                style={{height: '100%', objectFit: 'cover'}}
+            />
+
+            {/*<img className={Css.img} src={`${imageUrl}`} alt="상품사진" />*/}
             { remainedCnt <= 0 && <div className={Css.mask}>SOLD OUT</div> }
         </div>
     )

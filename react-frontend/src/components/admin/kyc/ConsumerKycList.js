@@ -1,19 +1,12 @@
 import React, { Component, Suspense} from 'react';
 import { Button, Input, Modal, ModalHeader, ModalBody, ModalFooter } from 'reactstrap'
-import Select from 'react-select'
-import { Cell, ModalConfirm } from '~/components/common'
+import { BlocerySpinner, Cell } from '~/components/common'
 import { Server } from "~/components/Properties";
 import ComUtil from "~/util/ComUtil";
-import { getConsumerKycList, setConsumerKycAuth } from '~/lib/adminApi'
+import { getConsumerKycList } from '~/lib/adminApi'
 import { getLoginAdminUser } from '~/lib/loginApi'
-import { BlocerySpinner } from '~/components/common'
-
-import {Div, Link, Flex, Span, FilterGroup, Hr} from '~/styledComponents/shared'
-
+import {Link, Flex, Span, FilterGroup, Hr, Div, Space, Right} from '~/styledComponents/shared'
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
-
 import moment from 'moment-timezone'
 import DatePicker from "react-datepicker";
 import "react-datepicker/src/stylesheets/datepicker.scss";
@@ -25,6 +18,8 @@ import {FiLink} from 'react-icons/fi'
 import FilterContainer from "~/components/common/gridFilter/FilterContainer";
 import InputFilter from "~/components/common/gridFilter/InputFilter";
 import CheckboxFilter from "~/components/common/gridFilter/CheckboxFilter";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
+import SearchDates from "~/components/common/search/SearchDates";
 
 export default class ConsumerKycList extends Component {
     constructor(props) {
@@ -134,7 +129,7 @@ export default class ConsumerKycList extends Component {
                 resizable: true,
                 filter: true,
                 sortable: true,
-                floatingFilter: false,
+                floatingFilter: true,
                 filterParams: {
                     newRowsAction: 'keep'
                 }
@@ -321,7 +316,7 @@ export default class ConsumerKycList extends Component {
     onGridReady(params) {
         //API init
         this.gridApi = params.api
-        this.gridColumnApi = params.columnApi
+        this.columnApi = params.columnApi
 
         // console.log("onGridReady");
     }
@@ -330,20 +325,18 @@ export default class ConsumerKycList extends Component {
         // if(this.state.data.length <= 0)
         //     return null
         const ExampleCustomDateInput = ({ value, onClick }) => (
-            <Button
-                color="secondary"
-                active={true}
-                onClick={onClick}>신청 {value} 년</Button>
+            <MenuButton onClick={onClick}>신청 {value} 년</MenuButton>
         );
 
         return(
-            <div>
+            <Div p={16}>
                 {
                     this.state.loading && <BlocerySpinner/>
                 }
-                <Flex p={5}>
-                    <div className='ml-2'>
-                        <Input type='select' name='select'
+
+                <Flex p={10} mb={10} bc={'secondary'}>
+                    <Space>
+                        <Input type='select' name='select' style={{width: 200}}
                                id='kycAuth'
                                onChange={this.onStateChange}>
                             <option name='radio1' value='-1'>승인거절</option>
@@ -351,8 +344,6 @@ export default class ConsumerKycList extends Component {
                             <option name='radio3' value='1' selected>신청</option>
                             <option name='radio4' value='2'>승인처리</option>
                         </Input>
-                    </div>
-                    <div className='ml-2'>
                         <DatePicker
                             selected={new Date(moment().set('year',this.state.search.year))}
                             onChange={this.onSearchDateChange}
@@ -360,25 +351,19 @@ export default class ConsumerKycList extends Component {
                             dateFormat="yyyy"
                             customInput={<ExampleCustomDateInput />}
                         />
-                    </div>
-                    <div className='ml-2'>
-                        <Button color={'info'} onClick={this.search}>검색</Button>
-                    </div>
-
-                    <Link to={'/admin/shop/order/swapTokenOutList'} fg={'primary'} ml={10}>
-                        <Flex fontSize={12} bc={'secondary'} cursor={1} p={5} rounded={3}>
-                            <Flex mr={3}><FiLink/></Flex>
-                            토큰출금 페이지
-                        </Flex>
-                    </Link>
-
-                    <div className="flex-grow-1 text-right">
-                        총 {this.state.data.length} 건
-                    </div>
+                        <MenuButton onClick={this.search}>검색</MenuButton>
+                        <Link to={'/admin/shop/tokenSwap/swapTokenOutList'} fg={'primary'} ml={10}>
+                            <Flex fontSize={12} bc={'secondary'} cursor={1} p={5} rounded={3}>
+                                <Flex mr={3}><FiLink/></Flex>
+                                토큰출금 페이지
+                            </Flex>
+                        </Link>
+                    </Space>
                 </Flex>
 
+
                 {/* filter START */}
-                <FilterContainer gridApi={this.gridApi} excelFileName={'KYC 인증 목록'}>
+                <FilterContainer gridApi={this.gridApi} columnApi={this.columnApi} excelFileName={'KYC 인증 목록'}>
                     <FilterGroup>
                         <InputFilter
                             gridApi={this.gridApi}
@@ -417,6 +402,10 @@ export default class ConsumerKycList extends Component {
                 </FilterContainer>
                 {/* filter END */}
 
+                <Div textAlign={'right'} mb={10}>
+                    총 {this.state.data.length} 건
+                </Div>
+
                 <div
                     id="myGrid"
                     className="ag-theme-balham"
@@ -425,19 +414,14 @@ export default class ConsumerKycList extends Component {
                     }}
                 >
                     <AgGridReact
-                        // enableSorting={true}                //정렬 여부
-                        // enableFilter={true}                 //필터링 여부
-                        floatingFilter={true}               //Header 플로팅 필터 여부
                         columnDefs={this.state.columnDefs}  //컬럼 세팅
                         defaultColDef={this.state.defaultColDef}
-                        // components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
                         frameworkComponents={this.state.frameworkComponents}
-                        // enableColResize={true}              //컬럼 크기 조정
                         overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                         overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
                         onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
                         rowData={this.state.data}
-                        rowHeight={75}
+                        getRowHeight={75}
                         onCellDoubleClicked={this.copy}
                     >
                     </AgGridReact>
@@ -445,10 +429,10 @@ export default class ConsumerKycList extends Component {
                 {/* KYC 인증 모달 */}
                 <Suspense fallback={''}>
                     <Modal
-                           size={'lg'}
-                           style={{maxWidth: '100vw', width: '80%'}}
-                           isOpen={this.state.isMoalOpen && this.state.modalType === 'kyc'}
-                           toggle={this.kycModalToggle} >
+                        size={'lg'}
+                        style={{maxWidth: '100vw', width: '80%'}}
+                        isOpen={this.state.isMoalOpen && this.state.modalType === 'kyc'}
+                        toggle={this.kycModalToggle} >
                         <ModalHeader toggle={this.kycModalToggle}>
                             KYC 인증
                         </ModalHeader>
@@ -478,7 +462,7 @@ export default class ConsumerKycList extends Component {
                     </ModalFooter>
                 </Modal>
 
-            </div>
+            </Div>
         );
     }
 }

@@ -6,19 +6,20 @@ import { getLoginAdminUser } from '~/lib/loginApi'
 import ComUtil from '~/util/ComUtil'
 import moment from 'moment-timezone'
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
 import { Cell } from '~/components/common'
 import PushNotiReg from '../pushNotification/PushNotiReg'
 
 import DatePicker from "react-datepicker";
 import "react-datepicker/src/stylesheets/datepicker.scss";
+import {Div, Flex, Space} from "~/styledComponents/shared";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
 
 const PushNotiList = (props) => {
 
     const [agGrid, setAgGrid] = useState({
         columnDefs: [
-            {headerName: "번호", field: "pushNotiNo", sort:"desc", width: 110},
+            {headerName: "번호", field: "pushNotiNo", sort:"desc", width: 90},
+
             {
                 headerName: "예약여부", field: "reserved", width: 90,
                 cellStyle:getCellStyle({cellAlign: 'center'}),
@@ -33,16 +34,18 @@ const PushNotiList = (props) => {
                 }
             },
             {
-                headerName: "날짜", field: "regDate", width: 200,
+                headerName: "날짜", field: "regDate", width: 150,
                 valueGetter: function(params) {
                     return (params.data.reserved > 0 ? params.data.reservedDateHHmm : params.data.regDate)
                 }
             },
             {headerName: "사용자구분", field: "userType", cellStyle:getCellStyle({cellAlign: 'center'})},
-            {headerName: "문구", field: "title", cellRenderer: "titleRenderer", width: 400},
+            {headerName: "제목", field: "title", cellRenderer: "titleRenderer", width: 300},
+            {headerName: "문구", field: "content", cellRenderer: "contentRenderer", width: 400},
             {headerName: "URL", field: "url", width: 200},
             {headerName: "삭제", cellRenderer: "delButtonRenderer", width: 100},
             {headerName: "푸시전송여부", field: "pushSent", width: 110, cellStyle:getCellStyle({cellAlign: 'center'})},
+            {headerName: "광고성 체크", field: "adPush", width: 110, cellStyle:getCellStyle({cellAlign: 'center'})},
         ],
         defaultColDef: {
             width: 100,
@@ -58,6 +61,7 @@ const PushNotiList = (props) => {
         overlayNoRowsTemplate: '<span class="ag-overlay-loading-center">조회된 내역이 없습니다</span>',
         frameworkComponents: {
             titleRenderer: titleRenderer,
+            contentRenderer: contentRenderer,
             delButtonRenderer: delButtonRenderer
         },
     })
@@ -98,7 +102,6 @@ const PushNotiList = (props) => {
             year:search.year
         };
         const {data} = await getPushNotiList(param);
-
         data.map( (item,index) => {
             let regDate = data[index].regDate ? ComUtil.utcToString(data[index].regDate,'YYYY-MM-DD HH:mm'):null;
             let reservedDateHHmm = data[index].reservedDateHHmm ? ComUtil.utcToString(data[index].reservedDateHHmm,'YYYY-MM-DD HH:mm'):null;
@@ -152,6 +155,16 @@ const PushNotiList = (props) => {
         );
     }
 
+    function contentRenderer({value, data:rowData}) {
+        return (
+            <Cell textAlign="left">
+                <div onClick={selectPushNoti.bind(this, rowData)} style={{color: 'blue'}}>
+                    <u>{rowData.content}</u>
+                </div>
+            </Cell>
+        );
+    }
+
     function delButtonRenderer({value, data:rowData}) {
         // console.log(rowData);
         return (
@@ -184,16 +197,14 @@ const PushNotiList = (props) => {
     }
 
     const ExampleCustomDateInput = ({ value, onClick }) => (
-        <Button
-            color="secondary"
-            active={true}
-            onClick={onClick}>검색 {value} 년</Button>
+        <MenuButton onClick={onClick}>검색 {value} 년</MenuButton>
     );
 
     return (
-        <div>
-            <div className="d-flex align-items-center p-1">
-                <div className='pl-1'>
+        <Div p={16}>
+            <Flex mb={10}>
+                <Space>
+                    <MenuButton bg={'green'} onClick={regPushNoti}>푸시알림 등록</MenuButton>
                     <DatePicker
                         selected={new Date(moment().set('year',search.year))}
                         onChange={onSearchDateChange}
@@ -201,15 +212,27 @@ const PushNotiList = (props) => {
                         dateFormat="yyyy"
                         customInput={<ExampleCustomDateInput />}
                     />
-                </div>
-                <div className='ml-2'>
-                    <Button color={'info'} onClick={getData}>검색</Button>
-                </div>
-                <div className="flex-grow-1 text-right">
-                    <Button outline size='sm' color={'info'} onClick={regPushNoti} className='m-2'>푸시알림 등록</Button>
-                </div>
-            </div>
-            <div className="p-1">
+                    <MenuButton onClick={getData}>검색</MenuButton>
+                </Space>
+            </Flex>
+            {/*<div className="d-flex align-items-center p-1">*/}
+            {/*    <div className='pl-1'>*/}
+            {/*        <DatePicker*/}
+            {/*            selected={new Date(moment().set('year',search.year))}*/}
+            {/*            onChange={onSearchDateChange}*/}
+            {/*            showYearPicker*/}
+            {/*            dateFormat="yyyy"*/}
+            {/*            customInput={<ExampleCustomDateInput />}*/}
+            {/*        />*/}
+            {/*    </div>*/}
+            {/*    <div className='ml-2'>*/}
+            {/*        <Button color={'info'} onClick={getData}>검색</Button>*/}
+            {/*    </div>*/}
+            {/*    <div className="flex-grow-1 text-right">*/}
+            {/*        <Button outline size='sm' color={'info'} onClick={regPushNoti} className='m-2'>푸시알림 등록</Button>*/}
+            {/*    </div>*/}
+            {/*</div>*/}
+            <div>
                 <div
                     className="ag-theme-balham"
                     style={{
@@ -217,12 +240,9 @@ const PushNotiList = (props) => {
                     }}
                 >
                     <AgGridReact
-                        // enableSorting={true}
-                        // enableFilter={true}
                         columnDefs={agGrid.columnDefs}
                         defaultColDef={agGrid.defaultColDef}
                         rowSelection={'single'}  //멀티체크 가능 여부
-                        // enableColResize={true}
                         overlayLoadingTemplate={agGrid.overlayLoadingTemplate}
                         overlayNoRowsTempalte={agGrid.overlayNoRowsTemplate}
                         rowData={pushNotiList}
@@ -239,7 +259,7 @@ const PushNotiList = (props) => {
                     </ModalBody>
                 </Modal>
             }
-        </div>
+        </Div>
     )
 }
 

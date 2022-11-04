@@ -5,6 +5,7 @@ import ComUtil from '../../../util/ComUtil'
 import styled from 'styled-components'
 import { Div, Flex } from '~/styledComponents/shared/Layouts'
 import { HrThin } from '~/styledComponents/mixedIn'
+import {Bold} from "~/styledComponents/ShopBlyLayouts";
 
 const Price = styled(Div)`
     flex-grow: 1;
@@ -14,24 +15,24 @@ const Price = styled(Div)`
 //결제내역 컨텐츠
 const CartSummary = (props) => {
 
-    const { totGoodsPrice, totDirectDeliveryFee, totReservationDeliveryFee } = props
+    const { totGoodsPrice, totDeliveryFee } = props
 
 
     return (
         <Fragment>
-            <Div bg={'white'} p={16} fontWeight={'normal'}>
-                <Flex p={1} fontSize={12}>
-                    <Div textAlign={'left'} fg={'dark'}>총 상품가격</Div>
-                    <Price>{ComUtil.addCommas(totGoodsPrice)} 원</Price>
+            <Div bg={'white'} px={16} py={30} fontWeight={'normal'}>
+                <Flex p={1}>
+                    <Div textAlign={'left'} fg={'darkBlack'}>총 상품금액</Div>
+                    <Price><Bold>{ComUtil.addCommas(totGoodsPrice)}</Bold> 원</Price>
                 </Flex>
-                <Flex p={1} fontSize={12}>
-                    <Div textAlign={'left'} fg={'dark'}>총 배송비</Div>
-                    <Price>+ {ComUtil.addCommas(totDirectDeliveryFee + totReservationDeliveryFee)} 원</Price>
+                <Flex p={1}>
+                    <Div textAlign={'left'} fg={'darkBlack'}>총 배송비</Div>
+                    <Price>{totDeliveryFee > 0 ? <>+ <Bold>{ComUtil.addCommas(totDeliveryFee)}</Bold> 원</> : '무료배송'}</Price>
                 </Flex>
-                <HrThin mt={15} mb={16} />
-                <Flex p={1} bold fontSize={16}>
-                    <Div textAlign={'left'}>총 결제금액</Div>
-                    <Price>{ComUtil.addCommas(totGoodsPrice + totDirectDeliveryFee + totReservationDeliveryFee)} 원</Price>
+                <HrThin mt={15} mb={16} bc={'black'} />
+                <Flex p={1} fontSize={17}>
+                    <Div textAlign={'left'}><b>총 결제금액</b></Div>
+                    <Price><Bold fw={'bold'}>{ComUtil.addCommas(totGoodsPrice + totDeliveryFee )}</Bold> <b>원</b></Price>
                 </Flex>
             </Div>
 

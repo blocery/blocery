@@ -4,6 +4,7 @@ import {getConsumer, updateName} from "~/lib/shopApi";
 import ComUtil from "~/util/ComUtil"
 import { ShopXButtonNav } from '~/components/common/index'
 import {FaUserAlt, FaEnvelope, FaMobileAlt} from 'react-icons/fa'
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 export default class ModifyConsumerInfo extends Component {
 
@@ -97,7 +98,8 @@ export default class ModifyConsumerInfo extends Component {
     render() {
         return (
             <Fragment>
-                <ShopXButtonNav underline historyBack>개인정보 수정</ShopXButtonNav>
+                {/*<ShopXButtonNav underline historyBack>개인정보 수정</ShopXButtonNav>*/}
+                <BackNavigation>개인정보 수정</BackNavigation>
                 <Container fluid>
                     <p></p>
                     <div>

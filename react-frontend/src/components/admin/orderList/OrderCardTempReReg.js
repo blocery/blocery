@@ -85,10 +85,11 @@ export default class OrderCardTempReReg extends Component {
             return false;
         }
 
+        // 기존 주문내역이 있을경우 방어 로직 추가
         // PG 결제일경우
         if (reOrder.impUid && reOrder.impUid.length > 0) {
             axios(
-                Server.getRestAPIHost() + "/iamport/paycomplate",
+                Server.getRestAPIHost() + "/admin/paycomplateForTemp",
                 {
                     method: "post",
                     headers: {"Content-Type": "application/json"},
@@ -100,24 +101,27 @@ export default class OrderCardTempReReg extends Component {
                     credentials: 'same-origin'
                 }
             ).then(async ({data}) => {
-                //결재성공
+                //결제성공
                 if (data.resultStatus === "success" || data.resultStatus == "orderT") {
                     alert("주문 처리 완료되었습니다!!")
                     this.onCancelClick();
                 }
                 //주문정보가 없을경우
-                if (data.resultStatus == "orderF") {
+                else if (data.resultStatus == "orderF") {
                     alert("주문정보가 존재하지 않습니다.");
                     this.onCancelClick();
                 }
                 //아임포트 REST API로부터 고유 UID가 같을경우 => 결제정보확인 및 서비스 루틴이 정상적이지 않으면
-                if (data.resultStatus == "failed") {
-                    alert("결재실패 - 비정상적인 결재로 인해 주문취소 처리 되었습니다.");
+                else if (data.resultStatus == "failed") {
+                    alert("결제실패 - 비정상적인 결제로 인해 주문취소 처리 되었습니다.");
                     this.onCancelClick();
                 }
                 //위조된 결제시도
-                if (data.resultStatus == "forgery") {
-                    alert("결재실패 - 비정상적인 결재로 인해 주문취소 처리 되었습니다.");
+                else if (data.resultStatus == "forgery") {
+                    alert("결제실패 - 비정상적인 결제로 인해 주문취소 처리 되었습니다.");
+                    this.onCancelClick();
+                } else {
+                    alert("결제실패");
                     this.onCancelClick();
                 }
             });

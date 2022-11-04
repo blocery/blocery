@@ -1,0 +1,90 @@
+@import "Color.module.scss";
+@import "Font.module.scss";
+.wrap {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow: auto;
+  width: 100%;
+  height: 2.5rem;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-bottom: 0.5px solid #f6efee;
+  //box-shadow: 1px 1px 7px $color-shadow;
+
+  & > div:first-child {
+    padding-left: 10px;
+  }
+  & > div:last-child {
+    padding-right: 10px;
+  }
+}
+
+.tab {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  //flex-grow: 1;
+  padding: 4px 5px 0px 5px;
+
+  //탭 타이틀
+  & :nth-child(1) {
+    //height: 100%;
+    ////display: flex;
+    //align-items: center;
+    //justify-content: center;
+    //padding: 0.5em 0.5em;
+    ////font-weight: lighter;
+    //color: $color-light;
+  }
+  //탭 밑줄 라인
+  & :nth-child(2) {
+    height: 3px;
+  }
+}
+
+.tab:first-child{
+  //margin-left: 10px;
+}
+.tab:last-child{
+  //margin-right: 10px;
+}
+
+.underLineActive {
+  background-color: black;
+  //background-color: $color-info;
+  animation-name: aniActive;
+  animation-duration: 0.3s;
+  animation-fill-mode: forwards;
+  -webkit-animation-timing-function: ease-in;
+  -moz-animation-timing-function: ease-in;
+  -o-animation-timing-function: ease-in;
+  animation-timing-function: ease-in;
+  opacity: 0;
+}
+
+@keyframes aniActive {
+  0%{}
+  50%{}
+  100%{opacity: 1;}
+}
+
+.link {
+  color: #929292;
+  text-decoration: none !important;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 0em 0.5em;
+  font-size: $f16;
+}
+.link:active {
+  color: black;
+}
+.link:hover {
+  color: black;
+}
+
+.active {
+  color: black;
+  font-weight: bold;
+}

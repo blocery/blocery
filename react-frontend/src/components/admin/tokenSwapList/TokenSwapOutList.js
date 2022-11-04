@@ -6,19 +6,12 @@ import {
     getTotalSwapBlctToBly,
     getTotalSwapBlctToBlyByGigan,
     getEthGasPrice,
-    getSwapBlctToBlyById
+    getSwapBlctToBlyById,
+    sendManagerBlyToUserManual
 } from '~/lib/swapApi';
 import { scOntGetBalanceOfBlctAdmin, scOntGetManagerOngBalance } from '~/lib/smartcontractApi';
-import {
-    getAllGoodsSaleList,
-    getPausedGoods,
-    getSaleEndGoods,
-    getSoldOutGoods,
-    requestAdminOkStatusBatch
-} from '~/lib/adminApi'
+import { requestAdminOkStatusBatch } from '~/lib/adminApi'
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
 import { ExcelDownload } from '~/components/common'
 import ComUtil from '~/util/ComUtil'
 import { Server } from '~/components/Properties';
@@ -32,7 +25,6 @@ import loadable from "@loadable/component";
 import {FiLink} from 'react-icons/fi'
 import moment from "moment-timezone";
 import SearchDates from "~/components/common/search/SearchDates";
-import {getRecommendFriends} from "~/lib/adminApi";
 import {getLoginAdminUser} from "~/lib/loginApi";
 import InputFilter from "~/components/common/gridFilter/InputFilter";
 import CheckboxFilter from "~/components/common/gridFilter/CheckboxFilter";
@@ -41,7 +33,8 @@ import FilterContainer from "~/components/common/gridFilter/FilterContainer";
 const ConsumerDetail = loadable(() => import('~/components/common/contents/ConsumerDetail'));
 const AdminOkStatusView = loadable(() => import('~/components/common/contents/AdminOkStatusView'));
 
-const ADMIN_OK_STATUS_NM = ['승인', '요청', '검토중', '거절', '배치']
+const ADMIN_OK_STATUS_NM = ['승인', '요청', '검토중', '거절', '배치'] //OLD승인방식
+const STATUS_NM = ['승인방식', 'blct전송요청', 'blct완료/erc전송중', 'erc전송완료']
 
 const TokenSwapOutList = (props) => {
 
@@ -51,30 +44,42 @@ const TokenSwapOutList = (props) => {
 
     function adminOkStatusRenderer({value, data}) {
         //요청, 검토 일 경우 버튼으로 보이게..
-        if (value === 1 || value === 2){
-            return <StyledButton p={0} px={10} fontSize={12} rounded={2} bg={'primary'} fg={'white'} onClick={onNameClick.bind(this, data)}>{`${ADMIN_OK_STATUS_NM[parseFloat(value)]}[code:${value}]`}</StyledButton>
+        // if (value === 1 || value === 2){
+        //     return <StyledButton p={0} px={10} fontSize={12} rounded={2} bg={'primary'} fg={'white'} onClick={onNameClick.bind(this, data)}>{`${ADMIN_OK_STATUS_NM[parseFloat(value)]}[code:${value}]`}</StyledButton>
+        // }
+
+        if (value===0) {
+            return <Span fg={'primary'}>{STATUS_NM[value]} {ADMIN_OK_STATUS_NM[data.adminOkStatus]}</Span>
+        } else if(value===2) {
+            return (
+                <Flex>
+                    <StyledButton p={0} px={10} fontSize={12} rounded={2} bg={'primary'} fg={'white'} onClick={onSendErc.bind(this, data)}>erc 수동전송</StyledButton>
+                    <Span ml={2} fg={'primary'}>{STATUS_NM[value]} (CODE:{value})</Span>
+                </Flex>
+            )
         }
 
-        return <Span fg={'primary'} onClick={onNameClick.bind(this, data)}><u>{`${ADMIN_OK_STATUS_NM[parseFloat(value)]}[code:${value}]`}</u></Span>
+        return <Span fg={'primary'}>{STATUS_NM[value]} (CODE:{value})</Span>
     }
 
     const [search, setSearch] = useState({
         isSearch:true,
-        selectedGubun: 'day', //'week': 최초화면을 오늘(day)또는 1주일(week)로 설정.
-        startDate: moment(moment().toDate()),
+        selectedGubun: 'week', //'week': 최초화면을 오늘(day)또는 1주일(week)로 설정.
+        startDate: moment(moment().toDate()).add(-7,"days"),
         endDate: moment(moment().toDate()),
     });
     const [adminOkSt, setAdminOkSt] = useState("")
 
     const [managerLoading, setManagerLoading] = useState(false);
     const [gridApi, setGridApi] = useState(null);
+    const [columnApi, setColumnApi] = useState()
     const [modalOpen, setModalOpen, selected, setSelected, setModalState] = useModal()
     const [agGrid, setAgGrid] = useState({
         columnBlctToDefs: [
-            {headerName: "No", width: 100, field: "swapBlctToBlyNo",
-                headerCheckboxSelection: true,
-                headerCheckboxSelectionFilteredOnly: true,  //전체 체크시 필터된 것만 체크
-                checkboxSelection: true,
+            {headerName: "No", width: 70, field: "swapBlctToBlyNo",
+                // headerCheckboxSelection: true,
+                // headerCheckboxSelectionFilteredOnly: true,  //전체 체크시 필터된 것만 체크
+                // checkboxSelection: true,
             },
             {headerName: "소비자번호", width: 100, field: "consumerNo"},
             {headerName: "이름", width: 100, field: "name", cellRenderer: "nameRenderer"},
@@ -84,10 +89,10 @@ const TokenSwapOutList = (props) => {
                 suppressSorting: true,  //no sort
                 cellRenderer: "abuserRenderer"
             },
-            {headerName: "출금요청상태", width: 100, field: "adminOkStatus", cellRenderer: "adminOkStatusRenderer",
+            {headerName: "출금상태", width: 190, field: "status", cellRenderer: "adminOkStatusRenderer",
                 cellStyle: {textAlign:'center'}
             },
-            {headerName: "swap 결과", width: 100, field: "finalResult"},
+            // {headerName: "swap 결과", width: 100, field: "finalResult"},
             {headerName: "swap 완료", width: 100, field: "blyPaid"},
             {headerName: "소비자 이메일주소", width: 200, field: "consumerEmail"},
             {headerName: "소비자 전화번호", width: 150, field: "consumerPhone"},
@@ -98,7 +103,7 @@ const TokenSwapOutList = (props) => {
             {headerName: "txHash", width: 500, field: "txHash"},
         ],
         defaultColDef: {
-            width: 170,
+            width: 100,
             resizable: true,
             filter: true,
             sortable: true,
@@ -244,13 +249,13 @@ const TokenSwapOutList = (props) => {
 
     const getExcelData = (dataList) => {
         const columns = [
-            'No', '소비자 번호', '출금요청상태', '소비자 이메일주소', 'Swap 요청 시각', '받은 BLCT(oep4)', '출금한 BLY(erc20)', '외부 송금Account', 'swap 완료여부', 'txHash'
+            'No', '소비자 번호', '출금상태', '소비자 이메일주소', 'Swap 요청 시각', '받은 BLCT(oep4)', '출금한 BLY(erc20)', '외부 송금Account', 'swap 완료여부', 'txHash'
         ]
 
         //필터링 된 데이터에서 sortedData._original 로 접근하여 그리드에 바인딩 원본 값을 가져옴
         const data = dataList.map((item ,index)=> {
             return [
-                item.swapBlctToBlyNo, item.consumerNo, ADMIN_OK_STATUS_NM[item.adminOkStatus], item.consumerEmail, item.swapTimestamp, item.blctAmount, item.blyAmount, item.blyExtAccount, item.blyPaid, item.txHash
+                item.swapBlctToBlyNo, item.consumerNo, STATUS_NM[item.status], item.consumerEmail, item.swapTimestamp, item.blctAmount, item.blyAmount, item.blyExtAccount, item.blyPaid, item.txHash
             ]
         })
 
@@ -301,44 +306,54 @@ const TokenSwapOutList = (props) => {
         toggle()
     }
 
+    const onSendErc = async(item) => {
+        const {data:result} = await sendManagerBlyToUserManual(item.swapBlctToBlyNo);
+        if(result === -1) {
+            alert("admin을 다시 로그인해주세요.")
+        } else if(result === -2) {
+            alert("잘못된 요청입니다. 다시 확인해주세요.")
+        } else {
+            alert("erc 전송 요청. \n쓰레드처리 후 새로고침해야 업데이트 됩니다.");
+        }
+    }
 
     const copy = ({value}) => {
         ComUtil.copyTextToClipboard(value, '', '')
     }
 
-    const onWithdrawBatchRegClick = async () => {
-        //상태값 확인
-        // const {data} = await getSwapBlctToBlyById(swapBlctToBlyNo)
-
-
-        //체크된 목록 중 업데이트 가능한 (adminOkStatus ===1) 가져오기
-        const updateRows = await getAvailableBatchRows()
-
-        // console.log({rows})
-
-        //상태값 체크(배치 처리 가능한지)
-
-        if (updateRows.length <= 0){
-            alert('자동 출금처리 등록 할 건이 없습니다')
-            return
-        }
-
-        if (!window.confirm(`${ComUtil.addCommas(updateRows.length)}건을 자동 출금처리 등록 하시겠습니까?`)) {
-            return
-        }
-
-        const promises = updateRows.map(item => requestAdminOkStatusBatch(item.swapBlctToBlyNo))
-
-        await Promise.all(promises)
-
-        alert('처리되었습니다.')
-
-        // setSelectedRows([])
-
-        //새로고침
-        getSearch()
-
-    }
+    // const onWithdrawBatchRegClick = async () => {
+    //     //상태값 확인
+    //     // const {data} = await getSwapBlctToBlyById(swapBlctToBlyNo)
+    //
+    //
+    //     //체크된 목록 중 업데이트 가능한 (adminOkStatus ===1) 가져오기
+    //     const updateRows = await getAvailableBatchRows()
+    //
+    //     // console.log({rows})
+    //
+    //     //상태값 체크(배치 처리 가능한지)
+    //
+    //     if (updateRows.length <= 0){
+    //         alert('자동 출금처리 등록 할 건이 없습니다')
+    //         return
+    //     }
+    //
+    //     if (!window.confirm(`${ComUtil.addCommas(updateRows.length)}건을 자동 출금처리 등록 하시겠습니까?`)) {
+    //         return
+    //     }
+    //
+    //     const promises = updateRows.map(item => requestAdminOkStatusBatch(item.swapBlctToBlyNo))
+    //
+    //     await Promise.all(promises)
+    //
+    //     alert('처리되었습니다.')
+    //
+    //     // setSelectedRows([])
+    //
+    //     //새로고침
+    //     getSearch()
+    //
+    // }
 
     //체크된 목록 중 업데이트 가능한 (adminOkStatus ===1) 가져오기
     const getAvailableBatchRows = async () => {
@@ -365,8 +380,7 @@ const TokenSwapOutList = (props) => {
     const onGridReady = (params) => {
         //API init
         setGridApi(params.api);
-        // this.gridColumnApi = params.columnApi;
-        // console.log("ready", params.api)
+        setColumnApi(params.columnApi)
     }
 
     return (
@@ -412,7 +426,7 @@ const TokenSwapOutList = (props) => {
                 </Flex>
             </div>
 
-            <FilterContainer gridApi={gridApi} excelFileName={'출금 목록'}>
+            <FilterContainer gridApi={gridApi} columnApi={columnApi} excelFileName={'출금 목록'}>
                 <FilterGroup>
                     <InputFilter
                         gridApi={gridApi}
@@ -431,23 +445,22 @@ const TokenSwapOutList = (props) => {
                 <FilterGroup>
                     <CheckboxFilter
                         gridApi={gridApi}
-                        field={'adminOkStatus'}
-                        name={'출금요청상태'}
+                        field={'status'}
+                        name={'출금상태'}
                         data={[
-                            {value: 0, name: '0 승인'},
-                            {value: 1, name: '1 요청'},
-                            {value: 2, name: '2 검토중'},
-                            {value: 3, name: '3 거절'},
+                            {value: 1, name: '1 blct전송요청'},
+                            {value: 2, name: '2 blct완료/erc전송중'},
+                            {value: 3, name: '3 erc전송완료'},
                         ]}
                     />
-                    <CheckboxFilter
-                        gridApi={gridApi}
-                        field={'finalResult'}
-                        name={'swap 결과'}
-                        data={[
-                            {value: 200, name: '성공'},
-                        ]}
-                    />
+                    {/*<CheckboxFilter*/}
+                    {/*    gridApi={gridApi}*/}
+                    {/*    field={'finalResult'}*/}
+                    {/*    name={'swap 결과'}*/}
+                    {/*    data={[*/}
+                    {/*        {value: 200, name: '성공'},*/}
+                    {/*    ]}*/}
+                    {/*/>*/}
                     <CheckboxFilter
                         gridApi={gridApi}
                         field={'blyPaid'}
@@ -470,34 +483,34 @@ const TokenSwapOutList = (props) => {
 
             <Flex>
 
-                {
-                    (selectedRows.length > 0) && (
-                        <Button size={'sm'} className={'mr-1'} onClick={onWithdrawBatchRegClick}>
-                            {selectedRows.length}건 자동출금처리 등록
-                        </Button>
-                    )
-                }
+                {/*{*/}
+                {/*    (selectedRows.length > 0) && (*/}
+                {/*        <Button size={'sm'} className={'mr-1'} onClick={onWithdrawBatchRegClick}>*/}
+                {/*            {selectedRows.length}건 자동출금처리 등록*/}
+                {/*        </Button>*/}
+                {/*    )*/}
+                {/*}*/}
                 <ExcelDownload data={excelData}
                                fileName="토큰출금내역"
                                sheetName="토큰출금내역"
                 />
 
-                <Link to={'/admin/shop/token/consumerKycList'} fg={'primary'} ml={10}>
+                <Link to={'/admin/shop/consumer/consumerKycList'} fg={'primary'} ml={10}>
                     <Flex fontSize={12} bc={'secondary'} cursor={1} p={5} rounded={3}>
                         <Flex mr={3}><FiLink/></Flex>
                         KYC인증 페이지
                     </Flex>
                 </Link>
-                <div className='ml-2'>
-                    <Input type='select' name='select' id='adminOkState' onChange={onStateChange}>
-                        <option name='radioall' value=''>출금요청상태=전체=</option>
-                        <option name='radio1' value='1'>출금요청상태=요청(1)=</option>
-                        <option name='radio2' value='2'>출금요청상태=검토중(2)=</option>
-                        <option name='radio3' value='3'>출금요청상태=거절(3)=</option>
-                        <option name='radio4' value='4'>출금요청상태=배치(4)=</option>
-                        <option name='radio0' value='0'>출금요청상태=승인(0)=</option>
-                    </Input>
-                </div>
+                {/*<div className='ml-2'>*/}
+                {/*    <Input type='select' name='select' id='adminOkState' onChange={onStateChange}>*/}
+                {/*        <option name='radioall' value=''>출금요청상태=전체=</option>*/}
+                {/*        <option name='radio1' value='1'>출금요청상태=요청(1)=</option>*/}
+                {/*        <option name='radio2' value='2'>출금요청상태=검토중(2)=</option>*/}
+                {/*        <option name='radio3' value='3'>출금요청상태=거절(3)=</option>*/}
+                {/*        <option name='radio4' value='4'>출금요청상태=배치(4)=</option>*/}
+                {/*        <option name='radio0' value='0'>출금요청상태=승인(0)=</option>*/}
+                {/*    </Input>*/}
+                {/*</div>*/}
 
 
                 <div className="flex-grow-1 text-right">
@@ -514,17 +527,13 @@ const TokenSwapOutList = (props) => {
             >
                 <AgGridReact
                     onGridReady={onGridReady.bind(this)}
-                    // enableSorting={true}
-                    // enableFilter={true}
                     columnDefs={agGrid.columnBlctToDefs}
                     defaultColDef={agGrid.defaultColDef}
-                    // enableColResize={true}
                     overlayLoadingTemplate={agGrid.overlayLoadingTemplate}
                     overlayNoRowsTempalte={agGrid.overlayNoRowsTemplate}
                     frameworkComponents={agGrid.frameworkComponents}
                     onGridReady={onGridReady}   //그리드 init(최초한번실행)
                     rowData={blctToBlyList}
-                    //onRowClicked={selectRow}
                     onCellDoubleClicked={copy}
                     rowSelection={'multiple'} //멀티체크 가능 여부
                     suppressRowClickSelection={false}   //false : 셀 클릭시 체크박스도 체크 true: 셀클릭시 체크박스 체크 안함

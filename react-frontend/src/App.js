@@ -1,29 +1,34 @@
-import React, {Component} from 'react'
+import React, { useEffect } from 'react'
+import jQuery from "jquery";
 import Router from './router'
 import { BrowserRouter } from 'react-router-dom'
-
-import {autoLoginCheckAndTryAsync} from '~/lib/loginApi'
 import {Server} from "~/components/Properties";
-import SecureApi from "~/lib/secureApi";
 //redux 대체용 전역 state 관리
-import {RecoilRoot} from 'recoil';
+import { RecoilRoot } from 'recoil';
+
+import theme from "~/styledComponents/theme";
+import media from '~/styledComponents/media'
+import { ThemeProvider } from "styled-components";
+import moment from "moment-timezone";
+import ComUtil from "~/util/ComUtil";
 
 require('~/plugin/bloceryCustom')
 
-// react-native에서 현재 url을 반환받기 위해 추가
-document.addEventListener('message', ()=>{
-    // url type
-    let url = window.location.href;
-    const data = {url: url, type: "CURRENT_URL"}
-    window.ReactNativeWebView.postMessage(JSON.stringify(data))
-})
+moment.locale('ko')
 
-class App extends Component {
+// // react-native에서 현재 url을 반환받기 위해 추가
+// document.addEventListener('message', ()=>{
+//     // url type
+//     let url = window.location.href;
+//     const data = {url: url, type: "CURRENT_URL"}
+//     window.ReactNativeWebView.postMessage(JSON.stringify(data))
+// })
 
-    constructor(props) {
-        super(props);
-    }
-    componentDidMount(){
+//class => hook 로 변경(20210702 JADEN)
+function App (props) {
+
+    useEffect(() => {
+        window.$ = window.jQuery = jQuery;
         window.clog = function() {
             if(Server._serverMode() === "stage") {
                 var i;
@@ -34,43 +39,50 @@ class App extends Component {
                 console.log(logs);
             }
         }
-        this.getHeadKakaoScript();
-        this.initializeInfo();
-    }
-    initializeInfo = () => {
-        //csrf 세팅
-        SecureApi.setCsrf().then(()=>{
-            SecureApi.getCsrf().then(({data})=>{
-                localStorage.setItem('xToken',data);
-            });
-        });
+        getHeadKakaoScript();
+        getHeadArScript();
+        initializeInfo();
+        localStorage.setItem('today', ComUtil.utcToString(new Date()));
+    }, [])
 
-        //앱시작시 한번만 실행됨... 자동로그인 시도 중. 20200410.
-        autoLoginCheckAndTryAsync();
+    const initializeInfo = async () => {
+        // useLogin() 을 사용하려면 RecoilRoot 안쪽에 있어야 해서 router/index.js 로 옮김 (20210702 JADEN)
+        // //앱시작시 한번만 실행됨... 자동로그인 시도 중. 20200410.
+        // await autoLoginCheckAndTryAsync();
     }
 
 
     // 외부 jquery, iamport 라이브러리
-    getHeadKakaoScript = () => {
+    const getHeadKakaoScript = () => {
         const script = document.createElement("script");
         script.async = true;
         script.src = "https://developers.kakao.com/sdk/js/kakao.min.js";
         document.head.appendChild(script);
-
         script.onload = () => {
             window.Kakao.init(Server.getKakaoAppKey());
         }
     }
 
-    render() {
-        return (
+    // 외부 ar lib
+    const getHeadArScript = () => {
+        const script = document.createElement("script");
+        script.async = true;
+        script.type = 'module';
+        script.src = "https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js";
+        document.head.appendChild(script);
+    }
+
+    return (
+        <React.StrictMode>
             <RecoilRoot>
                 <BrowserRouter>
-                    <Router></Router>
+                    <ThemeProvider theme={{...theme, ...media}}>
+                        <Router></Router>
+                    </ThemeProvider>
                 </BrowserRouter>
             </RecoilRoot>
-        );
-    }
+        </React.StrictMode>
+    )
 }
 
 export default App;

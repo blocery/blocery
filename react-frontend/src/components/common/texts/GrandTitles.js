@@ -18,8 +18,7 @@ import {Div} from "~/styledComponents/shared";
 //     display: flex;
 // }
 
-const TitleBox = styled(Div)`
-    font-family: SeoulHangangL;
+const TitleBox = styled(Div)`    
     margin: 30px 16px;
     
     & > div:nth-child(1){
@@ -33,7 +32,13 @@ const TitleBox = styled(Div)`
     }
 `
 
-const GrandTitle = (props) => {
+const GrandTitle = ({children}) => {
+    return(
+        <Div fontSize={17}>{children}</Div>
+    )
+}
+
+const GrandTitle_bak = (props) => {
     const {className, smallText, largeText, subText, style} = props
     return(
         <TitleBox

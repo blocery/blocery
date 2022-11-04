@@ -4,7 +4,7 @@ import Style from './WebGoodsReg.module.scss'
 import { getLoginProducerUser } from '~/lib/loginApi'
 import {FaClock, FaBolt} from 'react-icons/fa'
 
-import { WebGoodsReg, WebDirectGoodsReg } from '~/components/producer'
+import { WebDirectGoodsReg } from '~/components/producer'
 
 import { BlocerySpinner, BlockChainSpinner } from '~/components/common'
 
@@ -87,7 +87,7 @@ export default class WebGoodsSelection extends Component {
                                         </div>
                                     )
                                 }
-                                <Container>
+                                <Container fluid>
                                     <Row>
                                         <Col className='pt-2'>
                                             <Alert color={'secondary'} className='small'>아래 항목 입력 후 먼저 저장을 해주세요.[임시저장]<br/>
@@ -96,44 +96,46 @@ export default class WebGoodsSelection extends Component {
                                         </Col>
                                     </Row>
 
-                                    <h6>판매상품의 종류를 선택해 주세요.</h6>
-                                    <Row className='border pt-3 mb-3'>
-                                        <Col xs={6}>
-                                            <Button className={'mb-2'} color={'warning'} size={'lg'} block onClick={this.onGoodsPopupClick.bind(this, 'directGoods')}>
-                                                <FaBolt />즉시 상품</Button>
-                                            <div className={'small text-center text-secondary f6'}>
-                                                <div className={'mb-2'}>
-                                                    - 상품이 판매가 되면  <b className={'text-warning'}>즉시 발송하는 상품</b>으로 소비자와 판매가를 입력할 수 있습니다.
-                                                </div>
-                                                <div>
-                                                    - 미리 가공된 상품 등 <b className={'text-warning'}>바로 발송이 가능한 경우</b> 선택해 주세요.
-                                                </div>
-                                                <br/>
-                                            </div>
-                                        </Col>
-                                        <Col xs={6}>
-                                            <Button className={'mb-2'} color={'info'} size={'lg'} block onClick={this.onGoodsPopupClick.bind(this, 'reservedGoods')}>
-                                                <FaClock />예약 상품</Button>
-                                            <div className={'small text-center text-secondary f6'}>
-                                                <div className={'mb-2'}>
-                                                    - 채소 등과 같이 <b className={'text-info'}>재배기간 동안 주문을 받고 수확/출하 후 일괄 발송하는 상품</b>입니다.
-                                                </div>
-                                                <div>
-                                                    - 판매기간 동안 <b className={'text-info'}>단계별 할인가</b>를 적용할 수 있습니다.
-                                                </div>
-                                            </div>
-                                        </Col>
+                                    {/*<h6>판매상품의 종류를 선택해 주세요.</h6>*/}
+                                    {/*<Row className='border pt-3 mb-3'>*/}
+                                    {/*    <Col xs={6}>*/}
+                                    {/*        <Button className={'mb-2'} color={'warning'} size={'lg'} block onClick={this.onGoodsPopupClick.bind(this, 'directGoods')}>*/}
+                                    {/*            <FaBolt />즉시 상품</Button>*/}
+                                    {/*        <div className={'small text-center text-secondary f6'}>*/}
+                                    {/*            <div className={'mb-2'}>*/}
+                                    {/*                - 상품이 판매가 되면  <b className={'text-warning'}>즉시 발송하는 상품</b>으로 소비자와 판매가를 입력할 수 있습니다.*/}
+                                    {/*            </div>*/}
+                                    {/*            <div>*/}
+                                    {/*                - 미리 가공된 상품 등 <b className={'text-warning'}>바로 발송이 가능한 경우</b> 선택해 주세요.*/}
+                                    {/*            </div>*/}
+                                    {/*            <br/>*/}
+                                    {/*        </div>*/}
+                                    {/*    </Col>*/}
+                                    {/*    <Col xs={6}>*/}
+                                    {/*        <Button className={'mb-2'} color={'info'} size={'lg'} block onClick={this.onGoodsPopupClick.bind(this, 'reservedGoods')}>*/}
+                                    {/*            <FaClock />예약 상품</Button>*/}
+                                    {/*        <div className={'small text-center text-secondary f6'}>*/}
+                                    {/*            <div className={'mb-2'}>*/}
+                                    {/*                - 채소 등과 같이 <b className={'text-info'}>재배기간 동안 주문을 받고 수확/출하 후 일괄 발송하는 상품</b>입니다.*/}
+                                    {/*            </div>*/}
+                                    {/*            <div>*/}
+                                    {/*                - 판매기간 동안 <b className={'text-info'}>단계별 할인가</b>를 적용할 수 있습니다.*/}
+                                    {/*            </div>*/}
+                                    {/*        </div>*/}
+                                    {/*    </Col>*/}
 
-                                    </Row>
+                                    {/*</Row>*/}
+
                                 </Container>
                             </Col>
                         </Row>
                     </Container>
 
                     <Container>
-                        {
-                            this.state.goodsType === 'reservedGoods' ? <WebGoodsReg /> : <WebDirectGoodsReg />
-                        }
+                        {/*{*/}
+                        {/*    this.state.goodsType === 'reservedGoods' ? <WebGoodsReg /> : <WebDirectGoodsReg />*/}
+                        {/*}*/}
+                        <WebDirectGoodsReg />
                     </Container>
                 </div>
 

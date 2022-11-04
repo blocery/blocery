@@ -1,4 +1,3 @@
-import axiosSecure from "~/lib/axiosSecure";
 import axios from 'axios'
 import {Server} from "~/components/Properties";
 
@@ -6,10 +5,10 @@ import {Server} from "~/components/Properties";
 export const getCertDone = () => axios(Server.getRestAPIHost() + '/kakaocert/certDone', { method: "get", withCredentials: true, credentials: 'same-origin' })
 
 //2.최초 인증 요청. - 카톡알림으로 인증안내 발송됨
-export const requestAuth = ({name, birthday}) => axiosSecure(Server.getRestAPIHost() + '/kakaocert/requestAuth', { method: "post", params:{name, birthday}, withCredentials: true, credentials: 'same-origin' })
+export const requestAuth = ({name, birthday, type}) => axios(Server.getRestAPIHost() + '/kakaocert/requestAuth', { method: "post", params:{name, birthday, type}, withCredentials: true, credentials: 'same-origin' })
 
 //3.인증확인 버튼 : receiptId를 이용해 인증완료 체크.
-export const requestDoneCheck = () => axiosSecure(Server.getRestAPIHost() + '/kakaocert/requestDoneCheck', { method: "get", withCredentials: true, credentials: 'same-origin' })
+export const requestDoneCheck = () => axios(Server.getRestAPIHost() + '/kakaocert/requestDoneCheck', { method: "get", withCredentials: true, credentials: 'same-origin' })
 
 export default {
     getCertDone,

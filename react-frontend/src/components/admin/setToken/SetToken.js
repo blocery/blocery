@@ -19,6 +19,8 @@ export default class SetToken extends Component{
             managerAccount: '',
             managerBlct: '-',
             managerOng: '-',
+            manualEventFlag: false,
+            manualClaimFlag: false,
             sendKakao: false,
             justHistory: false,
             ethAccount: '',
@@ -197,7 +199,15 @@ export default class SetToken extends Component{
         } else {
             consumerNo = this.giveConsumerNo.placeholder;
         }
-        let {data} = await scOntTransferManagerBlctWithEvent(this.eventTitle.value, this.eventSubTitle.value,  consumerNo, this.giveManyAmount.value, this.state.sendKakao, this.state.justHistory);
+
+        let manualFlag = 0;
+        if(this.state.manualEventFlag) {
+            manualFlag = 1;
+        } else if(this.state.manualClaimFlag) {
+            manualFlag = 2;
+        }
+
+        let {data} = await scOntTransferManagerBlctWithEvent(this.eventTitle.value, this.eventSubTitle.value,  consumerNo, this.giveManyAmount.value, this.state.sendKakao, this.state.justHistory, manualFlag);
         if(data) {
             alert('토큰이 성공적으로 지급되었습니다');
         } else {
@@ -235,6 +245,18 @@ export default class SetToken extends Component{
     onSendKakao = (e) => {
         this.setState({
             sendKakao: e.target.checked
+        })
+    }
+
+    onManualEventFlag = (e) => {
+        this.setState({
+            manualEventFlag: e.target.checked
+        })
+    }
+
+    onManualClaimFlag = (e) => {
+        this.setState({
+            manualClaimFlag: e.target.checked
         })
     }
 
@@ -438,6 +460,13 @@ export default class SetToken extends Component{
 
                     <div className='d-flex'>
                         <span> 4. consumerNo에 BLCT 지급 or 회수 (마이너스 입력시 회수됨. 토큰전송 완료시 알림창을 확인해야 합니다) </span>
+                        <input id={'manualEventFlag'} type="checkbox" className={'m-2'} color={'default'}
+                               checked={this.state.manualEventFlag} onChange={this.onManualEventFlag}/>
+                        <label htmlFor={'manualEventFlag'} className='text-secondary mr-2'>이벤트성 수동지급</label>
+                        <input id={'manualClaimFlag'} type="checkbox" className={'m-2'} color={'default'}
+                               checked={this.state.manualClaimFlag} onChange={this.onManualClaimFlag}/>
+                        <label htmlFor={'manualClaimFlag'} className='text-secondary mr-2'>클레임 수동지급</label>
+
                         <input id={'sendKakao'} type="checkbox" className={'m-2'} color={'default'} checked={this.state.sendKakao} onChange={this.onSendKakao} />
                         <label for={'sendKakao'} className='text-secondary mr-2'>카카오톡 발송</label>
                         <input id={'justHistory'} type="checkbox" className={'m-2'} color={'default'}
@@ -446,10 +475,10 @@ export default class SetToken extends Component{
                     </div>
                     {/*<br />*/}
                     <div className='d-flex'>
-                        <input className='m-0 w-25' type="text" placeholder="이벤트 제목 (토큰내역에 보여질 진한 제목)"
+                        <input className='m-0 w-25' type="text" placeholder="이벤트 제목 (토큰내역에 보여질 회색 작은 제목)"
                                ref = {(input) => {this.eventTitle = input}}
                         />
-                        <input className='m-0 w-25' type="text" placeholder="이벤트 상세제목 (토큰내역에 보여질 작은 설명)"
+                        <input className='m-0 w-25' type="text" placeholder="이벤트 상세제목 (토큰내역에 보여질 큰 글씨)"
                                ref = {(input) => {this.eventSubTitle = input}}
                         />
                         <input className='m-0 w-auto' type="text" placeholder="0"

@@ -6,8 +6,8 @@ import { getHomeBannerList } from '~/lib/shopApi'
 import { Server } from '~/components/Properties'
 import {Link, Div, Button, Flex, Fixed, Img} from '~/styledComponents/shared'
 import styled, {keyframes} from 'styled-components'
-import {AiOutlineClose} from 'react-icons/ai'
 import {RiDownloadLine} from 'react-icons/ri'
+import {MdClose} from 'react-icons/md'
 
 import {withRouter} from 'react-router-dom'
 import appIcon20 from '~/images/appIcon/app-icon-20-pt-x-20-pt@3x.png'
@@ -90,7 +90,7 @@ export default withRouter(function B2cBottombar(props){
         <>
             <Flex fixed top={0} bottom={0} left={0} right={0} zIndex={21} justifyContent={'center'} style={{backgroundColor: 'rgba(0,0,0, 0.8)'}}>
                 <Div absolute top={20} right={20} zIndex={1} onClick={toggleBottom} cursor>
-                    <AiOutlineClose color={'white'} size={30} />
+                    <MdClose color={'white'} size={30} />
                 </Div>
                 <div onClick={(e)=>{
                     e.stopPropagation()

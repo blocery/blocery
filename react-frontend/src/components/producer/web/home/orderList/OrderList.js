@@ -17,7 +17,7 @@ function OrderList(props) {
     }, [])
 
     async function search() {
-        const {status, data} = await getOrderByProducerNo()
+        const {status, data} = await getOrderByProducerNo("recent")
 
         if (status === 200) {
 

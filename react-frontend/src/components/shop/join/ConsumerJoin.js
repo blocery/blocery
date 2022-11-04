@@ -10,10 +10,11 @@ import ComUtil from '~/util/ComUtil'
 import {FaMobileAlt} from 'react-icons/fa'
 import { smsSend, smsConfirm } from '~/lib/smsApi'
 import { Webview } from "~/lib/webviewApi";
-import { B2cPrivatePolicy, B2cTermsOfUse } from '~/components/common/termsOfUses'
+import { B2cPrivatePolicy11, B2cTermsOfUse11 } from '~/components/common/termsOfUses'
 import { SwitchButton } from '~/components/common/switchButton'
 
 import Css from './Join.module.scss'
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 const Star = () => <span className='text-danger'>*</span>
 
@@ -29,6 +30,7 @@ export default class ConsumerJoin extends Component{
             passPhraseCheck: '',
             checkbox0: false,
             checkbox1: false,
+            checkbox2: false,
             fadeEmail: false,
             fadeOverlapEmail: false,
             fadeValword: false,
@@ -40,10 +42,13 @@ export default class ConsumerJoin extends Component{
             modalPassPhraseCheck: false,
             modalPush: false,
             terms: [
-                {name:'checkbox0', title:'이용약관', content:<B2cTermsOfUse/>},
-                {name:'checkbox1', title:'개인정보 처리방침', content:<B2cPrivatePolicy/>
-                }],
-            receivePush: true
+                {name:'checkbox0', title:'만 14세 이상', content:null},
+                {name:'checkbox1', title:'이용약관 동의', content:<B2cTermsOfUse11/>},
+                {name:'checkbox2', title:'개인정보처리방침 동의', content:<B2cPrivatePolicy11/>}
+            ],
+            receivePush: true,
+
+            noBlockchain: false
         };
     }
 
@@ -130,7 +135,8 @@ export default class ConsumerJoin extends Component{
     onChangeCheckAll = (e) => {
         this.setState({
             checkbox0: e.target.checked,
-            checkbox1: e.target.checked
+            checkbox1: e.target.checked,
+            checkbox2: e.target.checked
         })
     }
 
@@ -145,6 +151,10 @@ export default class ConsumerJoin extends Component{
 
         const saveState = Object.assign({}, this.state)
         saveState.phone = ComUtil.phoneRegexChange(state.phone)
+
+        if (this.state.noBlockchain) {
+            saveState.passPhrase = '000000'; //noBlockchain사용자는 000000으로 저장.
+        }
 
         const response = await addConsumer(saveState);
         if(response.data === -3) {
@@ -164,7 +174,8 @@ export default class ConsumerJoin extends Component{
             Webview.updateFCMToken({userType: 'consumer', userNo: consumerNo})
 
             //alert('가입이 정상처리되었습니다.');
-            this.props.history.push('/joinComplete?name='+saveState.name+'&email='+saveState.email);
+            // this.props.history.push('/joinComplete?name='+saveState.name+'&email='+saveState.email);
+            this.props.history.push('/joinComplete');
         }
     }
 
@@ -182,12 +193,20 @@ export default class ConsumerJoin extends Component{
             return false;
         }
 
-        if(state.passPhrase.length != 6 || state.fadePassPhraseCheck) {
+        if(!state.noBlockchain && (state.passPhrase.length != 6 || state.fadePassPhraseCheck)) {
             alert('결제 비밀번호를 정확하게 입력해주세요.')
             return false;
         }
-        if(!state.checkbox0 || !state.checkbox1) {
-            alert('약관 동의는 필수사항입니다.')
+        if(!state.checkbox0 || !state.checkbox1 || !state.checkbox2) {
+            if(!state.checkbox0){
+                alert('만 14세 이상에 동의해 주세요.')
+            }
+            else if(!state.checkbox1){
+                alert('이용약관에 동의해 주세요.')
+            }
+            else if(!state.checkbox2){
+                alert('개인정보처리방침에 동의해 주세요.')
+            }
             return false;
         }
 
@@ -325,11 +344,20 @@ export default class ConsumerJoin extends Component{
         })
     }
 
+    onNoBlockchainChange = () => {
+        this.setState({
+            noBlockchain: !this.state.noBlockchain
+        })
+
+        //this.modalChange();
+    }
+
 
     render(){
         return(
             <Fragment>
-                <ShopXButtonNav backClose>소비자 회원가입</ShopXButtonNav>
+                {/*<ShopXButtonNav backClose>소비자 회원가입</ShopXButtonNav>*/}
+                <BackNavigation rightContent={() => Webview.closePopup(false)}>소비자 회원가입</BackNavigation>
                 <div className={Css.wrap}>
                     <div className='m-3'>
                         <Container fluid>
@@ -403,35 +431,70 @@ export default class ConsumerJoin extends Component{
                             }
 
                             <br />
-                            <Row>
-                                <Col xs={12} className='pb-3'>
-                                    <FormGroup>
-                                        <Label className='lead'>결제 비밀번호<Star/></Label>
-                                        <InputGroup>
-                                            <Input type="password" readOnly name="passPhrase" value={this.state.passPhrase} onClick={this.modalPassPhrase} placeholder="결제 비밀번호(숫자6자리)" maxLength="6" />
-                                        </InputGroup>
-                                    </FormGroup>
-                                </Col>
-                                <Col xs={12} className='pb-3'>
-                                    <FormGroup>
-                                        <InputGroup>
-                                            <Input type="password" readOnly name="passPhraseCheck" value={this.state.passPhraseCheck} placeholder="결제 비밀번호 확인" onClick={this.modalPassPhraseCheck} maxLength="6" />
-                                        </InputGroup>
 
-                                        <p>
-                                            <div className='small text-info'>
-                                                상품 구매시 사용할 결제 비밀번호 입니다.
-                                            </div>
-                                            <div className='small text-danger'>
-                                                블록체인 특성상 결제 비밀번호는 변경이 불가능합니다. 분실 또는 유출되지 않도록 주의해주세요.
-                                            </div>
-                                        </p>
-                                        {
-                                            this.state.fadePassPhraseCheck && <Fade in className={'text-danger'}>비밀번호가 일치하지 않습니다.</Fade>
-                                        }
-                                    </FormGroup>
+                        </Container>
+                    </div>
+                    <hr/>
+
+                    <div className='m-3'>
+                        <Container>
+                            <Row>
+                                <Col xs={12}>
+                                    <div className='d-flex align-items-center'>
+                                        <div className='lead'>
+                                            블록체인 사용여부
+                                        </div>
+                                        <div className='ml-auto d-flex align-items-center'>
+                                            <SwitchButton checked={!this.state.noBlockchain} onChange={this.onNoBlockchainChange}/>
+                                        </div>
+                                    </div>
                                 </Col>
                             </Row>
+                            <br/>
+
+                            {!this.state.noBlockchain &&
+                                <Row>
+                                    <Col xs={12} className='pb-3'>
+                                        <FormGroup>
+                                            <Label className='lead'>결제 비밀번호<Star/></Label>
+                                            <InputGroup>
+                                                <Input type="password" readOnly name="passPhrase"
+                                                       value={this.state.passPhrase} onClick={this.modalPassPhrase}
+                                                       placeholder="결제 비밀번호(숫자6자리)" maxLength="6"/>
+                                            </InputGroup>
+                                        </FormGroup>
+                                    </Col>
+                                    <Col xs={12} className='pb-3'>
+                                        <FormGroup>
+                                            <InputGroup>
+                                                <Input type="password" readOnly name="passPhraseCheck"
+                                                       value={this.state.passPhraseCheck} placeholder="결제 비밀번호 확인"
+                                                       onClick={this.modalPassPhraseCheck} maxLength="6"/>
+                                            </InputGroup>
+
+                                            <p>
+                                                <div className='small text-info'>
+                                                    상품 구매시 사용할 결제 비밀번호 입니다.
+                                                </div>
+                                                <div className='small text-danger'>
+                                                    블록체인 특성상 결제 비밀번호는 변경이 불가능합니다. 분실 또는 유출되지 않도록 주의해주세요.
+                                                </div>
+                                            </p>
+                                            {
+                                                this.state.fadePassPhraseCheck &&
+                                                <Fade in className={'text-danger'}>비밀번호가 일치하지 않습니다.</Fade>
+                                            }
+                                        </FormGroup>
+                                    </Col>
+                                </Row>
+                            }
+
+                            {this.state.noBlockchain &&
+                                <div className='small text-danger'>
+                                    블록체인 미사용인 경우 구매적립, 슈퍼리워드 및 친구추천 관련 적립이 적용되지 않습니다.
+                                </div>
+                            }
+
                         </Container>
                     </div>
                     <hr/>
@@ -449,7 +512,7 @@ export default class ConsumerJoin extends Component{
                                         </div>
                                     </div>
                                     <p>
-                                        <span className='text-secondary f6'>※ 알림수신에 동의를 하시면, 마켓블리에서 제공하는 다양한 혜택 및 배송 관련 알림을 받을 수 있습니다.</span>
+                                        <span className='text-secondary f6'>※ 알림수신에 동의를 하시면, 샵블리에서 제공하는 다양한 혜택 및 배송 관련 알림을 받을 수 있습니다.</span>
                                     </p>
                                 </Col>
                             </Row>
@@ -515,7 +578,7 @@ export default class ConsumerJoin extends Component{
                         <Button block outline size='sm' color='secondary' className='m-1' onClick={this.cancelNoti}>알림 해제</Button>
                     </ModalFooter>
                 </Modal>
-                <ToastContainer/>
+                {/*<ToastContainer/>*/}
 
             </Fragment>
 

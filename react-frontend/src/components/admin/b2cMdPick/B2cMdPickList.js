@@ -3,21 +3,25 @@ import { Button} from 'reactstrap'
 import ComUtil from '~/util/ComUtil'
 import { getLoginAdminUser } from '~/lib/loginApi'
 import { getMdPickList, delMdPick, hideMdPick } from '~/lib/adminApi'
-
 import { ModalConfirm, AdminModalFullPopupWithNav } from '~/components/common'
-import {B2cMdPickReg} from '~/components/admin/b2cMdPick'
-
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
 import { Cell } from '~/components/common'
 import { Server } from '../../Properties'
-import moment from 'moment'
+import moment from 'moment-timezone'
+import {Div, Flex, Right, Space, Span} from "~/styledComponents/shared";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
+import DatePicker from "react-datepicker";
+import "react-datepicker/src/stylesheets/datepicker.scss";
+import {B2cMdPickReg} from '~/components/admin/b2cMdPick'
 
 export default class B2cMdPick extends Component{
     constructor(props) {
         super(props);
+        this.gridRef = React.createRef();
         this.state = {
+            search: {
+                year:moment().format('YYYY')
+            },
             loading: false,
             data: [],
             columnDefs: [
@@ -28,7 +32,7 @@ export default class B2cMdPick extends Component{
                         clearButton: true //클리어버튼
                     },
                     sortable: true,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 150
                 },
                 {
@@ -36,7 +40,7 @@ export default class B2cMdPick extends Component{
                     field: "mdPickMainImages",
                     suppressFilter: true,   //no filter
                     suppressSorting: true,  //no sort
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer:"mainImageRenderer",
                     width: 120
                 },
@@ -47,14 +51,14 @@ export default class B2cMdPick extends Component{
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'left'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'left'}),
                     cellRenderer: "titleRenderer",
                     width: 250
                 },
                 {
                     headerName: "기획전 시작일", field: "mdPickStartDate",
                     suppressSizeToFit: true,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 180,
                     cellRenderer: "formatDatesRenderer",
                     valueGetter: function(params) {
@@ -87,7 +91,7 @@ export default class B2cMdPick extends Component{
                 {
                     headerName: "기획전 종료일", field: "mdPickEndDate",
                     suppressSizeToFit: true,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 180,
                     cellRenderer: "formatDatesRenderer",
                     valueGetter: function(params) {
@@ -124,7 +128,7 @@ export default class B2cMdPick extends Component{
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer: "goodsCntRenderer",
                     width: 100
                 },
@@ -132,7 +136,7 @@ export default class B2cMdPick extends Component{
                     headerName: "비고",
                     suppressFilter: true,   //no filter
                     suppressSorting: true,  //no sort
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 150,
                     cellRenderer: "delButtonRenderer"
                 },
@@ -142,7 +146,7 @@ export default class B2cMdPick extends Component{
                 resizable: true,
                 filter: true,
                 sortable: true,
-                floatingFilter: false,
+                floatingFilter: true,
                 filterParams: {
                     newRowsAction: 'keep'
                 }
@@ -159,7 +163,6 @@ export default class B2cMdPick extends Component{
                 goodsCntRenderer:this.goodsCntRenderer,
                 delButtonRenderer:this.delButtonRenderer
             },
-            rowHeight: 75,
             mdPickId:"",
             mdPickModalTitle:"",
             isMdPickRegModalOpen:false
@@ -185,21 +188,8 @@ export default class B2cMdPick extends Component{
     //     this.gridColumnApi = params.columnApi;
     // }
 
-    // Ag-Grid Cell 스타일 기본 적용 함수
-    getCellStyle ({cellAlign,color,textDecoration,whiteSpace, fontWeight}){
-        if(cellAlign === 'left') cellAlign='flex-start';
-        else if(cellAlign === 'center') cellAlign='center';
-        else if(cellAlign === 'right') cellAlign='flex-end';
-        else cellAlign='flex-start';
-        return {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: cellAlign,
-            color: color,
-            textDecoration: textDecoration,
-            whiteSpace: whiteSpace,
-            fontWeight: fontWeight
-        }
+    getRowHeight(params) {
+        return 75;
     }
 
     //Ag-Grid Cell 숫자콤마적용 렌더러
@@ -246,7 +236,7 @@ export default class B2cMdPick extends Component{
     };
 
     delButtonRenderer = ({value, data:rowData}) => {
-        console.log(rowData)
+
         const now = ComUtil.utcToString(moment(), "YYYY-MM-DDThh:mm:ss");
         let validPick = ComUtil.compareDate(rowData.mdPickEndDate, now);
         let notYetPick = ComUtil.compareDate(rowData.mdPickStartDate, now);
@@ -261,14 +251,14 @@ export default class B2cMdPick extends Component{
                         :
                         (validPick < 0) ?
                             <Button disabled={true} className="mr-3" size='sm' color={'secondary'}>기간종료</Button>
-                                :
-                                <ModalConfirm title={'홈화면에서 숨김'} content={<div>선택한 기획전을 홈화면에서 숨김처리 하시겠습니까?</div>} onClick={this.hideMdPickHome.bind(this, rowData.mdPickId)}>
-                                    {(notYetPick >= 0) ?
-                                        <Button className="mr-3" size='sm' color={'info'}>시작 전</Button>
-                                        :
-                                        <Button className="mr-3" size='sm' color={'info'}>홈화면출력중</Button>
-                                    }
-                                </ModalConfirm>
+                            :
+                            <ModalConfirm title={'홈화면에서 숨김'} content={<div>선택한 기획전을 홈화면에서 숨김처리 하시겠습니까?</div>} onClick={this.hideMdPickHome.bind(this, rowData.mdPickId)}>
+                                {(notYetPick >= 0) ?
+                                    <Button className="mr-3" size='sm' color={'info'}>시작 전</Button>
+                                    :
+                                    <Button className="mr-3" size='sm' color={'info'}>홈화면출력중</Button>
+                                }
+                            </ModalConfirm>
                     }
 
                     <ModalConfirm title={'기획전 삭제'} content={<div>선택한 기획전을 삭제하시겠습니까?</div>} onClick={this.delMdPick.bind(this, rowData.mdPickId)}>
@@ -281,16 +271,28 @@ export default class B2cMdPick extends Component{
 
 
     search = async () => {
-        this.setState({loading: true});
-        const { status, data } = await getMdPickList();
+        const {api} = this.gridRef.current;
+        if (api) {
+            //ag-grid 레이지로딩중 보이기
+            api.showLoadingOverlay();
+        }
+        const searchInfo = this.state.search;
+        const params = {
+            year:searchInfo.year
+        };
+        const { status, data } = await getMdPickList(params);
         if(status !== 200){
             alert('응답이 실패 하였습니다');
             return
         }
         this.setState({
-            data: data,
-            loading: false
+            data: data
         });
+        //ag-grid api
+        if(api) {
+            //ag-grid 레이지로딩중 감추기
+            api.hideOverlay()
+        }
     };
 
     delMdPick = async(mdPickId, isConfirmed) => {
@@ -350,52 +352,70 @@ export default class B2cMdPick extends Component{
         }
     };
 
-    render() {
-        return (
-            <div>
-                <div className="d-flex p-1">
-                    <div className="d-flex align-items-center pl-1">
-                        <span className="text-success">{this.state.data.length}</span>개의 기획전
-                    </div>
-                    <div className="flex-grow-1 text-right">
-                        <Button outline size='sm' color={'info'} onClick={this.regMdPick.bind(this,'')} className='m-2'>기획전 등록</Button>
-                    </div>
-                </div>
-                <div className="p-1">
-                    <div
-                        className="ag-theme-balham"
-                        style={{
-                            height: '550px'
-                        }}
-                    >
-                        <AgGridReact
-                            // enableSorting={true}                //정렬 여부
-                            // enableFilter={true}                 //필터링 여부
-                            floatingFilter={true}               //Header 플로팅 필터 여부
-                            columnDefs={this.state.columnDefs}  //컬럼 세팅
-                            defaultColDef={this.state.defaultColDef}
-                            rowHeight={this.state.rowHeight}
-                            // enableColResize={true}              //컬럼 크기 조정
-                            overlayLoadingTemplate={this.state.overlayLoadingTemplate}
-                            overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
-                            // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
-                            rowData={this.state.data}
-                            components={this.state.components}
-                            frameworkComponents={this.state.frameworkComponents}
-                        >
-                        </AgGridReact>
+    onSearchDateChange = async (date) => {
+        //console.log("",date.getFullYear())
+        const search = Object.assign({}, this.state.search);
+        search.year = date.getFullYear();
+        await this.setState({search:search});
+        await this.search();
+    }
 
-                    </div>
-                    <AdminModalFullPopupWithNav
-                        show={this.state.isMdPickRegModalOpen}
-                        title={this.state.mdPickModalTitle}
-                        onClose={this.onMdPickPopupClose}>
-                        <B2cMdPickReg
-                            mdPickId={this.state.mdPickId}
-                        />
-                    </AdminModalFullPopupWithNav>
+    render() {
+        const ExampleCustomDateInput = ({ value, onClick }) => (
+            <MenuButton onClick={onClick}>기획전 {value} 년</MenuButton>
+        );
+        return (
+            <Div p={16}>
+
+                <Flex mb={10}>
+                    <Div>
+                        <Space>
+                            <MenuButton bg={'green'} onClick={this.regMdPick.bind(this,'')}>기획전 등록</MenuButton>
+                            <DatePicker
+                                selected={new Date(moment().set('year',this.state.search.year))}
+                                onChange={this.onSearchDateChange}
+                                showYearPicker
+                                dateFormat="yyyy"
+                                customInput={<ExampleCustomDateInput />}
+                            />
+                            <MenuButton onClick={this.search}>검색</MenuButton>
+                        </Space>
+                    </Div>
+                    <Right>
+                        <Span fg={'green'} >{this.state.data.length}</Span>개의 기획전
+                    </Right>
+                </Flex>
+
+                <div
+                    className="ag-theme-balham"
+                    style={{
+                        height: '550px'
+                    }}
+                >
+                    <AgGridReact
+                        ref={this.gridRef}
+                        columnDefs={this.state.columnDefs}  //컬럼 세팅
+                        defaultColDef={this.state.defaultColDef}
+                        getRowHeight={this.getRowHeight}
+                        overlayLoadingTemplate={this.state.overlayLoadingTemplate}
+                        overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
+                        // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
+                        rowData={this.state.data}
+                        components={this.state.components}
+                        frameworkComponents={this.state.frameworkComponents}
+                    >
+                    </AgGridReact>
+
                 </div>
-            </div>
+                <AdminModalFullPopupWithNav
+                    show={this.state.isMdPickRegModalOpen}
+                    title={this.state.mdPickModalTitle}
+                    onClose={this.onMdPickPopupClose}>
+                    <B2cMdPickReg
+                        mdPickId={this.state.mdPickId}
+                    />
+                </AdminModalFullPopupWithNav>
+            </Div>
         )
     }
 }

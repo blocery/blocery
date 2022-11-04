@@ -1,27 +1,29 @@
 import React, { Component, Fragment } from 'react'
 import { ProducerWebNav } from '~/components/common'
 import { ProducerWebMenuList, ProducerWebSubMenuList, Server} from '~/components/Properties'
-import { doProducerLogout, getLoginProducerUser, getLoginAdminUser, tempAdminProducerLogin, tempAdminProducerList, barunProducerLogin } from '~/lib/loginApi'
-import {Input} from 'reactstrap'
+import { doProducerLogout, getLoginProducerUser, getLoginAdminUser, tempAdminProducerLogin, tempAdminProducerList, chainProducerLogin } from '~/lib/loginApi'
+import { getProducerByProducerNo } from '~/lib/producerApi'
+import {Input, Modal, ModalBody, ModalFooter, ModalHeader} from 'reactstrap'
 import classNames from 'classnames'
-
 import Error from '~/components/Error'
-
 import { Button } from 'reactstrap'
-
-import {} from '~/components/Properties'
-
 import Css from './ProducerWeb.module.scss'
+import ProducerList from '~/components/common/modalContents/producerList'
+import {Button as StButton, Flex, Input as StInput} from "~/styledComponents/shared";
+import {FaSearchPlus} from "react-icons/fa";
 
 class ProducerWebContainer extends Component {
     constructor(props) {
+        console.log({producerWebContainer: props})
         super(props)
         this.state = {
+            producerModalOpen:false,
             loginUser: {},
             adminUser: '',
-            harunProducer: false,
+            chainProducer: false,
             producerList: [],
-            selectedProducerEmail: 'producer@ezfarm.co.kr'
+            selectedProducerEmail: 'producer@ezfarm.co.kr',
+            localfoodFlag: false
         }
     }
     async componentDidMount(){
@@ -45,7 +47,8 @@ class ProducerWebContainer extends Component {
         //console.log('ProducerWebContainer - componentDidMount:', adminUser);
 
         let producerList = [];
-        let harunProducer = false;
+        let chainProducer = false;
+        let bLocalfoodFlag = false;
 
         if (adminUser && adminUser.email === 'tempProducer@ezfarm.co.kr') {
 
@@ -81,8 +84,6 @@ class ProducerWebContainer extends Component {
                 let option =  {value: producer.email, name:producer.name};
                 return option;
             })
-
-
         } else if(
             loginProducer &&
             (
@@ -106,7 +107,7 @@ class ProducerWebContainer extends Component {
                 ]
             }
 
-            harunProducer = true;
+            chainProducer = true;
 
         } else {
             adminUser = null;   //adminUser로 생산자 로그인 방식 실패.
@@ -115,16 +116,26 @@ class ProducerWebContainer extends Component {
             }
         }
 
-
+        if(loginProducer){
+            console.log("loginProducer=====",loginProducer)
+            const {data: producerInfo} = await getProducerByProducerNo(loginProducer.uniqueNo);
+            if (producerInfo != null) {
+                if (producerInfo.localfoodFlag) {
+                    bLocalfoodFlag = true;
+                }
+            }
+        }
 
 
         this.setState({
             loginUser:loginProducer,
             adminUser:adminUser,
-            harunProducer: harunProducer,
+            chainProducer: chainProducer,
             producerList:producerList,
-            selectedProducerEmail: selectedProducerEmail
-            })
+            selectedProducerEmail: selectedProducerEmail,
+            localfoodFlag : bLocalfoodFlag,
+            producerNo : loginProducer ? loginProducer.uniqueNo : 0
+        })
     }
 
     onClickLogout = async () => {
@@ -135,13 +146,12 @@ class ProducerWebContainer extends Component {
         window.location = '/producer/webLogin'
     }
 
-    onItemChange = async (e) => {
-        //console.log('onItemChange', e.target.value)
+    onItemChange = (e) => {
+        this.onProducerChange(e.target.value);
+    }
 
-        //value(농장명)으로 producer email 찾기.
-        //console.log(this.state.producerList);
-
-        let selectedProducer = this.state.producerList.find( prodOption => (prodOption.value === e.target.value));
+    onProducerChange = async (email) => {
+        let selectedProducer = this.state.producerList.find( prodOption => (prodOption.value === email));
         //console.log('onItemChange - selectedProducer:', selectedProducer)
 
         //login시도
@@ -152,10 +162,10 @@ class ProducerWebContainer extends Component {
         if (this.state.adminUser && this.state.adminUser.email === 'tempProducer@ezfarm.co.kr') {
             let {data: loginInfo} = await tempAdminProducerLogin(newLogin);
             //console.log('onItemChange - tempAdminProducerLogin', loginInfo.email);
-        } else if(this.state.harunProducer) {
-            // 바른연구소 로그인 변경
-            let {data: loginInfo} = await barunProducerLogin(selectedProducer.value);
-            console.log('onItemChange - barunProducerLogin', loginInfo);
+        } else if(this.state.chainProducer) {
+            // 로그인 변경 같은 (생산자 업체)
+            let {data: loginInfo} = await chainProducerLogin(selectedProducer.value);
+            console.log('onItemChange - chainProducerLogin', loginInfo);
         }
 
         this.setState({
@@ -163,14 +173,52 @@ class ProducerWebContainer extends Component {
         });
 
         window.location.reload(); //콤보 바꾸면, 전체화면 새로 고침
+    }
 
+    //오늘의 생산자 클릭
+    onProducerClick = () => {
+        this.toggleProducerModal();
+    }
+
+    onProducerModalClosed = async (data) => {
+        this.toggleProducerModal();
+        if (data) {
+            let adminUser = await getLoginAdminUser();
+            //login시도
+            let newLogin = {
+                email:data.email  //email
+            }
+
+            if (adminUser && adminUser.email === 'tempProducer@ezfarm.co.kr') {
+                let {data: loginInfo} = await tempAdminProducerLogin(newLogin);
+                //console.log('onItemChange - tempAdminProducerLogin', loginInfo.email);
+            } else if(this.state.chainProducer) {
+                // 로그인 변경 같은 (생산자 업체)
+                let {data: loginInfo} = await chainProducerLogin(data.email);
+                console.log('onItemChange - chainProducerLogin', loginInfo);
+            }
+
+            this.setState({
+                selectedProducerEmail: data.email
+            });
+
+            window.location.reload(); //콤보 바꾸면, 전체화면 새로 고침
+        }
+    }
+
+    toggleProducerModal = () => {
+        this.setState({
+            producerModalOpen: !this.state.producerModalOpen
+        })
     }
 
     render() {
         const { id, subId } = this.props.match.params
 
         const mainMenuItem = ProducerWebMenuList.find(main => main.id === id)
-        let subMenuItem = ProducerWebSubMenuList.find(subMenu => subMenu.parentId === id && subMenu.id === subId)
+        let mProducerWebSubMenuList = ProducerWebSubMenuList;
+        let subMenuItem = mProducerWebSubMenuList.find(subMenu => subMenu.parentId === id && subMenu.id === subId)
+        const Content = subMenuItem ? subMenuItem.page : null
 
         return(
 
@@ -178,32 +226,39 @@ class ProducerWebContainer extends Component {
                 { /* header */ }
                 <div className={Css.header}>
                     <div className={Css.logo}>
-                        MarketBly
+                        ShopBly
                     </div>
                     <div className={'p-1 font-weight-bold'}>
-
-                        {(!this.state.adminUser && !this.state.harunProducer) &&
-                            <span>{this.state.loginUser.name}</span>
+                        {
+                            (!this.state.adminUser && !this.state.chainProducer) &&
+                                <span>{this.state.loginUser.name}</span>
                         }
-                        { (this.state.adminUser)   &&
-                            <div className='pl-3' style={{width: 200}}>
-                                <Input type='select' name='select' id='producereList' onChange={this.onItemChange}>
-                                    { this.state.producerList.map((producerOption,idx) => {
-                                        console.log('on select option:', producerOption.value, this.state.selectedProducerEmail);
-                                        return <option key={idx} name='producer' value={producerOption.value} selected={(producerOption.value===this.state.selectedProducerEmail)}> {producerOption.name} </option>
-                                    })}
-                                </Input>
-                            </div>
+                        {
+                            (this.state.adminUser)   &&
+                                <div className='pl-3'>
+                                    <Flex>
+                                        <div style={{width: 250}}>
+                                            <Input type='select' name='select' id='producereList' onChange={this.onItemChange}>
+                                                { this.state.producerList.map((producerOption,idx) => {
+                                                    console.log('on select option:', producerOption.value, this.state.selectedProducerEmail);
+                                                    return <option key={idx} name='producer' value={producerOption.value} selected={(producerOption.value===this.state.selectedProducerEmail)}> {producerOption.name} </option>
+                                                })}
+                                            </Input>
+                                        </div>
+                                        <StButton ml={5} bg={'green'} fg={'white'} onClick={this.onProducerClick} px={10}><FaSearchPlus/>{' 찾기'}</StButton>
+                                    </Flex>
+                                </div>
                         }
-                        { (this.state.harunProducer) &&
-                            <div className='pl-3' style={{width: 200}}>
-                                <Input type='select' name='select' id='producereList' onChange={this.onItemChange}>
-                                    { this.state.producerList.map((producerOption,idx) => {
-                                        console.log('on select option:', producerOption.value, this.state.selectedProducerEmail);
-                                        return <option key={idx} name='producer' value={producerOption.value} selected={(producerOption.value===this.state.selectedProducerEmail)}> {producerOption.name} </option>
-                                    })}
-                                </Input>
-                            </div>
+                        {
+                            (this.state.chainProducer) &&
+                                <div className='pl-3' style={{width: 250}}>
+                                    <Input type='select' name='select' id='producereList' onChange={this.onItemChange}>
+                                        { this.state.producerList.map((producerOption,idx) => {
+                                            console.log('on select option:', producerOption.value, this.state.selectedProducerEmail);
+                                            return <option key={idx} name='producer' value={producerOption.value} selected={(producerOption.value===this.state.selectedProducerEmail)}> {producerOption.name} </option>
+                                        })}
+                                    </Input>
+                                </div>
                         }
 
                     </div>
@@ -216,7 +271,7 @@ class ProducerWebContainer extends Component {
                 <div className={Css.body}>
                     { /* left */ }
                     <div className={Css.left}>
-                        <ProducerWebNav id={id} subId={subId} history={this.props.history}/>
+                        <ProducerWebNav {...this.props} id={id} subId={subId} localfoodFlag={this.state.localfoodFlag} producerNo={this.state.producerNo}/>
                     </div>
                     { /* content */ }
                     <div className={Css.contentWrap}>
@@ -230,12 +285,28 @@ class ProducerWebContainer extends Component {
                         </div>
                         <div className={classNames(Css.contentBody, !subMenuItem.noPadding && Css.padding)}>
                             {
-                                subMenuItem ? <subMenuItem.page history={this.props.history} /> : <Error />
+                                subMenuItem ? <Content {...this.props} /> : <Error />
                             }
                         </div>
 
                     </div>
                 </div>
+                {/*생산자 모달 */}
+                <Modal size="lg" isOpen={this.state.producerModalOpen}
+                       toggle={this.toggleProducerModal} >
+                    <ModalHeader toggle={this.toggleProducerModal}>
+                        생산자 검색
+                    </ModalHeader>
+                    <ModalBody>
+                        <ProducerList
+                            onClose={this.onProducerModalClosed}
+                        />
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="secondary"
+                                onClick={this.toggleProducerModal}>취소</Button>
+                    </ModalFooter>
+                </Modal>
             </Fragment>
         )
     }

@@ -1,54 +1,86 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { getConsumerAbusers } from '~/lib/adminApi'
 import { getLoginAdminUser } from '~/lib/loginApi'
 import ComUtil from '~/util/ComUtil'
-import {Button, Modal, ModalBody, ModalFooter, ModalHeader} from 'reactstrap'
+import {Button, Input, Modal, ModalBody, ModalFooter, ModalHeader} from 'reactstrap'
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
-import {Span} from "~/styledComponents/shared";
+import {Div, FilterGroup, Flex, Hr, Right, Space, Span} from "~/styledComponents/shared";
 import ConsumerDetail from "~/components/common/contents/ConsumerDetail";
 import BlctRenderer from "~/components/common/agGridRenderers/BlctRenderer";
 import ExcelUtil from "~/util/ExcelUtil";
-import AbuserRenderer from "~/components/common/agGridRenderers/AbuserRenderer";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
+import FilterContainer from "~/components/common/gridFilter/FilterContainer";
+import InputFilter from "~/components/common/gridFilter/InputFilter";
+import CheckboxFilter from "~/components/common/gridFilter/CheckboxFilter";
+import moment from "moment-timezone";
 
 const WrappedBlctRenderer = ({data:rowData}) => {
-    //console.log("rowData",rowData)
     const d = {
         account:rowData.consumerAccount || null
     };
     return <BlctRenderer data={d} />;
 }
 const AbsuerList = (props) => {
+
+    // React reference
+    const gridRef = useRef();
+
     const [gridApi, setGridApi] = useState(null);
+    const [columnApi, setColumnApi] = useState(null);
+
     const [isOpen, setIsOpen] = useState(false);
     const [modalValue, setModalValue] = useState(null);
-    const [data, setData] = useState([]);
-    // const [excelData, setExcelData] = useState({
-    //     columns: [],
-    //     data: []
-    // });
+    const [data, setData] = useState(null);
+
+    const [searchData, setSearchData]= useState({
+        abuserStat: "B/H/C"
+    })
+
     const agGrid = {
         columnDefs: [
             {headerName: "소비자번호", field: "consumerNo",width: 100},
             {headerName: "이름", field: "name", cellRenderer: "nameRenderer",width: 100},
             {headerName: "email", field: "email", width: 150},
             {headerName: "phone", field: "phone", width: 100},
-            {headerName: "차단여부", field: "blocked", width: 100},
-            {headerName: "해킹여부", field: "hackerFlag", width: 100},
+            {headerName: "차단", field: "blocked", width: 90},
+            {headerName: "해킹", field: "hackerFlag", width: 90},
+            {
+                headerName: "커뮤니티", field: "communityAbuserFlag", width: 90,
+                valueGetter: function (params){
+                    if(params.data.communityPermanentlyFlag){
+                        return true;
+                    }
+                    else if(params.data.communityAbuserFlag){
+                        return true;
+                    }
+                    return false;
+                }
+            },
+            {
+                headerName: "커뮤니티제한일자", field: "communityAbuserDay", width: 150,
+                valueGetter: function (params){
+                    if(params.data.communityPermanentlyFlag){
+                        return '영구정지';
+                    }
+                    else if (params.data.communityAbuserFlag) {
+                        return `${moment(params.data.communityAbuserDay, 'YYYYMMDD').format('YY.MM.DD') } ~ ${moment(params.data.communityAbuserDay, 'YYYYMMDD').add(+14, 'days').format('YY.MM.DD')}`
+                    }
+                    return ''
+                }
+            },
             {headerName: "소비자안내메시지", field: "userMessage", width: 150},
             {headerName: "관리자메모", field: "memo", width: 150},
             {
                 headerName: "등록일", field: "regDate", width: 150,
                 valueGetter: function(params) {
                     //기공된 필터링 데이터로 필터링 되게 적용
-                    return params.data.regDate ? ComUtil.utcToString(params.data.regDate, 'YYYY-MM-DD HH:mm'):null;
+                    return params.data.regDate ? ComUtil.utcToString(params.data.regDate, 'YY.MM.DD HH:mm'):null;
                 }
             },
             {
                 headerName: "수정일", field: "modDate", width: 150,
                 valueGetter: function(params) {
-                    return params.data.modDate ? ComUtil.utcToString(params.data.modDate, 'YYYY-MM-DD HH:mm'):null;
+                    return params.data.modDate ? ComUtil.utcToString(params.data.modDate, 'YY.MM.DD HH:mm'):null;
                 }
             },
             {headerName: "IP", field: "ip", width: 150},
@@ -67,14 +99,14 @@ const AbsuerList = (props) => {
                 headerName: "탈퇴일", field: "stoppedDate", width: 100,
                 valueGetter: function(params) {
                     //기공된 필터링 데이터로 필터링 되게 적용
-                    return params.data.stoppedDate ? ComUtil.intToDateString(params.data.stoppedDate,"YYYY-MM-DD"):null;
+                    return params.data.stoppedDate ? ComUtil.intToDateString(params.data.stoppedDate,"YY.MM.DD"):null;
                 }
             },
             {
                 headerName: "가입일", field: "timestamp", width: 150,
                 valueGetter: function(params) {
                     //기공된 필터링 데이터로 필터링 되게 적용
-                    return params.data.timestamp ? ComUtil.utcToString(params.data.timestamp, 'YYYY-MM-DD HH:mm'):null;
+                    return params.data.timestamp ? ComUtil.utcToString(params.data.timestamp, 'YY.MM.DD HH:mm'):null;
                 }
             }
         ],
@@ -83,7 +115,7 @@ const AbsuerList = (props) => {
             resizable: true,
             filter: true,
             sortable: true,
-            floatingFilter: false,
+            floatingFilter: true,
             filterParams: {
                 newRowsAction: 'keep'
             }
@@ -99,11 +131,10 @@ const AbsuerList = (props) => {
     };
 
     //[이벤트] 그리드 로드 후 callback 이벤트 API init
-    const onGridReady = params => {
-        setGridApi(params.api);
+    const onGridReady = e => {
+        setGridApi(e.api);
+        setColumnApi(e.columnApi);
     };
-
-    const [showBlctBalance, setShowBlctBalance] = useState(false);
 
     // 디드마운트
     useEffect(() => {
@@ -119,19 +150,19 @@ const AbsuerList = (props) => {
         fetch()
     }, [])
 
-    // blct 잔고 출력
-    useEffect(() => {
-        search();
-    }, [showBlctBalance])
-
     const search = async () => {
 
-        if(gridApi) {
-            //ag-grid 레이지로딩중 보이기
-            gridApi.showLoadingOverlay();
-        }
+        // api and columnApi on the gridRef object
+        const {api, columnApi} = gridRef.current;
 
-        const { status, data } = await getConsumerAbusers()
+        if(api) {
+            //ag-grid 레이지로딩중 보이기
+            api.showLoadingOverlay();
+        }
+        const params = {
+            abuserStat: searchData.abuserStat
+        }
+        const { status, data } = await getConsumerAbusers(params)
         if(status !== 200){
             alert('응답이 실패 하였습니다')
             return
@@ -139,9 +170,9 @@ const AbsuerList = (props) => {
         setData(data);
 
         //ag-grid api
-        if(gridApi) {
+        if(api) {
             //ag-grid 레이지로딩중 감추기
-            gridApi.hideOverlay()
+            api.hideOverlay()
         }
     }
 
@@ -213,20 +244,85 @@ const AbsuerList = (props) => {
         ComUtil.copyTextToClipboard(value, '', '');
     }
 
+    // 조회할 change
+    const onStateChange = async (e) => {
+        setSearchData({abuserStat:e.target.value})
+    }
 
-    if(data.length <= 0) return null;
+    // if(data.length <= 0) return null;
     return (
-        <div>
+        <Div p={16}>
 
-            <div className="d-flex p-1">
-                <div className="d-flex">
-                    <Button color={'info'} size={'sm'} onClick={onExcelDownLoad}>
-                        <div className="d-flex">엑셀 다운로드</div>
-                    </Button>
-                </div>
-                <div className="flex-grow-1 text-right">총 {data.length}명</div>
-            </div>
+            <Flex p={10} mb={10} bc={'secondary'}>
+                <Space>
+                    <Input type='select' name='select' style={{width: 200}} id='abuserStat' onChange={onStateChange}>
+                        <option name='radioBorHorC' value='B/H/C' selected>차단/해킹/커뮤니티제제</option>
+                        <option name='radioBorH' value='B/H'>차단/해킹</option>
+                        <option name='radioBandH' value='B&H'>차단&해킹</option>
+                        <option name='radioB' value='B'>차단</option>
+                        <option name='radioH' value='H'>해킹</option>
+                        <option name='radioC' value='C'>커뮤니티제제</option>
+                        <option name='radioS' value='S'>탈퇴</option>
+                        <option name='radioAll' value='ALL'>전체</option>
+                    </Input>
+                    <MenuButton onClick={search}>검색</MenuButton>
+                </Space>
+            </Flex>
 
+            {/* filter START */}
+            <FilterContainer gridApi={gridApi} columnApi={columnApi} excelFileName={'어뷰저 목록'}>
+                <FilterGroup>
+                    <InputFilter
+                        gridApi={gridApi}
+                        columns={[
+                            {field: 'consumerNo', name: '소비자번호'},
+                            {field: 'name', name: '소비자명'},
+                            {field: 'email', name: '이메일'},
+                            {field: 'phone', name: '연락처'},
+                            {field: 'ip', name: '접속IP'},
+                        ]}
+                        isRealTime={true}
+                    />
+                </FilterGroup>
+                <Hr/>
+                <FilterGroup>
+                    <CheckboxFilter
+                        gridApi={gridApi}
+                        field={'blocked'}
+                        name={'차단여부'}
+                        data={[
+                            {value: true, name: 'true'},
+                            {value: false, name: 'false'},
+                        ]}
+                    />
+                    <CheckboxFilter
+                        gridApi={gridApi}
+                        field={'hackerFlag'}
+                        name={'해킹여부'}
+                        data={[
+                            {value: true, name: 'true'},
+                            {value: false, name: 'false'},
+                        ]}
+                    />
+                    <CheckboxFilter
+                        gridApi={gridApi}
+                        field={'communityAbuserFlag'}
+                        name={'커뮤니티 제제 여부'}
+                        data={[
+                            {value: true, name: 'true'},
+                            {value: false, name: 'false'},
+                        ]}
+                    />
+                </FilterGroup>
+            </FilterContainer>
+            {/* filter END */}
+
+            <Flex mb={10}>
+                <Div>
+                    <MenuButton onClick={onExcelDownLoad}>엑셀 다운로드</MenuButton>
+                </Div>
+                <Right>총 {data && data.length}명</Right>
+            </Flex>
 
             <div
                 className="ag-theme-balham"
@@ -235,20 +331,15 @@ const AbsuerList = (props) => {
                 }}
             >
                 <AgGridReact
-                    // enableSorting={true}                //정렬 여부
-                    // enableFilter={true}                 //필터링 여부
+                    ref={gridRef}
                     columnDefs={agGrid.columnDefs}  //컬럼 세팅
                     rowSelection={'multiple'}
                     defaultColDef={agGrid.defaultColDef}
-                    // components={components}  //custom renderer 지정, 물론 정해져있는 api도 있음
-                    // enableColResize={true}              //컬럼 크기 조정
                     overlayLoadingTemplate={agGrid.overlayLoadingTemplate}
                     overlayNoRowsTemplate={agGrid.overlayNoRowsTemplate}
                     onGridReady={onGridReady}   //그리드 init(최초한번실행)
                     rowData={data}
                     frameworkComponents={agGrid.frameworkComponents}
-                    //onFilterChanged={onGridFilterChanged.bind(this)} //필터온체인지 이벤트
-                    //onRowClicked={onSelectionChanged.bind(this)}       // 클릭된 row
                     onCellDoubleClicked={copy}
                 >
                 </AgGridReact>
@@ -265,7 +356,7 @@ const AbsuerList = (props) => {
                     <Button color="secondary" onClick={toggle}>닫기</Button>
                 </ModalFooter>
             </Modal>
-        </div>
+        </Div>
     )
 }
 export default AbsuerList;

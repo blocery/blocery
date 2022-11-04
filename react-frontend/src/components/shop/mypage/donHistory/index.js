@@ -1,6 +1,5 @@
 import React, { Component, Fragment } from 'react';
 import { getDonTotal, getMyDonAirdropHistory, withdrawDonStatus } from '~/lib/donAirDropApi';
-import {getConsumer, getMyTokenHistory} from '~/lib/shopApi'
 import {ModalPopup, ShopXButtonNav} from "~/components/common";
 import {Button, Div, Flex, Span, Right} from '~/styledComponents/shared'
 import Skeleton from "~/components/common/cards/Skeleton";
@@ -10,6 +9,7 @@ import {color} from "~/styledComponents/Properties";
 import {BsBoxArrowUpRight} from "react-icons/bs";
 import {HrHeavyX2, HrThin} from "~/styledComponents/mixedIn";
 import {withRouter} from 'react-router-dom'
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 const HistoryItem = ({bly, date, title, subTitle, gubun}) =>
     <Div>
@@ -77,21 +77,10 @@ class DonHistory extends Component {
     //출금클릭
     onWithDrawClick = (type) => {
         if (type === 'ercDon') {
-
             alert('[IOST와 에어드랍 일정 조율로 인한 출금 지연]\n' +
                 '- DON 토큰을 지원하는 거래소의 IOST 에어드랍이 모두 완료되지 않아, DON토큰 출금이 지연되고 있습니다.\n' +
                 '완료 후 별도 공지를 통해 소식을 알려드리도록 하겠습니다.');
-
             return
-
-            //ercDon 오픈시  uncomment
-            // this.props.history.push({
-            //     pathname: '/kakaoCertCheck',
-            //     state: {
-            //         tokenName: 'ercDon',
-            //     }
-            // })
-            // return
         }
 
         this.props.history.push({
@@ -116,8 +105,8 @@ class DonHistory extends Component {
         } = this.state
         return (
             <Fragment>
-                <ShopXButtonNav underline historyBack>자산(DON)</ShopXButtonNav>
-
+                {/*<ShopXButtonNav underline historyBack>자산(DON)</ShopXButtonNav>*/}
+                <BackNavigation>자산(DON)</BackNavigation>
                 <Div p={30} pb={26}>
                     <Div textAlign={'left'} mb={20}>
                         {
@@ -197,7 +186,7 @@ class DonHistory extends Component {
                                         </Flex>
                                         <Flex dot alignItems={'flex-start'} mb={8}>
                                             <Div>
-                                                외부 거래소(지갑)에서 마켓블리 App으로 BLY 토큰을 입금하면 반영이 됩니다.<br/>
+                                                외부 거래소(지갑)에서 샵블리 App으로 BLY 토큰을 입금하면 반영이 됩니다.<br/>
                                                 <b>※ 최소 입금 금액 : 3,000 BLY</b>
                                             </Div>
                                         </Flex>

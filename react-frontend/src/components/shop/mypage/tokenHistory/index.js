@@ -1,30 +1,30 @@
-import React, { Component, Fragment } from 'react';
-import { Collapse, Modal, ModalHeader, ModalBody } from 'reactstrap';
+import React, {Component, createRef, Fragment} from 'react';
+import {Collapse, Modal, ModalHeader, ModalBody, ModalFooter} from 'reactstrap';
 
-import { getConsumer, getMyTokenHistory } from '~/lib/shopApi'
+import { getConsumer, getMyTokenHistory, getConsumerPK, checkAbuser } from '~/lib/shopApi'
 import { scOntGetBalanceOfBlctMypage } from "~/lib/smartcontractApi";
 import { BLCT_TO_WON } from "~/lib/exchangeApi"
 import ComUtil from '~/util/ComUtil'
 
-import { Button as Btn } from '~/styledComponents/shared/Buttons'
+import {Button, Button as Btn} from '~/styledComponents/shared/Buttons'
 import { Div, Span, Flex, Right } from '~/styledComponents/shared/Layouts'
 import { HrThin, HrHeavyX2 } from '~/styledComponents/mixedIn'
 import Checkbox from '~/components/common/checkboxes/Checkbox'
 import { color } from "~/styledComponents/Properties";
-import { ShopXButtonNav } from '../../../common'
-import { ToastContainer, toast } from 'react-toastify'                              //토스트
-import 'react-toastify/dist/ReactToastify.css'
+import {PassPhrase} from '../../../common'
+import { toast } from 'react-toastify'                              //토스트
+// import 'react-toastify/dist/ReactToastify.css'
 
 import {BsBoxArrowInDownLeft, BsBoxArrowUpRight} from 'react-icons/bs'
 
-import styled from 'styled-components'
-
 import BlySise from '~/components/common/blySise'
 import { AiOutlineInfoCircle } from 'react-icons/ai'
-
+import { CopyToClipboard } from 'react-copy-to-clipboard'
+import {checkPassPhrase} from '~/lib/loginApi'
 
 import Skeleton from '~/components/common/cards/Skeleton'
-import {History} from "swiper/dist/js/swiper.esm";
+import BackNavigation from "~/components/common/navs/BackNavigation";
+import {Bold} from "~/styledComponents/ShopBlyLayouts";
 
 const HistoryItem = ({bly, date, title, subTitle, gubun, type}) =>
     <Div>
@@ -49,7 +49,7 @@ const HistoryItem = ({bly, date, title, subTitle, gubun, type}) =>
         <HrThin m={0} />
     </Div>
 
-export default class Index extends Component {
+export default class TokenHistory extends Component {
     constructor(props){
         super(props)
         this.state = {
@@ -64,246 +64,94 @@ export default class Index extends Component {
             blctToWon: '',           // BLCT 환율
             onlyIpChul: false,
             noIpChulData: false,
-            blySiseModal: false
+            blySiseModal: false,
+            passPhrase: '', //비밀번호 6 자리 PIN CODE
+            clearPassPhrase:false,
+            modalType: '',
+            modal: true,
+            pk: '',
+            abuser: false
         }
+        this.abortController = new AbortController()
     }
 
     async componentDidMount() {
+        try{
+            const loginUser = await this.refreshCallback(); //로그인 정보 가져오기
 
-        const loginUser = await this.refreshCallback(); //로그인 정보 가져오기
+            const {data:abuser} = await checkAbuser(this.abortController.signal);
+            console.log({abuser});
 
-        const {data:blctToWon} = await BLCT_TO_WON();
-        this.setState({
-            blctToWon: blctToWon
-        })
+            const {data:blctToWon} = await BLCT_TO_WON(this.abortController.signal);
+            this.setState({
+                blctToWon: blctToWon,
+                abuser: abuser
+            })
 
-        const {data: tokenHistoryData} = await getMyTokenHistory()
+            const {data: tokenHistoryData} = await getMyTokenHistory(this.abortController.signal)
 
-        console.log({tokenHistoryData})
-        const tokenHistories = tokenHistoryData.tokenHistories
+            // console.log({tokenHistoryData})
+            const tokenHistories = tokenHistoryData.filter(item => item.bly > 0);
 
-        // 내 모든 주문내역 조회 from MongoDB
-        // 주문개수만큼 호출 : parameter- OrderDetail
-        // {blct:+얼마  , gubun:취소환불(=구매금액-취소수수료), 미배송보상금(deposit), 미배송환불, 지연배송보상금, 구매보상(Reward) }
-        // {blct:-얼마  , gubun:구매}
-        // const { data : orders } = await getOrderDetailListByConsumerNo(data.consumerNo);
-        // // clog(orders);
-        // const list = []
-        //
-        // // 주문번호로 SC 조회
-        // const blctHistory = orders.map(async order => {
-        //     const {data : result} = await scOntGetConsumerBlctHistory(order.orderSeq);
-        //
-        //     // console.log(result);
-        //     // 상품구매후 지불하는 blct
-        //     if(result.payOrderBlct > 0){
-        //         const date = order.orderDate
-        //         if (date) {
-        //             list.push({
-        //                 blct: result.payOrderBlct,
-        //                 orderSeq: order.orderSeq,
-        //                 date: date,
-        //                 goodsNm: order.goodsNm,
-        //                 stateName: '상품구매',
-        //                 gubun: 'minus'
-        //             })
-        //         }
-        //     }
-        //
-        //     //소비자 취소후 환불받는 blct
-        //     if(result.receiveCancelReturnBlct > 0){
-        //         const date = order.orderCancelDate
-        //         if (date) {
-        //             list.push({
-        //                 blct: result.receiveCancelReturnBlct,
-        //                 orderSeq: order.orderSeq,
-        //                 date: date,
-        //                 goodsNm: order.goodsNm,
-        //                 stateName: '구매취소 환불',
-        //                 gubun: 'plus'
-        //             })
-        //         }
-        //     }
-        //
-        //     // //미배송 보상금
-        //     if(result.receiveNotDeliverDepositBlct > 0){
-        //         const date = order.notDeliveryDate
-        //         if (date) {
-        //             list.push({
-        //                 blct: result.receiveNotDeliverDepositBlct,
-        //                 orderSeq: order.orderSeq,
-        //                 date: date,
-        //                 goodsNm: order.goodsNm,
-        //                 stateName: '미배송 보상금',
-        //                 gubun: 'plus'
-        //             })
-        //         }
-        //     }
-        //
-        //     //미배송 환불
-        //     if(result.receiveNotDeliverReturnBlct > 0){
-        //         const date = order.notDeliveryDate
-        //         if (date) {
-        //             list.push({
-        //                 blct: result.receiveNotDeliverReturnBlct,
-        //                 orderSeq: order.orderSeq,
-        //                 date: date,
-        //                 goodsNm: order.goodsNm,
-        //                 stateName: '미배송 환불',
-        //                 gubun: 'plus'
-        //             })
-        //         }
-        //     }
-        //
-        //     //지연배송 보상금
-        //     if(result.receiveOrderPenaltyBlct > 0){
-        //         let date;
-        //         // 예상 배송일이 지났는데 상품 발송하지 않은 상태(미배송으로 확정되기 전)
-        //         if(!order.trackingNumberTimestamp) {
-        //             date = order.expectShippingEnd
-        //             if (date) {
-        //                 list.push({
-        //                     blct: result.receiveOrderPenaltyBlct,
-        //                     orderSeq: order.orderSeq,
-        //                     date: date,
-        //                     goodsNm: order.goodsNm,
-        //                     stateName: '지연배송 보상금',
-        //                     gubun: 'plus'
-        //                 })
-        //             }
-        //         }
-        //     }
-        //
-        //     //구매보상금
-        //     if(result.receiveOrderRewardBlct > 0){
-        //         const date = order.consumerOkDate
-        //         if (date) {
-        //             list.push({
-        //                 blct: result.receiveOrderRewardBlct,
-        //                 orderSeq: order.orderSeq,
-        //                 date: date,
-        //                 goodsNm: order.goodsNm,
-        //                 stateName: '구매 보상금',
-        //                 gubun: 'plus'
-        //             })
-        //         }
-        //     }
-        //     return result
-        // })
-        // const result = await Promise.all(blctHistory)
-        //
-        //
-        // const {data : missionResult } = await scOntGetConsumerMissionEventBlctHistory(); //상태가 2:완료인 것만 가져옴.
-        // if (missionResult && missionResult.length > 0) {
-        //
-        //     missionResult.map( mission => {
-        //         list.push({
-        //             blct: mission.blct,
-        //             date: mission.date,
-        //             goodsNm: mission.missionName,
-        //             stateName: '미션이벤트 ' + mission.missionNo + ' 달성',    //'구매 보상금',
-        //             gubun: 'plus'
-        //         })
-        //     });
-        // }
-        //
-        // const {data: bountyResult } = await scOntGetBlctBountyHistory();
-        // if(bountyResult && bountyResult.length > 0) {
-        //     bountyResult.map(bounty => {
-        //         list.push({
-        //             blct: bounty.amount,
-        //             date: bounty.date,
-        //             goodsNm: bounty.eventName,
-        //             stateName: bounty.stateName,    //'구매 보상금',
-        //             gubun: 'plus'
-        //         })
-        //     })
-        // }
-        //
-        // // swap 내역 추가
-        // const {data: blctToBlyList } = await getConsumerBlctToBlyList();
-        // if(blctToBlyList && blctToBlyList.length > 0) {
-        //     blctToBlyList.map( item => {
-        //         list.push({
-        //             blct: item.blctAmount,
-        //             date: item.swapTimestamp,
-        //             goodsNm: item.memo ? item.memo : "",
-        //             stateName: 'BLY 출금',
-        //             gubun: 'minus'
-        //         })
-        //     });
-        // }
-        //
-        // const {data: blyToBlctList } = await getConsumerBlyToBlctList();
-        // if(blyToBlctList && blyToBlctList.length > 0) {
-        //     blyToBlctList.map( item => {
-        //         list.push({
-        //             blct: item.blctPayAmount,
-        //             date: item.blctPayedTime,
-        //             stateName: 'BLY 입금',
-        //             gubun: 'plus'
-        //         })
-        //     });
-        // }
-        //
-        // const {data: newBlyDepositList } = await getNewSwapBlyDepositList();
-        // if(newBlyDepositList && newBlyDepositList.length > 0) {
-        //     newBlyDepositList.map( item => {
-        //         list.push({
-        //             blct: item.blyAmount,
-        //             date: item.blctPaidTime,
-        //             stateName: 'BLY 입금',
-        //             gubun: 'plus'
-        //         })
-        //     });
-        // }
-        //
-        // if(blyToBlctList.length === 0 && blctToBlyList.length === 0) {
-        //     this.setState({
-        //         noIpChulData: true
-        //     })
-        // }
-
-        console.log('list', tokenHistories)
-        ComUtil.sortDate(tokenHistories, 'date', true);
-
-
-        this.setState({
-            blctList: tokenHistories
-        })
-
-        // console.log('myPage-componentDidMount:', this.state.loginUser, this.state.loginUser.account);
-
-        if(this.state.loginUser && this.state.loginUser.account) {
-            /*
-            * double totalBalance;      //전체 BLCT
-            * double availableBalance;  //가용BLCT
-            * double lockedBlct;        //잠긴금액
-            * */
-            let {data} = await scOntGetBalanceOfBlctMypage(this.state.loginUser.account);
-
-            const {totalBalance, availableBalance, lockedBlct} = data
+            // console.log('list', tokenHistories)
+            ComUtil.sortDate(tokenHistories, 'date', true);
 
             this.setState({
-                tokenBalance: totalBalance,
-                availableBalance: availableBalance,
-                lockedBlct: lockedBlct
-            });
+                blctList: tokenHistories
+            })
 
+            // console.log('myPage-componentDidMount:', this.state.loginUser, this.state.loginUser.account);
+
+            if(this.state.loginUser && this.state.loginUser.account) {
+                /*
+                * double totalBalance;      //전체 BLCT
+                * double availableBalance;  //가용BLCT
+                * double lockedBlct;        //잠긴금액
+                * */
+                let {data} = await scOntGetBalanceOfBlctMypage(this.state.loginUser.account, this.abortController.signal);
+
+                const {totalBalance, availableBalance, lockedBlct} = data
+
+                this.setState({
+                    tokenBalance: totalBalance,
+                    availableBalance: availableBalance,
+                    lockedBlct: lockedBlct
+                });
+
+            }
+        }catch (error) {
+            if (error.message === 'canceled') {
+                console.log("TokenHistory getMyTokenHistory canceled")
+            }else{
+
+            }
         }
     }
 
+    componentWillUnmount() {
+        this.abortController.abort();
+    }
+
     refreshCallback = async() => {
-        let {data: loginUser} = await getConsumer();
-        if(!loginUser){
-            this.props.history.replace('/mypage');
-            return;
+        try{
+            let {data: loginUser} = await getConsumer(this.abortController.signal);
+            if(!loginUser){
+                this.abortController.abort()
+                this.props.history.replace('/mypage');
+                return;
+            }
+            this.setState({
+                loginUser: loginUser,
+                account: loginUser.account
+            })
+            return loginUser
+        }catch (error) {
+            if (error.message === 'canceled') {
+                console.log("PbGoodsContent refreshCallback canceled")
+            } else {
+
+            }
         }
-        this.setState({
-            loginUser: loginUser,
-            account: loginUser.account
-        })
-        return loginUser
     }
 
     onCopy = () => {
@@ -358,6 +206,63 @@ export default class Index extends Component {
         })
     }
 
+    onShowPK = () => {
+        this.setState({
+            modal:true, //결제비번창 오픈. //////////////////////////
+            modalType: 'showPk'
+        })
+    }
+
+    //결재처리
+    modalToggleOk = async () => {
+        //비밀번호 6 자리 PIN CODE
+        let passPhrase = this.state.passPhrase;
+        let {data: checkResult} = await checkPassPhrase(passPhrase);
+        if (!checkResult) {
+            this.notify('결제 비번이 틀렸습니다.', toast.warn);
+
+            //결제 비번 초기화
+            this.setState({clearPassPhrase: true});
+
+            return; //결제 비번 오류, stop&stay
+        }
+
+        const {data:pk} = await getConsumerPK();
+
+        this.setState({
+            modal: false,
+            pk: pk,
+            isOpen: !this.state.isOpen
+        });
+    }
+
+    //6자리 인증 비번 PassPhrase(6 CHAR PIN CODE)
+    onPassPhrase = (passPhrase) => {
+        //console.log(passPhrase);
+        this.setState({
+            passPhrase: passPhrase,
+            clearPassPhrase:false
+        });
+    };
+
+    // 결제 비밀번호 힌트
+    findPassPhrase = () => {
+        this.setState({
+            modalType: 'passPhrase',
+            modal: true
+        })
+    }
+
+    // 마이페이지로 이동
+    moveToMypage = () => {
+        window.location = '/mypage'
+    }
+
+    modalToggle = () => {
+        this.setState(prevState => ({
+            modal: !prevState.modal
+        }));
+    };
 
     render() {
         const {
@@ -368,21 +273,25 @@ export default class Index extends Component {
             account,
             blctList,
             copied,
-            isOpen,
+            pk,
             blctToWon,           // BLCT 환율
             onlyIpChul,
             noIpChulData,
-            blySiseModal
+            blySiseModal,
+            abuser
         } = this.state
 
         const accountHead = account.substring(0,7)
         const accountTail = account.substring(account.length-7,account.length)
+
+        const pkHead = pk.substring(0,7)
+        const pkTail = pk.substring(pk.length-7,pk.length)
         // const data = blctList
 
         return (
             <Fragment>
-                <ShopXButtonNav underline historyBack>자산(BLY)</ShopXButtonNav>
-
+                {/*<ShopXButtonNav underline historyBack>자산(BLY)</ShopXButtonNav>*/}
+                <BackNavigation>적립금(BLY)</BackNavigation>
                 <Div p={30} pb={26}>
 
                     {
@@ -390,20 +299,22 @@ export default class Index extends Component {
                             <Div textAlign={'left'} mb={20}>
                                 {
                                     (lockedBlct !== null && lockedBlct > 0) &&
-                                        <Div fontSize={13} bg={'danger'} fg={'white'} rounded={4} display={'inline-block'} px={10} py={3} onClick={()=> alert('관리자 승인 후 출금 됩니다.')}>
+                                        <Div fontSize={13} bg={'danger'} fg={'white'} rounded={4} display={'inline-block'} px={10} minHeight={23} onClick={()=> toast.info('쑥쑥-계약재배 상품의 결제예약금으로 최종 결제 시 차감됩니다.')}>
                                             <Flex>
-                                                <Span mr={5}>{`출금예정 ${ComUtil.addCommas(lockedBlct.toFixed(2))} BLY`}</Span>
-                                                <AiOutlineInfoCircle />
+                                                <Span pt={2} lineHeight={23} mr={5}>{`결제예약 금액 ${ComUtil.addCommas(lockedBlct.toFixed(2))} BLY`}</Span>
+                                                <div>
+                                                    <AiOutlineInfoCircle size={15}/>
+                                                </div>
                                             </Flex>
                                         </Div>
 
                                 }
-                                <Div bold fontSize={37}>
+                                <div>
                                     {
                                         availableBalance === '' ? <Skeleton.Row width={100}/> :
-                                            `${ComUtil.addCommas(parseFloat(availableBalance).toFixed(2))} BLY`
+                                            <Bold bold fontSize={37} my={8}>{`${ComUtil.addCommas(parseFloat(availableBalance).toFixed(2))} BLY`}</Bold>
                                     }
-                                </Div>
+                                </div>
                                 <Div bold fg={'green'} fontSize={20} mb={3}>{
                                     availableBalance === '' ? <Skeleton.Row width={60}/> :
                                         ComUtil.addCommas(ComUtil.roundDown(availableBalance * blctToWon, 2))
@@ -440,39 +351,52 @@ export default class Index extends Component {
                         </Div>
                     </Flex>
 
-                    {/*<Flex mb={5} fontSize={12}>*/}
-                    {/*<Div>내지갑 주소 (클릭시 복사)</Div>*/}
-                    {/*<Div right={0} position={'absolute'} zIndex={-1} width={136} height={157}>*/}
-                    {/*<Img src={bgBill} cover={'contain'} m={0} />*/}
-                    {/*</Div>*/}
-                    {/*<Right cursor onClick={() => {*/}
-                    {/*this.setState({isOpen: !this.state.isOpen})*/}
-                    {/*}}>*/}
-                    {/*<Div bb fg={'adjust'}>지갑주소 이용방법</Div>*/}
-                    {/*</Right>*/}
-                    {/*</Flex>*/}
+                    {abuser ? null :
+                        <Div>
+                            <Flex mt={15} mb={5} fontSize={12}>
+                                <Div>내지갑 주소 (클릭시 복사)</Div>
+                                {/*    <Div right={0} position={'absolute'} zIndex={-1} width={136} height={157}>*/}
+                                {/*/!*<Img src={bgBill} cover={'contain'} m={0} />*!/*/}
+                                {/*</Div>*/}
+                                {/*<Right cursor onClick={this.onShowPK}>*/}
+                                {/*<Div bb fg={'adjust'}>개인키 보기</Div>*/}
+                                {/*</Right>*/}
+                            </Flex>
 
-                    {/*<Div textAlign={'center'}>*/}
-                    {/*<CopyToClipboard text={account} onCopy={this.onCopy}>*/}
-                    {/*<Btn bc={'light'} block fontSize={12}>{accountHead} ... {accountTail}</Btn>*/}
-                    {/*</CopyToClipboard>*/}
-                    {/*</Div>*/}
+                            <Div textAlign={'center'}>
+                                <CopyToClipboard text={account} onCopy={this.onCopy}>
+                                    <Btn bc={'light'} block fontSize={12}>{accountHead} ... {accountTail}</Btn>
+                                </CopyToClipboard>
+                            </Div>
 
-                    <Collapse isOpen={isOpen}>
-                        <Div fontSize={12}>
-                            <p>1. 지갑주소를 복사한 후에 explorer.ont.io에 가서 복사한 주소로 검색을 하면 정확한 transaction history를 확인할 수 있습니다.</p>
-                            <p>2. 내 지갑주소로 BLY를 입금하신 후, 구매시에 사용이 가능합니다.</p>
+                            <Flex mt={15} mb={5} fontSize={12}>
+                                <Div bb fg={'adjust'} onClick={this.onShowPK}>개인키 보기 <Span
+                                    display={!this.state.isOpen ? 'none' : ''}>(클릭시 복사)</Span></Div>
+                            </Flex>
+
+                            <Collapse isOpen={this.state.isOpen}>
+                                <Div fontSize={12}>
+                                    <Div textAlign={'center'}>
+                                        <CopyToClipboard text={pk} onCopy={this.onCopy}>
+                                            <Btn bc={'light'} block fontSize={12}>{pkHead} ... {pkTail}</Btn>
+                                        </CopyToClipboard>
+                                    </Div>
+                                </Div>
+                            </Collapse>
                         </Div>
-                    </Collapse>
-
-
+                    }
 
                 </Div>
 
-                <Div ml={16} mb={16}>
-                    <Checkbox bg={'green'} checked={onlyIpChul} onChange={this.checkOnlyIpCulList}  size={'sm'}>
-                        <Span fg={'dark'} fontSize={12} lineHeight={20}>입출금 내역만 보기</Span>
-                    </Checkbox>
+                <Div ml={16} mb={16} mr={16}>
+                    <Flex>
+                        <Checkbox bg={'green'} checked={onlyIpChul} onChange={this.checkOnlyIpCulList}  size={'sm'}>
+                            <Span fg={'dark'} fontSize={12} lineHeight={20}>입출금 내역만 보기</Span>
+                        </Checkbox>
+                        <Right fg={'dark'} fontSize={12} lineHeight={20}>
+                            최근 3개월 기준
+                        </Right>
+                    </Flex>
                 </Div>
 
                 <HrHeavyX2 m={0} bc={'background'} />
@@ -490,7 +414,7 @@ export default class Index extends Component {
 
                 }
 
-                {/*{된*/}
+                {/*{*/}
                 {/*    (blctList && blctList.length <= 0) && (*/}
                 {/*        <Div>*/}
                 {/*            <HrThin m={0} />*/}
@@ -510,7 +434,30 @@ export default class Index extends Component {
                         {/*</ModalFooter>*/}
                     </Modal>
                 }
-                <ToastContainer/>
+                {/* 결제비번 입력 모달 */}
+                <Modal isOpen={this.state.modalType === 'showPk' && this.state.modal} toggle={this.toggle} className={this.props.className} centered>
+                    <ModalHeader toggle={this.modalToggle}> 결제비밀번호 입력</ModalHeader>
+                    <ModalBody className={'p-0'}>
+                        {/* clearPassPhrase 초기화, onChange 결과값 세팅 */}
+                        <PassPhrase clearPassPhrase={this.state.clearPassPhrase} onChange={this.onPassPhrase}></PassPhrase>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="link" onClick={this.findPassPhrase}>비밀번호를 잊으셨나요?</Button>
+                        <Button color="info" onClick={this.modalToggleOk} disabled={(this.state.passPhrase.length === 6) ? false:true}>확인</Button>{' '}
+                        <Button color="secondary" onClick={this.modalToggle}>취소</Button>
+                    </ModalFooter>
+                </Modal>
+                {/* 결제비밀번호 조회 */}
+                <Modal isOpen={this.state.modalType === 'passPhrase' && this.state.modal} centered>
+                    <ModalHeader>결제비밀번호 안내</ModalHeader>
+                    <ModalBody>
+                        마이페이지에서 결제비밀번호 힌트 조회 후 이용해주세요.
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="info" onClick={this.moveToMypage}>마이페이지로 이동</Button>
+                        <Button color="secondary" onClick={this.modalToggle}>취소</Button>
+                    </ModalFooter>
+                </Modal>
 
             </Fragment>
         )

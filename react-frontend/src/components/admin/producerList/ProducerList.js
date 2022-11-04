@@ -1,75 +1,124 @@
 import React, { Component } from 'react';
 import { Button, Input } from 'reactstrap'
-import { getAllProducers, changeProducerPayoutBlct, getProducerFeeRate, directFeeRateToProducer, reserveFeeRateToProducer } from '~/lib/adminApi'
+import {
+    getAllProducers,
+    authProducer,
+    checkAuthProducer,
+    createProducerIostAccount,
+    updateProducerGoodsStop,
+    changeProducerWrapDeliver
+} from '~/lib/adminApi'
+import {getBankInfoList, getProducerByProducerNo} from "~/lib/producerApi";
 import { scOntGetBalanceOfBlctAdmin } from '~/lib/smartcontractApi'
 import { Server } from '~/components/Properties';
 import axios from 'axios';
 import { getLoginAdminUser } from '~/lib/loginApi'
-import { Cell } from '~/components/common'
 import ComUtil from '~/util/ComUtil'
-import BlctRenderer from '../SCRenderers/BlctRenderer';
-import { SingleDatePicker } from 'react-dates';
+// import BlctRenderer from '../SCRenderers/BlctRenderer';
+// import { SingleDatePicker } from 'react-dates';
 import moment from 'moment'
 import {Modal, ModalHeader, ModalBody, ModalFooter} from 'reactstrap'
 
 //ag-grid
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
-import {adminWeiRetrieval} from "~/lib/swapApi";
 import FilterContainer from "~/components/common/gridFilter/FilterContainer";
-import {FilterGroup, Hr} from "~/styledComponents/shared";
+import {Flex, Div, FilterGroup, Hr, Span, Space, Right} from "~/styledComponents/shared";
 import InputFilter from "~/components/common/gridFilter/InputFilter";
 import CheckboxFilter from "~/components/common/gridFilter/CheckboxFilter";
+import {MenuButton, SmButton} from "~/styledComponents/shared/AdminLayouts";
+import ProducerViewer from "~/components/common/contents/BizProducerViewer";
+import SearchDates from "~/components/common/search/SearchDates";
 
+let bankList;
 export default class ProducerList extends Component{
 
     constructor(props) {
         super(props);
-        this.rowHeight=50;
+        this.gridRef = React.createRef();
         this.state = {
             loading: false,
             data: [],
             columnDefs: [
-                {headerName: "생산자번호", field: "producerNo", sort:"asc", cellStyle:this.getCellStyle({cellAlign: 'center'})},
-                {headerName: "생산자명", field: "name", cellStyle:this.getCellStyle({cellAlign: 'left'})},
-                {headerName: "농장명", field: "farmName", cellStyle:this.getCellStyle({cellAlign: 'left'})},
-                {headerName: "email", field: "email", width: 200, cellStyle:this.getCellStyle({cellAlign: 'left'})},
-                {headerName: "account", field: "account", width: 250, cellStyle:this.getCellStyle({cellAlign: 'left'}), hide: true},
-                {headerName: "BLCT", field: "blct", cellRenderer: "blctRenderer", width: 150, cellStyle:this.getCellStyle({cellAlign: 'left'})},
-                {headerName: "가입일", field: "timestamp", width: 100, cellStyle:this.getCellStyle({cellAlign: 'left'})},
-                {headerName: "커미션(%)", field: "producerFeeRate", width: 100, cellStyle:this.getCellStyle({cellAlign: 'center'})},
-                {headerName: "커미션 변경", field: "producerFeeRate", width: 150, cellRenderer: "feeRateRenderer", cellStyle:this.getCellStyle({cellAlign: 'left'})},
                 {
-                    headerName: "blct정산여부", field: "payoutBlct", cellRenderer: "payoutRenderer", width: 200, cellStyle:this.getCellStyle({cellAlign: 'left'}),
-                    valueGetter: function ({data}) {
-                        return data.payoutBlct ? 'BLCT정산' : '현금정산'
+                    headerName: "생산자번호", field: "producerNo", sort:"asc",
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
+                    headerCheckboxSelection: true,
+                    headerCheckboxSelectionFilteredOnly: true,  //전체 체크시 필터된 것만 체크
+                    checkboxSelection: function({data}) {
+                        // add your cancheck-logic here
+                        if(data.producerNo == 0) return false;
+                        return true;
+                    }
+                },
+                {
+                    headerName: "상품등록",  width:50, field: "goodsRegStop", cellStyle:ComUtil.getCellStyle({cellAlign: 'left'}),
+                    valueGetter: function({data}) {
+                        if(data.producerNo == 0) return "";
+                        return (data.goodsRegStop ? "불가" : "가능")
+                    }
+                },
+                {headerName: "생산자명", field: "farmName", cellStyle:ComUtil.getCellStyle({cellAlign: 'left'})},
+                {headerName: "대표명", field: "name", cellStyle:ComUtil.getCellStyle({cellAlign: 'left'})},
+                {headerName: "묶음배송여부", field: "producerWrapDeliver", cellRenderer: "wrapDeliverRenderer"},
+                {headerName: "email", field: "email", width: 200, cellStyle:ComUtil.getCellStyle({cellAlign: 'left'})},
+                {headerName: "account", field: "account", width: 250, cellStyle:ComUtil.getCellStyle({cellAlign: 'left'}), hide: true},
+                {
+                    headerName: "#해시태그", field: "tags", width: 200,
+                    valueGetter: function ({data}){
+                        if(data.producerNo == 0) return "";
+                        if (!data.tags) return '';
+                        return data.tags.map(tag => '#'+tag).join(' ')
+                    },
+                    cellRenderer: "tagsRenderer"
+                },
+                {
+                    headerName: "가입일", field: "timestamp", width: 100,
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'left'}),
+                    valueGetter: function ({data}){
+                        return ComUtil.utcToString(data.timestamp);
                     }
                 },
 
-                {headerName: "예약된 커미션(%)", field: "applyProducerFeeRate", width: 200, valueGetter: (params) => {
-
-                    if(this.state.producerFeeRateList.length > 0 && params.data.applyDate){
-                        const item = this.state.producerFeeRateList.find(item => item.applyProducerRateId === params.data.applyProducerRateId)
-                        return `${item.explain} ${params.data.applyProducerFeeRate}%`
-                    }
-                    return null
-
-
-                }},
-                {headerName: "예약일", field: "applyDate", width: 200, cellRenderer: "applyDateRenderer"},
-
-                {headerName: "상점(연락처)", field: "shopPhone", width: 200},
-                {headerName: "주요취급품목", field: "shopMainItems", width: 200},
+                {headerName: "상점(연락처)", field: "shopPhone", width: 110},
+                {headerName: "주요취급품목", field: "shopMainItems", width: 150},
                 {headerName: "한줄소개", field: "shopIntroduce", width: 200},
+
+
+                {headerName: "계좌번호", field: "payoutAccount"},
+                {headerName: "예금주", field: "payoutAccountName"},
+
                 {headerName: "통신판매업 번호", field: "comSaleNumber", width: 200},
-                {headerName: "담당자명", field: "charger", width: 200},
-                {headerName: "담당자연락처", field: "chargerPhone", width: 200},
-                {headerName: "메모", field: "memo", width: 200},
+                {headerName: "담당자명", field: "charger", width: 120},
+                {headerName: "담당자연락처", field: "chargerPhone", width: 130},
+
+                {headerName: "사업자등록번호", field: "coRegistrationNo", width: 130},
+                {
+                    headerName: "은행", field: "payoutBankName", width: 80,
+                    valueGetter: function ({data}){
+                        if (data.payoutBankCode) {
+                            let bankName = "";
+                            if(bankList && bankList.length > 0){
+                                if(data.payoutBankCode != null && data.payoutBankCode != "") {
+                                    console.log("payoutBankCode",data.payoutBankCode);
+                                    bankName = bankList.find(item => item.code === data.payoutBankCode).name;
+                                    console.log("bankItem",bankName);
+                                }
+                            }
+                            return bankName;
+                        }
+                        return "";
+                    },
+                },
+                {headerName: "계좌번호", field: "payoutAccount", width: 130},
+                {headerName: "예금주", field: "payoutAccountName", width: 130},
+
+
+                //{headerName: "BLCT", field: "blct", cellRenderer: "blctRenderer", width: 100, cellStyle:ComUtil.getCellStyle({cellAlign: 'left'})},
+                //{headerName: "iost계정", field: "iostAccount", cellRenderer: "authProducerRenderer", width: 250},
 
             ],
             defaultColDef: {
-                width: 100,
+                width: 110,
                 resizable: true,
                 filter: true,
                 sortable: true,
@@ -84,9 +133,13 @@ export default class ProducerList extends Component{
                 applyDateRenderer: this.applyDateRenderer
             },
             frameworkComponents: {
-                blctRenderer: BlctRenderer,
-                payoutRenderer: this.payoutRenderer,
-                feeRateRenderer: this.feeRateRenderer
+                goodsRegStopRenderer: this.goodsRegStopRenderer,
+                // blctRenderer: BlctRenderer,
+                tagsRenderer: this.tagsRenderer,
+                wrapDeliverRenderer: this.wrapDeliverRenderer,
+                // payoutRenderer: this.payoutRenderer,
+                // feeRateRenderer: this.feeRateRenderer,
+                // authProducerRenderer: this.authProducerRenderer
             },
             getRowNodeId: function(data) {
                 return data.id;
@@ -100,36 +153,71 @@ export default class ProducerList extends Component{
             isDirectFee:false,
             selectedItem: null,
 
+            // producerFeeRateList: [],
+            selectedRows: [],
 
-            producerFeeRateList: []
+            //tag관련
+            tagsModalOpen: false,
+            selectedRow: null,
+
+            search:{
+                selectedGubun: 'all', //'week': 최초화면을 오늘(day)또는 1주일(week)로 설정.
+                startDate: null,//moment(moment().toDate()).add(-30,"days" ),
+                endDate: null, //moment(moment().toDate()),
+                regGoods: '',
+            },
         }
+
+        // grid events
+        this.onGridReady = this.onGridReady.bind(this);
     }
 
     async componentDidMount() {
+
         let user = await getLoginAdminUser();
         if (!user || user.email.indexOf('ezfarm') < 0) {
             //admin은 웹전용이라서, window로 이동하는 것이 더 잘됨. //this.props.history.push('/admin');
             window.location = '/admin/login';
         }
 
-        this.getProducerFeeRateList();
+        getBankInfoList().then((res)=> {
+            bankList = res.data;
+        });
+
         await this.search();
     }
 
     //[이벤트] 그리드 로드 후 callback 이벤트
-
-
-    getProducerFeeRateList = async() => {
-        const { data } = await getProducerFeeRate();
-        //console.log({feeRate: data});
+    onGridReady = (params) => {
+        // or setState if using components
         this.setState({
-            producerFeeRateList: data
+            gridApi: params.api,
+            columnApi: params.columnApi
+        });
+    }
+
+    onSelectionChanged = (event) => {
+        this.updateSelectedRows()
+    }
+    updateSelectedRows = () => {
+        this.setState({
+            selectedRows: this.state.gridApi.getSelectedRows()
         })
     }
 
     search = async () => {
-        this.setState({loading: true})
-        let { status, data } = await getAllProducers()
+        if (this.state.gridApi) {
+            //ag-grid 레이지로딩중 보이기
+            this.state.gridApi.showLoadingOverlay();
+        }
+
+        const params = {
+            startDate: this.state.search.startDate !== null ? moment(this.state.search.startDate).format('YYYYMMDD') : null,
+            endDate: this.state.search.endDate !== null ? moment(this.state.search.endDate).format('YYYYMMDD') : null,
+            regGoods: this.state.search.regGoods,
+        };
+
+        let { status, data } = await getAllProducers(params)
         if(status !== 200){
             alert('응답이 실패 하였습니다')
             return
@@ -139,112 +227,143 @@ export default class ProducerList extends Component{
         data = data.filter(producer => (producer.producerNo !== 78));
 
         // manager를 data맨 위에 넣기
-        let managerAccount = await this.getBaseAccount();
-        let manager = {
-            producerNo: 0,
-            name: '매니저',
-            account: managerAccount
-        }
-        data.unshift(manager);
+        // let managerAccount = await this.getBaseAccount();
+        // let manager = {
+        //     producerNo: 0,
+        //     name: '매니저',
+        //     account: managerAccount
+        // }
+        // data.unshift(manager);
 
-        data.map((item) => {
-            item.getBalanceOfBlct = scOntGetBalanceOfBlctAdmin;
-            item.timestamp = ComUtil.utcToString(item.timestamp);
-            return item;
-        })
+        // const res = data.map(async(item) => {
+        //     item.getBalanceOfBlct = scOntGetBalanceOfBlctAdmin;
+        //     item.timestamp = ComUtil.utcToString(item.timestamp);
+        //     item.iostAuth = false;
+        //     if(item.iostAccount) {
+        //         const {data} = await checkAuthProducer(item.iostAccount);
+        //         item.iostAuth = data;
+        //     }
+        //     return item;
+        // })
 
-        //console.log({data})
-        this.setState({
-            data: data,
-            loading: false
-        })
+        // Promise.all(res).then(() => {
+            this.setState({
+                data: data
+            })
 
-    }
-
-
-    getBaseAccount = async () => {
-        //ropsten에서는 getAccounts 동작하지 않을 수도 있기 때문에 안전하게 backend 이용.
-        return axios(Server.getRestAPIHost() + '/baseAccount',
-            {   method:"get",
-                withCredentials: true,
-                credentials: 'same-origin'
+            //ag-grid api
+            if(this.state.gridApi) {
+                //ag-grid 레이지로딩중 감추기
+                this.state.gridApi.hideOverlay()
             }
-        ).then((response) => {
-            return response.data;
-        });
+        // })
     }
 
-    payoutRenderer = ({value, data:rowData}) => {
-        let v_payoutBlct = rowData.payoutBlct ? 'BLCT정산':'현금정산';
-        let v_buttonText = rowData.payoutBlct ? '현금정산으로 변경':'BLCT정산으로 변경';
+
+    // getBaseAccount = async () => {
+    //     //ropsten에서는 getAccounts 동작하지 않을 수도 있기 때문에 안전하게 backend 이용.
+    //     return axios(Server.getRestAPIHost() + '/baseAccount',
+    //         {   method:"get",
+    //             withCredentials: true,
+    //             credentials: 'same-origin'
+    //         }
+    //     ).then((response) => {
+    //         return response.data;
+    //     });
+    // }
+
+    selectedRowChange = (row) => {
+        console.log({row})
+        this.setState({
+            selectedRow: row
+        }, () => {
+            this.tagsModalToggle()
+        })
+    }
+    tagsModalToggle = () => {
+        this.setState({tagsModalOpen: !this.state.tagsModalOpen})
+    }
+
+    onTagsModalClose = () => {
+        this.tagsModalToggle()
+        this.search()
+    }
+
+    tagsRenderer = ({data}) => {
+        if(data.producerNo == 0) return null;
         return (
-            <Cell>
-                { rowData.producerNo === 0 ? null :
-                    <div style={{textAlign: 'center'}}>
-                        <span className='mr-3'>{v_payoutBlct}</span>
-                        <Button size={'sm'} color={'info'}
-                                onClick={this.changePayoutBlct.bind(this, rowData.producerNo, rowData.payoutBlct)}>{v_buttonText}</Button>
-                    </div>
+            <Flex>
+                <SmButton mr={6} onClick={this.selectedRowChange.bind(this, data)}>변경</SmButton>
+                {/*<TagChangeButton onClick={this.selectedRowChange.bind(this, data)}>변경</TagChangeButton>*/}
+                {/*<Div bg={'white'} py={3} bc={'secondary'} fontSize={12} lineHeight={12} px={5} mr={6} onClick={this.selectedRowChange.bind(this, data)}>변경</Div>*/}
+                {
+                    data.tags && data.tags.map(tag =>
+                        <Span key={tag}
+                            // onClick={onTagClick.bind(this, tag)}
+                              fg={'blue'}
+                              mr={6}>#{tag}</Span>
+                    )
                 }
-            </Cell>
+            </Flex>
+        )
+    }
+
+    // 상품등록 여부 렌더러
+    goodsRegStopRenderer = ({value, data:rowData}) => {
+        return (rowData.goodsRegStop ? "불가" : "가능")
+    }
+
+    wrapDeliverRenderer = ({value, data:rowData}) => {
+        return (
+            rowData.producerNo > 0 &&
+            <Flex>
+                {value ? <Span fg={'red'}><b> 묶음 </b></Span> : <Span>개별</Span> }
+                <SmButton ml={10} mr={3} onClick={this.wrapDeliverChange.bind(this, rowData)}>변경</SmButton>
+            </Flex>
+        )
+    }
+
+    authProducerRenderer = ({value, data:rowData}) => {
+        return (
+            rowData.producerNo === 0 ? (<div> </div>) :
+                (
+                    rowData.iostAuth ?
+                        (<span className='mr-3'>{rowData.iostAccount} </span>)
+                        :
+                        (
+                            <Flex>
+                                {rowData.iostAccount ?
+                                    <span className='mr-3'>{rowData.iostAccount} </span>
+                                    :
+                                    <div style={{textAlign: 'right'}}>
+                                        <Button size={'sm'} color={'secondary'} onClick={this.createProducerIostAccount.bind(this, rowData.producerNo)}>
+                                            iost 계정생성</Button>
+                                    </div>
+                                }
+                                <div style={{textAlign: 'right'}} className='ml-4'>
+                                    <Button size={'sm'} color={'info'}
+                                        onClick={this.authorizeProducer.bind(this, rowData.iostAccount)}>iost이력 권한</Button>
+                                </div>
+                            </Flex>
+                        )
+                )
         );
     }
 
-    changePayoutBlct = async(producerNo, payoutBlct) => {
-        console.log(producerNo, payoutBlct);
-        let result = await changeProducerPayoutBlct(producerNo, !payoutBlct);
-        if(result) {
-            this.search();
+    authorizeProducer = async(producerAccount) => {
+        if (window.confirm('선택한 생산자에게 블록체인 기록 권한을 부여하겠습니까? (thread 처리)')) {
+            await authProducer(producerAccount);
         }
     }
 
-    changeProducerRateFee = async(e) => {
-        const index = e.target.value
-        const applyProducerRateId = this.state.producerFeeRateList[index].producerRateId;
-        const applyProducerFeeRate = this.state.producerFeeRateList[index].rate;
-
-
-        const selectedItem = Object.assign({}, this.state.selectedItem)
-        selectedItem.applyProducerRateId = applyProducerRateId
-        selectedItem.applyProducerFeeRate = applyProducerFeeRate
-
-        this.setState({selectedItem})
-    }
-
-    onDateChange = (date) => {
-        const selectedItem = Object.assign({}, this.state.selectedItem)
-        selectedItem.applyDate = date
-        this.setState({
-            selectedItem
-        })
-    }
-
-    feeRateChangeReserve = async (producerNo) => {
-
-        const item = this.state.selectedItem;
-        const directFee = this.state.isDirectFee;
-        if(directFee){
-            const reserveResult = await directFeeRateToProducer(item.producerNo, item.applyProducerRateId, item.applyProducerFeeRate);
-            if(reserveResult) {
-                alert('커미션 변경이 완료되었습니다.');
-                this.search()
-                this.modalToggle()
+    createProducerIostAccount = async (producerNo) => {
+        if (window.confirm('선택한 생산자의 iost 계정을 생성하시겠습니까? (결과가 나올때까지 기다려주세요)')) {
+            const {data} = await createProducerIostAccount(producerNo);
+            if(data) {
+                alert("계정을 생성했습니다.");
+                await this.search();
             } else {
-                alert('변경에 실패했습니다. 다시 시도해주세요.')
-            }
-        } else {
-            if(!item.applyDate){
-                alert("적용할 일자를 선택해 주십시오.")
-                return false;
-            }
-            const date = item.applyDate.format('YYYY-MM-DD')
-            const reserveResult = await reserveFeeRateToProducer(item.producerNo, item.applyProducerRateId, item.applyProducerFeeRate, date);
-            if(reserveResult) {
-                alert(date + '날짜에 변경예약이 완료되었습니다.');
-                this.search()
-                this.modalToggle()
-            } else {
-                alert('변경에 실패했습니다. 다시 시도해주세요.')
+                alert("계정생성에 실패했습니다. 다시 시도해주세요.");
             }
         }
     }
@@ -257,121 +376,151 @@ export default class ProducerList extends Component{
         return value
     }
 
+    //상품 등록 중단 클릭
+    onGoodsRegStopClick = async () => {
+        const promises = this.state.selectedRows.map((producer) => getProducerByProducerNo(producer.producerNo))
+        const res = await Promise.all(promises)
 
-    feeRateRenderer = ({value, data:rowData}) => {
-        if(rowData.producerNo === 0)
-            return null
+        const producerNoList = []
 
-        //일주일전까지 신규 생산자일경우 즉시 커미션 변경 프로세스
-        //momentrowData.timestamp
-        const nowDate = moment();
-        const newDate = moment(rowData.timestamp);
-        const dateDiff = nowDate.diff(newDate, 'days');
-        //일주일전 신규 생산자일경우
-        return(
-            <>
-                <Button size={'sm'} color={'info'} className={'mr-2'}
-                        disabled={dateDiff <= 7 ? false:true}
-                        onClick={this.dFeeOpenModal.bind(this, rowData)}> 즉시변경</Button>
-                <Button size={'sm'} color={'info'}
-                        disabled={rowData.applyDate}
-                        onClick={this.openModal.bind(this, rowData)}> 변경예약</Button>
-            </>
-        )
+        res.map(({data:producer}) => {
+            if (producer.producerNo > 0 && producer.goodsRegStop === false) {
+                producerNoList.push(producer.producerNo)
+            }
+        })
 
-    }
-
-    // Ag-Grid Cell 스타일 기본 적용 함수
-    getCellStyle ({cellAlign,color,textDecoration,whiteSpace, fontWeight}){
-        if(cellAlign === 'left') cellAlign='flex-start';
-        else if(cellAlign === 'center') cellAlign='center';
-        else if(cellAlign === 'right') cellAlign='flex-end';
-        else cellAlign='flex-start';
-        return {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: cellAlign,
-            color: color,
-            textDecoration: textDecoration,
-            whiteSpace: whiteSpace,
-            fontWeight: fontWeight
+        if (window.confirm(`${producerNoList.length}건을 상품등록 중단 하시겠습니까?`)) {
+            try{
+                await Promise.all(producerNoList.map(producerNo => updateProducerGoodsStop(producerNo, true)))
+                alert(`${producerNoList.length}건이 상품등록 중단 되었습니다.`)
+                this.search();
+            }catch (err){
+                alert('에러가 발생하였습니다. 다시 시도애 주세요.')
+            }
         }
     }
 
-    //[이벤트] 그리드 로드 후 callback 이벤트
-    onGridReady(params) {
-        //API init
-        this.gridApi = params.api;
-        this.gridColumnApi = params.columnApi;
+    //상품 등록 재개 클릭
+    onGoodsRegUnStopClick = async () => {
+        const promises = this.state.selectedRows.map((producer) => getProducerByProducerNo(producer.producerNo))
+        const res = await Promise.all(promises)
 
-        // 리스트 조회
-        this.search()
-    }
+        const producerNoList = []
 
-    modalToggle = () => {
-        const isOpen = !this.state.isOpen
-        if(isOpen){
-            this.setState({
-                isOpen: isOpen,
-            })
-        }else{
-            this.setState({
-                isOpen: isOpen,
-                selectedItem: null,
-                isDirectFee:false
-            })
+        res.map(({data:producer}) => {
+            if (producer.producerNo > 0 && producer.goodsRegStop === true) {
+                producerNoList.push(producer.producerNo)
+            }
+        })
+
+        if (window.confirm(`${producerNoList.length}건을 상품등록 재개 하시겠습니까?`)) {
+            try{
+                await Promise.all(producerNoList.map(producerNo => updateProducerGoodsStop(producerNo, false)))
+                alert(`${producerNoList.length}건이 상품등록 재개 되었습니다.`)
+                this.search();
+            }catch (err){
+                alert('에러가 발생하였습니다. 다시 시도애 주세요.')
+            }
         }
-
-    }
-
-    openModal = (item) => {
-        const applyProducerRateId = this.state.producerFeeRateList[item.producerRateId].producerRateId;
-        const applyProducerFeeRate = this.state.producerFeeRateList[item.producerRateId].rate;
-        item.applyProducerRateId = applyProducerRateId
-        item.rate = applyProducerFeeRate
-
-        this.setState({
-            selectedItem: item,
-            isDirectFee:false
-        }, ()=> this.modalToggle())
-    }
-
-    dFeeOpenModal = async (item) => {
-        const applyProducerRateId = this.state.producerFeeRateList[item.producerRateId].producerRateId;
-        const applyProducerFeeRate = this.state.producerFeeRateList[item.producerRateId].rate;
-        item.applyProducerRateId = applyProducerRateId
-        item.rate = applyProducerFeeRate
-
-        this.setState({
-            selectedItem: item,
-            isDirectFee:true
-        }, ()=> this.modalToggle())
     }
 
     copy = ({value}) => {
         ComUtil.copyTextToClipboard(value, '', '');
     }
 
+    onDatesChange = async (data) => {
+        const vSearch = Object.assign({}, this.state.search);
+        vSearch.startDate = data.startDate;
+        vSearch.endDate = data.endDate;
+        vSearch.selectedGubun = data.gubun;
+        await this.setState({
+            search: vSearch
+        });
+    }
+
+    // 상품등록가능여부 선택
+    onRegGoodsChange = async (e) => {
+        const vSearch = Object.assign({}, this.state.search);
+        vSearch.regGoods = e.target.value;
+        await this.setState({
+            search: vSearch
+        });
+    }
+
+    wrapDeliverChange = async(rawData) => {
+        console.log({rawData});
+        let message = rawData.producerWrapDeliver ? '선택한 생산자의 묶음배송을 개별배송으로 변경하시겠습니까?' : '선택한 생산자의 개별배송을 묶음배송으로 변경하시겠습니까?';
+        if (window.confirm(message)) {
+            // data.producerNo
+            // !data.producerWrapDeliver
+            const {data} = await changeProducerWrapDeliver(rawData.producerNo, !rawData.producerWrapDeliver);
+            if(data) {
+                alert("변경이 완료되었습니다.");
+                await this.search();
+            } else {
+                alert("로그인 여부를 다시 확인해주세요.")
+            }
+        }
+    }
 
     render() {
 
         if(this.state.data.length <= 0)
             return null;
 
-        const {selectedItem, isDirectFee} = this.state
+        // const {selectedItem, isDirectFee} = this.state
 
         return (
-            <div>
+            <Div p={16}>
+                <div className="mt-2 mb-2">
+                    <Flex bc={'secondary'} m={3} p={7}>
+                        <Div pl={10} pr={20} py={1}> 기 간 </Div>
+                        <Div ml={10} >
+                            <Flex>
+                                <SearchDates
+                                    gubun={this.state.search.selectedGubun}
+                                    startDate={this.state.search.startDate}
+                                    endDate={this.state.search.endDate}
+                                    // isHiddenAll={true}
+                                    isNotOnSearch={true}
+                                    // isHiddenAll={true}
+                                    isCurrenYeartHidden={true}
+                                    onChange={this.onDatesChange}
+                                />
+
+                                <div className='ml-2'>
+                                    <Input type='select'
+                                           name='regGoods'
+                                           id='searchModDate'
+                                           onChange={this.onRegGoodsChange}
+                                           value={this.state.search.regGoods}
+                                    >
+                                        <option name='regGoods' value=''>등록여부 전체</option>
+                                        <option name='regGoods' value='true'>상품등록가능</option>
+                                        <option name='regGoods' value='false'>상품등록불가</option>
+                                    </Input>
+                                </div>
+
+                                <Button className="ml-3" color="primary" onClick={this.search}> 검 색 </Button>
+                            </Flex>
+                        </Div>
+                    </Flex>
+                </div>
+
                 {/* filter START */}
-                <FilterContainer gridApi={this.gridApi} excelFileName={'생산자 목록'}>
+                <FilterContainer gridApi={this.state.gridApi} columnApi={this.state.columnApi} excelFileName={'생산자 목록'}>
                     <FilterGroup>
                         <InputFilter
-                            gridApi={this.gridApi}
+                            gridApi={this.state.gridApi}
                             columns={[
                                 {field: 'producerNo', name: '생산자번호'},
                                 {field: 'name', name: '생산자명'},
+                                {field: 'localfoodFlag', name: '로컬푸드'},
+                                {field: 'farmName', name: '농장명'},
                                 {field: 'email', name: '이메일'},
-                                {field: 'producerFeeRate', name: '커미션%'},
+                                {field: 'tags', name: '해시태그'},
+                                // {field: 'producerFeeRate', name: '커미션%'},
+                                {field: 'shopPhone', name: '상점(연락처)'}
                             ]}
                             isRealTime={true}
                         />
@@ -379,130 +528,69 @@ export default class ProducerList extends Component{
                     <Hr/>
                     <FilterGroup>
                         <CheckboxFilter
-                            gridApi={this.gridApi}
-                            field={'payoutBlct'}
-                            name={'Blct정산여부'}
+                            gridApi={this.state.gridApi}
+                            field={'goodsRegStop'}
+                            name={'상품등록'}
                             data={[
-                                {value: 'BLCT정산', name: 'BLCT정산'},
-                                {value: '현금정산', name: '현금정산'},
+                                {value: '가능', name: '가능'},
+                                {value: '불가', name: '불가'},
                             ]}
                         />
                     </FilterGroup>
                 </FilterContainer>
                 {/* filter END */}
+                <Flex mb={10}>
+                    <Space>
+                        <MenuButton onClick={() => this.search()}>새로고침</MenuButton>
+                        {
+                            (this.state.selectedRows.length > 0) && <MenuButton bg={'danger'} onClick={this.onGoodsRegStopClick}>{this.state.selectedRows.length}건 등록중지</MenuButton>
+                        }
+                        {
+                            (this.state.selectedRows.length > 0) && <MenuButton bg={'green'} onClick={this.onGoodsRegUnStopClick}>{this.state.selectedRows.length}건 등록재개</MenuButton>
+                        }
+                    </Space>
+                    <Right>
+                        총 {this.state.data.length} 건
+                    </Right>
+                </Flex>
+
                 <div
                     className="ag-theme-balham"
                     style={{
                         height: '700px',
-                        margin: 10,
-                        paddingBottom: 10
                     }}
                 >
                     <AgGridReact
-                        // enableSorting={true}                //정렬 여부
-                        // enableFilter={true}                 //필터링 여부
+                        ref={this.gridRef}
+                        rowSelection={'multiple'}
+                        suppressRowClickSelection={false}   //false : 셀 클릭시 체크박스도 체크 true: 셀클릭시 체크박스 체크 안함
                         columnDefs={this.state.columnDefs}  //컬럼 세팅
                         defaultColDef={this.state.defaultColDef}
-                        rowHeight={this.rowHeight}
-                        // enableColResize={true}              //컬럼 크기 조정
+                        getRowHeight={50}
                         overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                         overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
                         rowData={this.state.data}
                         components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
                         frameworkComponents={this.state.frameworkComponents}
-                        // getRowNodeId={this.state.getRowNodeId}
-                        onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
+                        onGridReady={this.onGridReady}   //그리드 init(최초한번실행)
                         onCellDoubleClicked={this.copy}
+                        onSelectionChanged={this.onSelectionChanged.bind(this)}
                     >
                     </AgGridReact>
 
                 </div>
 
+                <Modal isOpen={this.state.tagsModalOpen} toggle={this.tagsModalToggle} size={'md'}>
+                    <ModalHeader toggle={this.tagsModalToggle}> 해시태그 수정</ModalHeader>
+                    <ModalBody style={{padding: 0}}>
+                        <ProducerViewer
+                            producerNo={this.state.selectedRow && this.state.selectedRow.producerNo}
+                            onClose={this.onTagsModalClose}
+                        />
+                    </ModalBody>
+                </Modal>
 
-
-
-                {
-                    selectedItem && (
-                        <Modal isOpen={this.state.isOpen} centered>
-                            <ModalHeader toggle={this.modalToggle}>
-                                {isDirectFee ? "즉시":""} 커미션 변경
-                            </ModalHeader>
-                            <ModalBody className={'p-0'}>
-                                <div className={'m-3'}>
-                                    <div className={'d-flex'} >
-                                        <img className={'rounded-circle mr-3'} style={{width: 50, height: 50}} src={selectedItem.profileImages[0] ? Server.getThumbnailURL() + selectedItem.profileImages[0].imageUrl : null} alt=""/>
-                                        <div>
-                                            <div>
-                                                {selectedItem.name}
-                                            </div>
-                                            <div>
-                                                {selectedItem.farmName}
-                                            </div>
-                                        </div>
-
-                                    </div>
-                                </div>
-                                <div className={'m-3'}>
-                                    <div>
-                                        {selectedItem.email}
-                                    </div>
-                                    <div>
-                                        {selectedItem.account}
-                                    </div>
-                                    <div>
-                                        {selectedItem.blct}
-                                    </div>
-                                    <div>
-                                        {selectedItem.payoutBlct}
-                                    </div>
-                                    <div>
-                                        {
-                                            selectedItem.shopAddress
-                                        }
-                                    </div>
-                                </div>
-                                <div className={'m-3'}>
-                                    <Input type='select' name='select' id='producerRateFee' className='mr-2' onChange={this.changeProducerRateFee}>
-                                        {
-                                            this.state.producerFeeRateList.map((feeRate, index) => {
-                                                return (
-                                                    <option key={'radio' + index} selected={feeRate.producerRateId === selectedItem.applyProducerRateId} name='radio' value={index}>{feeRate.explain} {feeRate.rate}%</option>
-                                                )
-                                            })
-                                        }
-                                    </Input>
-                                </div>
-                                {
-                                    !isDirectFee &&
-                                    <div className={'m-3'}>
-                                        <SingleDatePicker
-                                            placeholder="적용시작일"
-                                            date={selectedItem.applyDate ? moment(selectedItem.applyDate) : null}
-                                            onDateChange={this.onDateChange}
-                                            focused={this.state[`focused`]} // PropTypes.bool
-                                            onFocusChange={({ focused }) => this.setState({ [`focused`]:focused })} // PropTypes.func.isRequired
-                                            id={"feeRateChangeDate"} // PropTypes.string.isRequired,
-                                            numberOfMonths={1}
-                                            withPortal={false}
-                                            small
-                                            readOnly
-                                            // calendarInfoPosition="top"
-                                            // enableOutsideDays
-                                            //verticalHeight={700}
-                                        />
-                                    </div>
-                                }
-                            </ModalBody>
-                            <ModalFooter>
-                                <Button color="primary" onClick={this.feeRateChangeReserve}>확인</Button>
-                                <Button color="secondary" onClick={this.modalToggle}>취소</Button>
-                            </ModalFooter>
-                        </Modal>
-
-                    )
-                }
-
-            </div>
+            </Div>
         )
     }
 }

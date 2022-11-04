@@ -6,6 +6,7 @@ import ComUtil from '~/util/ComUtil'
 //ag-grid
 import { AgGridReact } from 'ag-grid-react';
 import "ag-grid-community/src/styles/ag-grid.scss";
+import {Div} from "~/styledComponents/shared";
 // import "ag-grid-community/src/styles/ag-theme-balham.scss";
 
 export default class ProducerRegRequest extends Component{
@@ -17,15 +18,15 @@ export default class ProducerRegRequest extends Component{
             loading: false,
             data: [],
             columnDefs: [
-                {headerName: "신청번호", field: "regNo", sort:"asc", cellStyle:this.getCellStyle({cellAlign: 'center'})},
-                {headerName: "상품정보", field: "goodsInfo", cellStyle:this.getCellStyle({cellAlign: 'left'})},
+                {headerName: "신청번호", field: "regNo", sort:"desc", cellStyle:this.getCellStyle({cellAlign: 'center'})},
+                {headerName: "상품정보", field: "goodsInfo", width: 320, cellStyle:this.getCellStyle({cellAlign: 'left'})},
                 {headerName: "카테고리", field: "category", cellStyle:this.getCellStyle({cellAlign: 'left'})},
                 {headerName: "업체명", field: "farmName", width: 200, cellStyle:this.getCellStyle({cellAlign: 'left'})},
-                {headerName: "주소", field: "address", width: 250, cellStyle:this.getCellStyle({cellAlign: 'left'})},
+                {headerName: "주소", field: "address", width: 300, cellStyle:this.getCellStyle({cellAlign: 'left'})},
                 {headerName: "사업자등록번호", field: "coRegistrationNo", width: 150, cellStyle:this.getCellStyle({cellAlign: 'left'})},
                 {headerName: "신청일", field: "timestamp", width: 100, cellStyle:this.getCellStyle({cellAlign: 'left'})},
                 {headerName: "담당자명", field: "charger", width: 100, cellStyle:this.getCellStyle({cellAlign: 'center'})},
-                {headerName: "담당자 연락처", field: "chargerPhone", width: 100, cellStyle:this.getCellStyle({cellAlign: 'left'})},
+                {headerName: "담당자 연락처", field: "chargerPhone", width: 150, cellStyle:this.getCellStyle({cellAlign: 'left'})},
                 {headerName: "담당자 이메일", field: "chargerEmail", width: 200, cellStyle:this.getCellStyle({cellAlign: 'left'})},
             ],
             defaultColDef: {
@@ -119,7 +120,7 @@ export default class ProducerRegRequest extends Component{
             return null;
 
         return (
-            <div>
+            <Div p={16}>
 
                 <div
                     className="ag-theme-balham"
@@ -147,7 +148,7 @@ export default class ProducerRegRequest extends Component{
 
                 </div>
 
-            </div>
+            </Div>
         )
     }
 }

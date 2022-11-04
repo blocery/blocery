@@ -230,16 +230,12 @@ const EventPaymentList = (props) => {
                 }}
             >
                 <AgGridReact
-                    // enableSorting={true}
-                    // enableFilter={true}
                     columnDefs={agGrid.columnDefs}
                     defaultColDef={agGrid.defaultColDef}
                     rowSelection={'single'}  //멀티체크 가능 여부
-                    // enableColResize={true}
                     overlayLoadingTemplate={agGrid.overlayLoadingTemplate}
                     overlayNoRowsTempalte={agGrid.overlayNoRowsTemplate}
                     rowData={dataList}
-                    //onRowClicked={selectRow}
                 />
             </div>
         </div>

@@ -93,74 +93,74 @@ const AdminOkStatusView = ({swapBlctToBlyNo}) => {
         })
     }
 
-    const onButtonClick = async (adminOkStatus) => {
-
-        if (adminOkStatus === 0) {
-            if (!window.confirm('승인 하시겠습니까? 이후 번복이 불가능 합니다.'))
-                return
-        }
-        else if (adminOkStatus === 3) {
-            if (!swapBlctToBly.userMessage){
-                alert('사용자 노출 메시지는 필수 입니다.')
-                return
-            }else if (!swapBlctToBly.adminMemo){
-                alert('관리자 메시지는 필수 입니다.')
-                return
-            }
-
-            if (!window.confirm('거절 하시겠습니까? 이후 번복이 불가능 합니다.'))
-                return
-        }
-
-        //한번더 상태값 확인
-        const data = await getData()
-
-        let canUpdate = false
-
-        //검토중 선택
-        if (adminOkStatus === 2) {
-
-            await checkSecurity()
-
-            //DB 값이 요청 일 경우만 검토중으로 업데이트
-            if (data.adminOkStatus === 1) {
-                canUpdate = true
-            }else{
-                alert(`다른 관리자가 이미 ${STATUS_NM[data.adminOkStatus]} 하여 해당 작업은 취소 되었습니다. 재검색하여 최신 내용을 반영 합니다.`)
-                setSwapBlctToBly(await getData())
-            }
-        }
-        //승인 or 거절 선택
-        else if (adminOkStatus === 0 || adminOkStatus === 3) {
-            //검토중으로 되어있는 경우만 승인 or 거절 처리
-            if (data.adminOkStatus === 2) {
-                canUpdate = true
-            }else{
-                alert(`다른 관리자가 이미 ${STATUS_NM[data.adminOkStatus]} 하여 해당 작업은 취소 되었습니다. 재검색하여 최신 내용을 반영 합니다.`)
-                setSwapBlctToBly(await getData())
-            }
-        }
-
-        if (canUpdate) {
-
-            console.log({
-                ...swapBlctToBly,
-                adminOkStatus: adminOkStatus
-            })
-
-            const isSucceed = await requestAdminOkStatus({
-                ...swapBlctToBly,
-                adminOkStatus: adminOkStatus
-            })
-
-            if (isSucceed) {
-                alert('반영 되었습니다.')
-                setSwapBlctToBly(await getData())
-            }else{
-                alert('오류가 발생 하였습니다.')
-            }
-        }
-    }
+    // const onButtonClick = async (adminOkStatus) => {
+    //
+    //     if (adminOkStatus === 0) {
+    //         if (!window.confirm('승인 하시겠습니까? 이후 번복이 불가능 합니다.'))
+    //             return
+    //     }
+    //     else if (adminOkStatus === 3) {
+    //         if (!swapBlctToBly.userMessage){
+    //             alert('사용자 노출 메시지는 필수 입니다.')
+    //             return
+    //         }else if (!swapBlctToBly.adminMemo){
+    //             alert('관리자 메시지는 필수 입니다.')
+    //             return
+    //         }
+    //
+    //         if (!window.confirm('거절 하시겠습니까? 이후 번복이 불가능 합니다.'))
+    //             return
+    //     }
+    //
+    //     //한번더 상태값 확인
+    //     const data = await getData()
+    //
+    //     let canUpdate = false
+    //
+    //     //검토중 선택
+    //     if (adminOkStatus === 2) {
+    //
+    //         await checkSecurity()
+    //
+    //         //DB 값이 요청 일 경우만 검토중으로 업데이트
+    //         if (data.adminOkStatus === 1) {
+    //             canUpdate = true
+    //         }else{
+    //             alert(`다른 관리자가 이미 ${STATUS_NM[data.adminOkStatus]} 하여 해당 작업은 취소 되었습니다. 재검색하여 최신 내용을 반영 합니다.`)
+    //             setSwapBlctToBly(await getData())
+    //         }
+    //     }
+    //     //승인 or 거절 선택
+    //     else if (adminOkStatus === 0 || adminOkStatus === 3) {
+    //         //검토중으로 되어있는 경우만 승인 or 거절 처리
+    //         if (data.adminOkStatus === 2) {
+    //             canUpdate = true
+    //         }else{
+    //             alert(`다른 관리자가 이미 ${STATUS_NM[data.adminOkStatus]} 하여 해당 작업은 취소 되었습니다. 재검색하여 최신 내용을 반영 합니다.`)
+    //             setSwapBlctToBly(await getData())
+    //         }
+    //     }
+    //
+    //     if (canUpdate) {
+    //
+    //         console.log({
+    //             ...swapBlctToBly,
+    //             adminOkStatus: adminOkStatus
+    //         })
+    //
+    //         const isSucceed = await requestAdminOkStatus({
+    //             ...swapBlctToBly,
+    //             adminOkStatus: adminOkStatus
+    //         })
+    //
+    //         if (isSucceed) {
+    //             alert('반영 되었습니다.')
+    //             setSwapBlctToBly(await getData())
+    //         }else{
+    //             alert('오류가 발생 하였습니다.')
+    //         }
+    //     }
+    // }
 
     //메모만 업데이트
     const onUpdateMemoClick = async () => {
@@ -289,17 +289,17 @@ const AdminOkStatusView = ({swapBlctToBlyNo}) => {
                             )
                         }
                         {
-                            (adminOkStatus === 1 || adminOkStatus === 2) ? (
-                                <Div>
-                                    <Button onClick={onButtonClick.bind(this, 2)} px={10} bg={'green'} fg={'white'} disabled={adminOkStatus !== 1}>검토중</Button>
-                                    <Button onClick={onButtonClick.bind(this, 0)} px={10} bg={'green'} fg={'white'} mx={10} disabled={adminOkStatus !== 2 || (abuser && abuser.blocked)}>승인</Button>
-                                    <Button onClick={onButtonClick.bind(this, 3)} px={10} bg={'danger'} fg={'white'} disabled={adminOkStatus !== 2}>거절</Button>
-                                </Div>
-                            ) : (
+                            // (adminOkStatus === 1 || adminOkStatus === 2) ? (
+                            //     <Div>
+                            //         <Button onClick={onButtonClick.bind(this, 2)} px={10} bg={'green'} fg={'white'} disabled={adminOkStatus !== 1}>검토중</Button>
+                            //         <Button onClick={onButtonClick.bind(this, 0)} px={10} bg={'green'} fg={'white'} mx={10} disabled={adminOkStatus !== 2 || (abuser && abuser.blocked)}>승인</Button>
+                            //         <Button onClick={onButtonClick.bind(this, 3)} px={10} bg={'danger'} fg={'white'} disabled={adminOkStatus !== 2}>거절</Button>
+                            //     </Div>
+                            // ) : (
                                 <Div>
                                     <Button onClick={onUpdateMemoClick} px={10} bc={'dark'} >저장</Button>
                                 </Div>
-                            )
+                            // )
                         }
                     </Div>
                 </Flex>

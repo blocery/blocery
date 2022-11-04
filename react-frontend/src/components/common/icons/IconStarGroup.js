@@ -1,24 +1,27 @@
 import React from 'react'
-import {FaStar} from 'react-icons/fa'
+import {FaStar, FaStarHalfAlt} from 'react-icons/fa'
 import classNames from 'classnames'
-import PropTypes from 'prop-types'
-const IconStarGroup = ({score, size}) => [2,4,6,8,10].map(num =>
-                    <FaStar
-                        key={'iconStarGroup_'+num}
-                        style={{marginRight:1}}
-                        className={classNames('b-0', num < 10 && 'mr-1')}
-                        color={num <= score ? '#FFC108' : '#E1E1E1'}
-                        size={size=='lg'?19:size}
-                    />
-            )
 
+const IconStarGroup = ({score = 0, size = 16}) => [2,4,6,8,10].map(num => {
+        // console.log( num, score, score.toFixed(0));
+    return (num > score && (num - 1 == score.toFixed(0))) ?  //score가 9이고 num=10일때만 반쪽 별 출력.
+            <FaStarHalfAlt
+                key={'iconStarGroup_' + num}
+                style={{marginRight: 1}}
+                className={classNames('b-0', num < 10 && 'mr-1')}
+                color={'#ffc600'}
+                size={size == 'lg' ? 19 : size}
+            />
+            :
+            <FaStar
+                key={'iconStarGroup_' + num}
+                style={{marginRight: 1}}
+                className={classNames('b-0', num < 10 && 'mr-1')}
+                color={num <= score.toFixed(0) ? '#ffc600' : '#e9eaec'}
+                size={size == 'lg' ? 19 : size}
+            />
+    }
 
-IconStarGroup.propTypes = {
-    score: PropTypes.number.isRequired,
-    size: PropTypes.string
-}
-IconStarGroup.defaultProps = {
-    size: 16
-}
+)
 
 export default IconStarGroup

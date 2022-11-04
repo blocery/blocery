@@ -1,3 +1,5 @@
 export { default as ImageUploader } from './ImageUploader'
 export { default as SingleImageUploader } from './SingleImageUploader'
 export { default as KycSingleImageUploader } from './KycSingleImageUploader'
+export { default as SingleArImageUploader } from './SingleArImageUploader'
+export { default as SingleFileUploader } from './SingleFileUploader'

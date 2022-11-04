@@ -212,6 +212,7 @@ class KycSingleImageUploader extends React.Component{
         // 이미지 압축 및 서버 업로드(0.6은 대략 60% 정도의 용량이 줄어듬, 추천하는 압축률)
         new Compressor(file, {
             quality: 0.6,
+            convertTypes: ['image/webp'],
             success: async (result) => {
 
                 // 파일 사이즈 체크(압축된 파일로)
@@ -287,7 +288,7 @@ class KycSingleImageUploader extends React.Component{
 
         return(
             <Fragment>
-                <ToastContainer/>
+                {/*<ToastContainer/>*/}
                 <div className={Style.wrap}>
                     {
                         arr.map((empty, index) => {

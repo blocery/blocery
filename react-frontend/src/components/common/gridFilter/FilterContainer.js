@@ -7,7 +7,7 @@ import {allFilterClearState} from "~/recoilState";
 import {RiFileExcel2Line, RiDeleteBinLine} from 'react-icons/ri'
 import {BsThreeDotsVertical} from 'react-icons/bs'
 import ExcelUtil from "~/util/ExcelUtil";
-import {MdKeyboardArrowDown, MdKeyboardArrowUp} from 'react-icons/md'
+import {IoIosArrowUp, IoIosArrowDown} from 'react-icons/io'
 import {AiOutlineEye, AiOutlineEyeInvisible} from 'react-icons/ai'
 import styled from "styled-components";
 import {TiPin} from 'react-icons/ti'
@@ -16,7 +16,6 @@ import DisplayGridRowCount from "./DisplayGridRowCount";
 import {useModal} from "~/util/useModal";
 import ComUtil from "~/util/ComUtil";
 import Checkbox from "~/components/common/checkboxes/Checkbox";
-
 
 const Wrapper = styled(Div)`
     position: relative;
@@ -66,11 +65,12 @@ const StyledDropdownToggle = styled.div`
             <FilterGroup/>
     <FilterContainer/>
 */
-const FilterContainer = ({gridApi, excelFileName = '목록', open = true, children}) => {
+const FilterContainer = ({gridApi, columnApi, excelFileName = '목록', open = true, children}) => {
 
-    if(!gridApi) return null
+    if(!gridApi || !columnApi) return null
 
-    const columnApi = gridApi ? gridApi.columnController.columnApi : null
+
+    //const columnApi = gridApi ? gridApi.columnController.columnApi : null
 
 
     const [isOpen, setIsOpen] = useState(open)
@@ -88,9 +88,9 @@ const FilterContainer = ({gridApi, excelFileName = '목록', open = true, childr
         if (gridApi) {
             // setGridColumnApi(gridColumnApi)
             //원본 보관
-            window.columnState = gridApi.columnController.getColumnState()
+            window.columnState = columnApi.getColumnState()
             // setColumnState(gridApi.columnController.getColumnState())
-            setColumnState(gridApi.columnController.getColumnState())
+            setColumnState(columnApi.getColumnState())
 
         }
     }, [gridApi])
@@ -196,7 +196,7 @@ const FilterContainer = ({gridApi, excelFileName = '목록', open = true, childr
             /*========================== 그리드(DB원본) 데이터 추출 ==========================*/
             //원본 데이터
             if (type === 'origin') {
-                fileName = '[전체] ' + excelFileName;
+                fileName = '전체 ' + excelFileName;
                 gridApi.forEachNode((node) => gridRows.push(node.data))
                 const info = getCustomExcelDataFromGridRows(gridRows)
                 headerNames = info.headerNames
@@ -204,7 +204,7 @@ const FilterContainer = ({gridApi, excelFileName = '목록', open = true, childr
             }
             //필터된 데이터 추출
             else if (type === 'filtered') {
-                fileName = '[현재] ' + excelFileName;
+                fileName = '현재 ' + excelFileName;
                 const columnKeys = getColumnKeys()
                 const info = getExcelDataFromCsv(columnKeys)
                 headerNames = info.headerNames
@@ -295,11 +295,11 @@ const FilterContainer = ({gridApi, excelFileName = '목록', open = true, childr
 
         }else {
 
-            gridApi.columnController.getColumnState().map(state => {
+            columnApi.getColumnState().map(state => {
                 columnApi.setColumnVisible(state.colId, true)
             })
 
-            setColumnState(gridApi.columnController.getColumnState())
+            setColumnState(columnApi.getColumnState())
 
         }
 
@@ -309,10 +309,10 @@ const FilterContainer = ({gridApi, excelFileName = '목록', open = true, childr
     //colId 로 컬림 숨김/보이기 처리
     const columnHideToggleByColId = (colId) => {
 
-        const columnState = gridApi.columnController.getColumnState().find(state => state.colId === colId)
+        const columnState = columnApi.getColumnState().find(state => state.colId === colId)
         const visible = columnState.hide
         columnApi.setColumnVisible(colId, visible)
-        setColumnState(gridApi.columnController.getColumnState())
+        setColumnState(columnApi.getColumnState())
     }
 
     //hide column state 초기화
@@ -324,12 +324,12 @@ const FilterContainer = ({gridApi, excelFileName = '목록', open = true, childr
             columnApi.setColumnVisible(state.colId, visible)
         })
 
-        setColumnState(gridApi.columnController.getColumnState())
+        setColumnState(columnApi.getColumnState())
 
         return
 
         //원본에서 hide만 true 로 복구
-        const newColumnState = gridApi.columnController.getColumnState().map(state => {
+        const newColumnState = columnApi.getColumnState().map(state => {
 
             const hide = window.columnState.find(orgState => orgState.colId === state.colId).hide
 
@@ -345,11 +345,11 @@ const FilterContainer = ({gridApi, excelFileName = '목록', open = true, childr
     //컬럼 핀 고정
     const onColumnPinnedClick = (colId) => {
 
-        const columnState = gridApi.columnController.getColumnState().find(state => state.colId === colId)
+        const columnState = columnApi.getColumnState().find(state => state.colId === colId)
 
         columnApi.setColumnPinned(colId, !columnState.pinned)
 
-        setColumnState(gridApi.columnController.getColumnState())
+        setColumnState(columnApi.getColumnState())
 
     }
 
@@ -370,7 +370,7 @@ const FilterContainer = ({gridApi, excelFileName = '목록', open = true, childr
     }
 
     return (
-        <Div m={10}>
+        <Div mb={10}>
             <Flex justifyContent={'center'}>
                 <Flex fontSize={12}>
                     <DisplayGridRowCount gridApi={gridApi} />
@@ -378,7 +378,7 @@ const FilterContainer = ({gridApi, excelFileName = '목록', open = true, childr
                         <Flex>
                             <HiOutlineFilter size={16}/>
                             <Div mx={5}>필터</Div>
-                            {isOpen ? <MdKeyboardArrowUp size={16} /> : <MdKeyboardArrowDown size={16} />}
+                            {isOpen ? <IoIosArrowDown size={16} /> : <IoIosArrowUp size={16} />}
                         </Flex>
                     </Button>
                     <Button ml={10} bg={'white'} bc={'light'} onClick={clear}><Flex><RiDeleteBinLine size={16} /><Div ml={5}>필터 클리어</Div></Flex></Button>
@@ -390,8 +390,7 @@ const FilterContainer = ({gridApi, excelFileName = '목록', open = true, childr
                                 width={120}
                                 onClick={columnHideToggle}
                                 onMouseOver={() => {
-                                    console.log('===')
-                                    setColumnState(gridApi.columnController.getColumnState())
+                                    setColumnState(columnApi.getColumnState())
                                 }}
                         >
                             <Flex justifyContent={'center'}>

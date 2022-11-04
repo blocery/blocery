@@ -1,39 +1,35 @@
 import React, { Fragment, useState, useEffect, lazy, Suspense} from 'react'
 import {Div, Flex, Span} from '~/styledComponents/shared'
+import { HrHeavyX2 } from '~/styledComponents/mixedIn'
 import HeaderBox from '~/components/shop/goodsReviewList/HeaderBox'
+import {BLCT_TO_WON} from '~/lib/exchangeApi'
 
 import { ShopXButtonNav, Sticky } from '~/components/common'
-// import UnusedCouponList from './UnusedCouponList'
-// import ExpiredCouponList from './ExpiredCouponList'
 import {getUnusedCouponList, getExpriedCouponList, getRewardCoupon} from '~/lib/shopApi'
-import {useModal} from "~/util/useModal";
-// import RewardCoupon from './RewardCoupon'
 import loadable from "@loadable/component";
+import BackNavigation from "~/components/common/navs/BackNavigation";
+import Skeleton from "~/components/common/cards/Skeleton";
 
 const RewardCoupon = loadable(() => import('./RewardCoupon'))
-
 const UnusedCouponList = lazy(() => import('./UnusedCouponList'))
 const ExpiredCouponList = lazy(() => import('./ExpiredCouponList'))
-
 
 const CouponList = (props) => {
 
     const [ tabId, setTabId ] = useState('1')     // 화면 렌더시 사용가능한쿠폰목록
+    const [loading, setLoading] = useState(true)
     const [usableCouponList, setUsableCouponList] = useState()
     const [expiredCouponList, setExpiredCouponList] = useState()
     const [rewardCoupon, setRewardCoupon] = useState()
-
+    const [blctToWon, setBlctToWon] = useState(0)
 
     // 탭이동
     const onHeaderClick = (selectedTabId) => {
         setTabId(selectedTabId)
     }
 
-    // useEffect(() => {
-    //     window.scrollTo(0,0)
-    // }, [])
-
     useEffect(() => {
+        getBlctToWon();
         searchRewardCoupon();
         if (tabId === '1') {
             searchUnusedCoupon()
@@ -43,17 +39,24 @@ const CouponList = (props) => {
 
     }, [tabId]);
 
-
+    async function getBlctToWon() {
+        const {data} = await BLCT_TO_WON();
+        setBlctToWon(data);
+    }
 
     async function searchUnusedCoupon() {
+        setLoading(true);
         const {data: usableCoupons} = await getUnusedCouponList();
         setUsableCouponList(usableCoupons)
         console.log({usableCoupons})
+        setLoading(false);
     }
 
     async function searchExpiredCoupon() {
+        setLoading(true);
         const {data: expiredCoupons} = await getExpriedCouponList();
         setExpiredCouponList(expiredCoupons)
+        setLoading(false);
     }
 
     async function searchRewardCoupon() {
@@ -72,14 +75,17 @@ const CouponList = (props) => {
     return (
         <Fragment>
             <Sticky>
-                <ShopXButtonNav fixed historyBack underline>쿠폰</ShopXButtonNav>
+                {/*<ShopXButtonNav fixed historyBack underline>쿠폰</ShopXButtonNav>*/}
+                <BackNavigation>쿠폰</BackNavigation>
             </Sticky>
-            <Div p={15} bold>적립 쿠폰</Div>
-            <Div bg={'background'} minHeight={'500px)'}>
+            <Div p={15} bold fontSize={17}>적립 쿠폰</Div>
+            <Div p={15} minHeight={'500px)'}>
                 <Suspense fallback={null}>
                     <RewardCoupon data={rewardCoupon} />
                 </Suspense>
             </Div>
+
+            <HrHeavyX2 m={0} bc={'background'} />
 
             <Div p={15} mt={20} bold>일반 쿠폰</Div>
             <Sticky top={56}>
@@ -91,9 +97,12 @@ const CouponList = (props) => {
             <Div bg={'background'} minHeight={'calc(100vmax - 96px - 54px)'}>
                 <Suspense fallback={null}>
                     {
-                        tabId === '1' ?
-                            <UnusedCouponList data={usableCouponList} /> :
-                            <ExpiredCouponList data={expiredCouponList} />
+                        loading ?
+                            <Skeleton count={1} bc={'light'} />
+                            :
+                            tabId === '1' ?
+                                <UnusedCouponList data={usableCouponList} /> :
+                                <ExpiredCouponList data={expiredCouponList} />
                     }
                 </Suspense>
             </Div>

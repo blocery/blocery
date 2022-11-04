@@ -1,4 +1,4 @@
-import React, { Component, Fragment } from 'react';
+import React, {Component, Fragment, useEffect, useState} from 'react';
 
 import {
     getConsumer,
@@ -7,13 +7,15 @@ import {
     getOrderDetailCountForMypage,
     getUsableCouponList,
     getRecommenderInfo,
-    getAbuser
+    getOutboundComplete,
+    getAbuser, getProfileByConsumerNo, getCountUsableCouponList, getCountOutboundComplete
 } from '~/lib/shopApi'
 import { autoLoginCheckAndTryAsync } from '~/lib/loginApi'
 import { scOntGetBalanceOfBlct } from "~/lib/smartcontractApi";
 import {getDonTotal, isAbuser} from '~/lib/donAirDropApi'
 
 import ComUtil from '~/util/ComUtil'
+import {Bold, BottomDotTab} from "~/styledComponents/ShopBlyLayouts";
 
 import classNames from 'classnames' //여러개의 css 를 bind 하여 사용할 수 있게함
 
@@ -25,63 +27,144 @@ import { LoginLinkCard, ModalPopup } from '~/components/common'
 import { B2cHeader } from '~/components/common/headers'
 import {BodyFullHeight} from '~/components/common/layouts'
 import { getCart } from '~/lib/cartApi'
+import { getLackNextLevelScore } from '~/lib/pointApi'
 
-import icEdit from '~/images/icons/ic_edit.svg'
-import icMy1 from '~/images/icons/ic_my_1.svg'
-import icMy2 from '~/images/icons/ic_my_2.svg'
-import icMy3 from '~/images/icons/ic_my_3.svg'
-import icMy4 from '~/images/icons/ic_my_4.svg'
-import icMy5 from '~/images/icons/ic_my_5.svg'
-import icMy6 from '~/images/icons/ic_my_6.svg'
-import icMy7 from '~/images/icons/ic_my_7.svg'
-import icMy8 from '~/images/icons/ic_my_8.svg'
+import {Redirect, withRouter} from 'react-router-dom'
 
-import icMore12 from '~/images/icons/ic_more_12.svg'
-import icMore11 from '~/images/icons/ic_more_11.svg'
-import icMore10 from '~/images/icons/ic_more_10.svg'
-import icMoreArrow from '~/images/icons/ic_more_arrow_n.svg'
-import icRank5 from '~/images/icons/ic_rank_b.svg'  //5등급
-import icRank4 from '~/images/icons/ic_rank_s.svg'  //4등급
-import icRank3 from '~/images/icons/ic_rank_g.svg'  //3등급
-import icRank2 from '~/images/icons/ic_rank_v.svg'  //2등급
-import icRank1 from '~/images/icons/ic_rank_vv.svg'  //1등급
-import icCoupon from '~/images/icons/ic_cP_02.svg'
-import icInviteFriend from '~/images/icons/plus_friends.svg'
+//리뉴얼 아이콘
 import { FaUserPlus } from 'react-icons/fa'
+import icSetting from '~/images/icons/renewal/setting.png'
+import icBackButton from '~/images/icons/renewal/back.png'
+import imgNoProfile from '~/images/icons/renewal/mypage/no_profile.png'
 
 import {BlocerySymbolGreen} from '~/components/common/logo'
 import styled from 'styled-components'
+import TG from '~/components/common/tg/TG'
 
-import {Div, Link as StyledLink, Flex} from '~/styledComponents/shared'
-import { MdInfo } from 'react-icons/md'
-import { color } from "~/styledComponents/Properties";
-import Skeleton from '~/components/common/cards/Skeleton'
-import {FiEdit} from 'react-icons/fi'
-import {AiOutlineInfoCircle} from "react-icons/ai";
-import {Modal, ModalBody, ModalHeader} from "reactstrap";
-import BlySise from "~/components/common/blySise";
+import {
+    Div,
+    Span,
+    Link as StyledLink,
+    Flex,
+    Button,
+    Hr,
+    Right,
+    Img,
+    GridColumns,
+    Space, Divider
+} from '~/styledComponents/shared'
+import {ImProfile} from 'react-icons/im'
 import SecureApi from "~/lib/secureApi";
+import icPencil from "~/images/icons/renewal/mypage/pencil.png";
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
+import {ConsumerMypage} from '../mypage'
+import {getProducerMenuSummary, getProducerTodayOrderCount} from "~/lib/producerApi";
+import ProfileBig from "~/components/common/cards/ProfileBig";
+import NotificationButton from "~/components/common/buttons/NotificationLinkButton";
+import CartLinkButton from "~/components/common/buttons/CartLinkButton";
+import useLogin from "~/hooks/useLogin";
+import ArrowList from "~/components/common/lists/ArrowList";
+import {useRecoilState} from "recoil";
+import {consumerState} from "~/recoilState";
+import {Spinner} from "reactstrap";
+import {AiOutlineDoubleRight} from "react-icons/ai";
+import {getValue} from "~/styledComponents/Util";
+import ZzimLinkButton from "~/components/common/buttons/ZzimLinkButton";
+import StarredProducerGoodsLinkButton from "~/components/common/buttons/StarredProducerGoodsLinkButton";
+
+//pivot브랜치 오픈시 don 소유자들(abuser제외 63명) +  31(땡순이),229(김용229)=stage test용도
+const donOwners = [31,229,17,55,63,853,930,969,1031,2656,3788,5453,11272,13386,16184,17568,21930,32787,34219,34233,39922,39928,39931,39932,39933,39942,39943,39949,419,1044,3633,3661,13424,39858,39903,39975,718,40002,40008,40023,40024,2338,2907,33734,40047,40052,40056,40059,40061,40066,40067,40074,7396,39866,40073,40075,40135,40150,166,3720,3861,22205,40032,40115,39383];
 
 const Link = styled(StyledLink)`
     display: block;
 `;
 
-export default class Mypage extends Component {
+const RightContent = ({history}) => {
+
+    return(
+        <GridColumns colGap={0} rowGap={0} repeat={2} pr={10}
+                     height={'100%'}
+                     custom={`
+        & > div {
+            width: ${getValue(50)};
+            height: 100%;
+        }
+       `}>
+            {/*<SearchButton />*/}
+            <NotificationButton/>
+            {/* 찜하기 상품 링크 */}
+            <ZzimLinkButton />
+            {/* 단골상품 링크 */}
+            {/*<StarredProducerGoodsLinkButton />*/}
+        </GridColumns>
+    )
+    // return(
+    //     <NotificationButton width={50} height={'100%'} mr={10}/>
+    //
+    // )
+}
+
+const NoLoginUser = () => {
+    const {isLoggedIn, isServerLoggedIn} = useLogin()
+
+    const onLoginClick = async () => {
+        let loginUser = await isServerLoggedIn()
+        if (!loginUser ) { //|| !isLoggedIn() ) { //백 || front
+            //Webview.openPopup('/login')
+        }
+    }
+
+    return(
+        <Fragment>
+            <BackNavigation
+                hideLine={true}
+                rightContent={<RightContent/>}
+            >마이페이지
+            </BackNavigation>
+
+            <Div bold p={16} fontSize={17} onClick={onLoginClick} cursor>
+                <Span fg={'green'}>로그인</Span>을 해주세요
+            </Div>
+
+            <Divider />
+
+            <ArrowList data={[
+                {text: <>등급 및 혜택안내 </>, to: `/levelInfo`},
+                {text: <>포인트안내 </>, to: `/pointInfo`},
+                {text: <>공지사항 </>, to: `/noticeList`},
+                {text: <>이용안내 </>, to: `/mypage/useGuide`},
+                {text: <>FAQ </>, to: `/faq`},
+                {text: <>서비스 이용약관 </>, to: `/mypage/termsOfUse`},
+                {text: <>개인정보 보호 정책 </>, to: `/mypage/privacyPolicy`},
+            ]} />
+
+            <Divider />
+        </Fragment>
+
+        // <BodyFullHeight nav homeTabbar bottomTabbar>
+        //     <LoginLinkCard regularList icon description={'로그인 하여 샵블리의 다양한 혜택을 경험해보세요!'} onClick={onLoginClick} />
+        // </BodyFullHeight>
+    )
+}
+
+class Mypage extends Component {
     constructor(props) {
         super(props);
         this.state = {
             tokenBalance: '',
             loginUser: undefined,  //로그인 판별여부가 결정날때까지 render방지 -> (로그인 된경우) 로그인 버튼 안그리기.
+            profile: null,
             regularShopCount:'',
             goodsReviewCount:'',
+            nextLevelScore: 0,
 
             //202003추가.
             cartLength: '',
             paymentDoneCount: '',
             inDeliveryCount: '',
             consumerOkCount: '',
-            newNotificationBadge: false,
+            // newNotificationBadge: false,
             newNoticeRegBadge: false,
             newCouponBadge: false,
             modalOpen: false,
@@ -90,66 +173,131 @@ export default class Mypage extends Component {
             recommenderInfo: {},
 
             donnieBalance: '',
-            abuser: null,
-            abuserInfoModal: false,
+            // abuser: null,
+            // abuserInfoModal: false,
+            profileImages: [],
+
+            //생산소비자 summary:2022.06 3개 미사용.
+            // totalFeed: 0,
+            // totalFollower: 0,
+            // totalGoods: 0,
+            producerTodayOrderCount:0, //2022.06 추가
         }
     }
 
     // 화면 로딩시 로그인한 consumer정보 호출
     async componentDidMount() {
 
-        // CSRF 마이페이지에서 한번더 세팅
-        SecureApi.setCsrf().then(()=>{
-            SecureApi.getCsrf().then(({data})=>{
-                localStorage.setItem('xToken',data);
-            });
-        });
-
         //////////// consumer push수신시 바로이동용으로 추가: history때문에 항상 mypage거쳐서 가야함.
         //USAGE:  mypage?moveTo=orderList
+
+        console.log({props: this.props})
+
         const params = new URLSearchParams(this.props.location.search)
         let moveTo = params.get('moveTo');
-        if (moveTo)  {
+        if (moveTo) {
             this.props.history.push('/mypage'); //back을 대비해서 mypage로 돌아오도록 넣어놔야 함...
             this.props.history.push('/mypage/' + moveTo);
         }
-
         const {loginUser} = await this.refreshCallback(); //로그인 정보 가져오기
+        if(loginUser) {
+            this.setState({ loginUser: loginUser })
+            this.getConsumerLogin()
+        }
 
+
+        // if(loginUser && loginUser.producerFlag) {
+        //     this.searchPConsumerSummary();
+        // }
+        //
+        // const {data} = await getProfileByConsumerNo(loginUser.consumerNo)
+
+        // //속도가 늦어서 이동 예정(?)
+        // const {data: nextLevelScore}  = await getLackNextLevelScore();
+        //
+        // this.setState({
+        //     loginUser: loginUser,
+        //     profileImages: (loginUser) ? loginUser.profileImages : [],
+        //     profile: data,
+        //     nextLevelScore: nextLevelScore
+        // }, () => {
+        //
+        //     if (loginUser && loginUser.account)
+        //         this.searchAll({
+        //             consumerNo: loginUser.consumerNo,
+        //             account: loginUser.account
+        //         })
+        // })
+    }
+
+    getConsumerLogin = async () => {
+
+
+        if(this.state.loginUser && this.state.loginUser.producerFlag) {
+            this.searchPConsumerSummary();
+        }
+
+        const {data} = await getProfileByConsumerNo(this.state.loginUser.consumerNo)
+
+        //속도가 늦어서 이동 예정(?)
+        const {data: nextLevelScore}  = await getLackNextLevelScore();
         this.setState({
-            loginUser: loginUser
+            //loginUser: loginUser,
+            profileImages: (this.state.loginUser) ? this.state.loginUser.profileImages : [],
+            profile: data,
+            nextLevelScore: nextLevelScore
         }, () => {
-
-            if (loginUser && loginUser.account)
+            if (this.state.loginUser && this.state.loginUser.account)
                 this.searchAll({
-                    consumerNo: loginUser.consumerNo,
-                    account: loginUser.account
+                    consumerNo: this.state.loginUser.consumerNo,
+                    account: this.state.loginUser.account
                 })
         })
     }
 
+    searchPConsumerSummary = async () => {
+
+        const {data} = await getProducerTodayOrderCount();
+        this.setState({
+            producerTodayOrderCount:data,
+        })
+
+        //미사용: 2022.06
+        // const {data} = await getProducerMenuSummary();    //생산소비자 수치 조회
+        //
+        // this.setState({
+        //     totalFeed: data.totalFeed,
+        //     totalFollower: data.totalFollower,
+        //     totalGoods: data.totalGoods
+        // })
+        console.log(data)
+    }
+
     searchAll = async ({account}) => {
         const result = await Promise.all([
-            countRegularShop().then((res)=>res.data),
             countGoodsReview().then((res)=>res.data),
             scOntGetBalanceOfBlct(account).then((res)=>res.data),
-            getCart().then((res)=>res.data),
-            getOrderDetailCountForMypage().then((res)=>res.data),
-            getUsableCouponList().then((res)=>res.data),
-            getRecommenderInfo().then((res)=>res.data),
+            getCountUsableCouponList().then((res)=>res.data),
             getDonTotal().then((res)=>res.data),
-            isAbuser().then((res)=>res.data)
+            // countRegularShop().then((res)=>res.data),
+            // getCart().then((res)=>res.data),
+            // getOrderDetailCountForMypage().then((res)=>res.data),
+            // getRecommenderInfo().then((res)=>res.data),
+            // isAbuser().then((res)=>res.data),
+            // getCountOutboundComplete().then((res)=>res.data),
         ]);
 
-        let regularShopCount = result[0];
-        let goodsReviewCount = result[1];
-        let blyBalance = result[2];
-        let cartData = result[3];
-        let detailCount = result[4];
-        let couponList = result[5];
-        let recommenderInfo = result[6];
-        let donTotal = result[7];
-        let abuser = result[8];
+
+        let goodsReviewCount = result[0];
+        let blyBalance = result[1];
+        let couponCount = result[2];
+        let donTotal = result[3];
+        // let regularShopCount = result[0];
+        // let cartData = result[3];
+        // let detailCount = result[4];
+        // let recommenderInfo = result[6];
+        // let abuser = result[8];
+        // let outboundComplete = result[9];
 
         //console.log('blyBalance : ', blyBalance);
         //console.log('getCart : ', cartData);
@@ -157,25 +305,28 @@ export default class Mypage extends Component {
 
         this.setState({
             tokenBalance: blyBalance,
-            regularShopCount: regularShopCount,
             goodsReviewCount: goodsReviewCount,
-            couponCount: couponList.length,
-            recommenderInfo: recommenderInfo,
+            couponCount: couponCount,
             donnieBalance: donTotal,
-            abuser: abuser,
+            // regularShopCount: regularShopCount,
+            // recommenderInfo: recommenderInfo,
+
+            // abuser: abuser,
+            // outboundComplete: outboundComplete,
 
             //202003추가.
-            cartLength : cartData.length,
-            paymentDoneCount: detailCount.paymentDoneCount,
-            inDeliveryCount: detailCount.inDeliveryCount,
-            consumerOkCount: detailCount.consumerOkCount,
-            newNoticeRegBadge: detailCount.newNoticeRegBadge,
-            newNotificationBadge: detailCount.newNotificationBadge,
-            newCouponBadge: detailCount.newCouponBadge,
+            // cartLength : cartData.length,
+            // paymentDoneCount: detailCount.paymentDoneCount,
+            // inDeliveryCount: detailCount.inDeliveryCount,
+            // consumerOkCount: detailCount.consumerOkCount,
+            // newNoticeRegBadge: detailCount.newNoticeRegBadge,
+            // newNotificationBadge: detailCount.newNotificationBadge,
+            // newCouponBadge: detailCount.newCouponBadge,
 
             loading: false
         });
     }
+
 
     //react-toastify usage: this.notify('메세지', toast.success/warn/error);
     notify = (msg, toastFunc) => {
@@ -185,30 +336,25 @@ export default class Mypage extends Component {
     }
 
     refreshCallback = async () => {
-        await autoLoginCheckAndTryAsync(); //push수신시 자동로그인 test : 20200825
-        const {data} = await getConsumer();
+        try{
+            await autoLoginCheckAndTryAsync(); //push수신시 자동로그인 test : 20200825
+            const {data} = await getConsumer();
 
-        return {
-            loginUser: (data) ? data : null,
+            return {
+                loginUser: (data) ? data : null,
+            }
+        }catch (err) {
+            console.error(err.message)
+
+            return {
+                loginUser: undefined
+            }
         }
-    }
-
-    onClickLogin = () => {
-        Webview.openPopup('/login');    //로그인을 팝업으로 변경.
     }
 
     clickInfoModify = () => {
         const loginUser = Object.assign({}, this.state.loginUser)
         this.props.history.push('/mypage/infoManagementMenu');
-    }
-
-
-    getGradeIcon = (level) => {
-        if (level === 5) return icRank5;
-        if (level === 4) return icRank4;
-        if (level === 3) return icRank3;
-        if (level === 2) return icRank2;
-        if (level === 1) return icRank1;
     }
 
     //BLY 시세 모달
@@ -224,335 +370,335 @@ export default class Mypage extends Component {
         })
     }
 
-    onAbuserModalToggle = () => {
-        this.setState({
-            abuserInfoModal: !this.state.abuserInfoModal
-        })
+    // onAbuserModalToggle = () => {
+    //     this.setState({
+    //         abuserInfoModal: !this.state.abuserInfoModal
+    //     })
+    // }
+
+    // onBackClick = () => {
+    //     if(this.props.history.action === 'PUSH') this.props.history.goBack(); //팝업 안에서 이동.
+    //     else window.location = '/'    //페이지가 window.location 을 통해 들어왔을 경우 history의 goBack() 할 수가 없어 메인 페이지로 이동하게 함
+    // }
+
+    onMoveToPage = (pathname) => {
+        this.props.history.push(pathname);
     }
 
     render() {
-        if (this.state.loginUser === undefined)
+        if (!this.state.loginUser)
             return null
 
-        if(this.state.loginUser === null){
-            return(
-                <Fragment>
-                    <B2cHeader underline/>
-                    <BodyFullHeight nav bottomTabbar>
-                        <LoginLinkCard
-                            icon
-                            regularList
-                            description={<div><div>로그인을 하면 마켓블리에서 제공하는</div><div>다양한 서비스와 혜택을 만나실 수 있습니다.</div></div>}
-                            style={{width: '80vmin'}}
-                            onClick={this.onClickLogin}/>
-                    </BodyFullHeight>
-                </Fragment>
-            )
-        }
-
-        return (
+        return(
             <Fragment>
-                <B2cHeader mypage/>
-                <div className={Css.wrap}>
-                    <div className={Css.greenContainer}>
-                        <div>
-                            {/*<div className={Css.grade}>{this.state.loginUser.level?this.state.loginUser.level:'5'}등급</div>*/}
-                            <Flex flexWrap={'wrap'} flexGrow={1}>
-                                <div className={Css.icon}><img  src={this.getGradeIcon(this.state.loginUser.level)} alt={`user level${this.state.loginUser.level}`}/></div>
-                                <Flex className={Css.name} ml={3}>{this.state.loginUser.name}{this.state.abuser ? <Div fontSize={12}>(어뷰저)</Div> :''}</Flex>
-                                {
-                                    this.state.abuser &&
-                                        <Div ml={3} mb={1} onClick={this.onAbuserModalToggle}>
-                                            <AiOutlineInfoCircle color={color.white}/>
-                                        </Div>
+                <BackNavigation
+                    hideLine={true}
+                    rightContent={<RightContent/>}
+                    hideHomeButton={true}
+                >마이페이지
+                </BackNavigation>
+
+                {/*{*/}
+                {/*    !this.state.loginUser ?*/}
+                {/*        <NoLoginUser />*/}
+                {/*        :*/}
+                <Div>
+                    {/*{*/}
+                    {/*    this.state.loginUser &&*/}
+                    {/*    <Flex justifyContent={'center'} alignItems={'center'}>*/}
+                    {/*        <BottomDotTab active={true} px={10}>쇼핑정보</BottomDotTab>*/}
+                    {/*        <BottomDotTab px={10}*/}
+                    {/*                      onClick={this.onMoveToPage.bind(this, `/consumersDetailActivity?consumerNo=${this.state.loginUser.consumerNo}`)}>프로필</BottomDotTab>*/}
+                    {/*        {*/}
+                    {/*            ComUtil.isProducer(this.state.loginUser.consumerNo) &&*/}
+                    {/*            <BottomDotTab px={10} onClick={this.onMoveToPage.bind(this, `/mypage/producer`)}>생산자메뉴</BottomDotTab>*/}
+                    {/*        }*/}
+                    {/*    </Flex>*/}
+                    {/*}*/}
+
+                    {
+                        this.state.loginUser && (
+                            <Flex justifyContent={'center'}  bg={'veryLight'} p={16} mb={10}>
+                                <Space spaceGap={17} fg={'secondary'} lineHeight={'1'}>
+                                    <Div cursor={1} bold fg={'black'}>쇼핑정보</Div>
+                                    <span>|</span>
+                                    <Div cursor={1} bold onClick={this.onMoveToPage.bind(this, `/consumersDetailActivity?consumerNo=${this.state.loginUser.consumerNo}`)}>프로필</Div>
+                                    {
+                                        ComUtil.isProducer(this.state.loginUser.consumerNo) && (
+                                            <>
+                                                <span>|</span>
+                                                <Div cursor={1} bold onClick={this.onMoveToPage.bind(this, `/mypage/producer`)}>생산자메뉴</Div>
+                                            </>
+                                        )
+
+                                    }
+
+
+                                </Space>
+                            </Flex>
+                        )
+                    }
+                    {(this.state.loginUser && this.state.loginUser.producerFlag) && (
+                            (this.state.loginUser.consumerNo) === 900000157?  //157하드코딩(로컬푸드 생산자)
+                                <Link to={'/mypage/producer/newOrderlist/1'} ml={16} mt={20} textDecoration={'underline'}>
+                                <b>생산자 주문목록NEW (오늘주문: {this.state.producerTodayOrderCount}건)</b>
+                                </Link>
+                                :
+                                <Link to={'/mypage/producer/orderList'} ml={16} mt={20} textDecoration={'underline'}>
+                                <b>생산자 주문목록 (오늘주문: {this.state.producerTodayOrderCount}건)</b>
+                                </Link>
+                    )}
+
+                    {
+                        this.state.profile &&
+                        <Div px={10} pt={10} mb={10}>
+                            <ProfileBig showArrowForward {...this.state.profile}
+                                        hideGrade={ComUtil.isProducer(this.state.loginUser.consumerNo)}
+                                        onClick={this.onMoveToPage.bind(this, '/mypage/infoManagementMenu')}/>
+                        </Div>
+                    }
+
+                    <Div px={15}>
+                        <Flex cursor justifyContent={'center'} alingItems={'center'}>
+                            <Div bg={'background'} rounded={14.8} py={5} px={15} textAlign={'center'} bold>
+                                {this.state.nextLevelScore <= -1 ? (
+                                        this.state.nextLevelScore === -1 ?
+                                            '샵블리 최고등급! 축하합니다!' : '월요일 등급 UP.'
+                                    ) :
+                                    <>다음 등급 <Span fg={'green'}>{ComUtil.addCommas(this.state.nextLevelScore)}</Span>점 남음.</>
                                 }
-                            </Flex>
-                        </div>
-                        <Link to={`/mypage/infoManagementMenu`} className={Css.modify}>
-                            <Flex>
-                                <Div mr={5} fg={'white'}>정보수정</Div>
-                                <FiEdit color={'white'} />
-                                {/*<img src={icEdit}/>*/}
-                            </Flex>
-                        </Link>
-
-                    </div>
-
-
-
-                    <div className={Css.summaryContainer}>
-                        {/*<div className={Css.item}>*/}
-                        {/*    <Link to={'/mypage/regularShopList'}>*/}
-                        {/*        <div className={Css.number}>{!this.state.loading ? this.state.regularShopCount : <Skeleton.Row width={'50%'} mb={10}/>}</div>*/}
-                        {/*        <div>단골상점</div>*/}
-                        {/*    </Link>*/}
-                        {/*</div>*/}
-                        {/*<div className={Css.item}>*/}
-                        {/*    <Link to={'/goodsReviewList/1'}>*/}
-                        {/*        <div className={Css.number}>{!this.state.loading ? this.state.goodsReviewCount : <Skeleton.Row width={'50%'} mb={10}/>}</div>*/}
-                        {/*        <div>상품후기</div>*/}
-                        {/*    </Link>*/}
-                        {/*</div>*/}
-                        <div className={Css.item} style={{textAlign:'center'}}>
-                            <Link to={`/tokenHistory`}>
-                                <div className={Css.number}>{!this.state.loading ? ComUtil.addCommas(ComUtil.roundDown(this.state.tokenBalance, 2)):<Skeleton.Row width={'50%'} mb={10}/>}</div>
-                                <div>자산(BLY)</div>
-                            </Link>
-                        </div>
-                        <div className={Css.item} style={{textAlign:'center'}}>
-                            {
-                                this.state.abuser ?
-                                    <Div>
-                                        <div className={Css.number}>{!this.state.loading ? '-' : <Skeleton.Row width={'50%'} mb={10}/>}</div>
-                                        <div>자산(DON)</div>
-                                    </Div>
-                                    :
-                                    <Link to={'/donHistory'}>
-                                        <div className={Css.number}>{!this.state.loading ? ComUtil.addCommas(ComUtil.roundDown(this.state.donnieBalance, 2)) : <Skeleton.Row width={'50%'} mb={10}/>}</div>
-                                        <div>자산(DON)</div>
-                                    </Link>
+                            </Div>
+                            <Right py={5} px={10} rounded={14.8} fontSize={12} fg={'green'} bc={'green'} textAlign={'center'}
+                                   alignItems={'center'} onClick={this.onMoveToPage.bind(this, '/level')}>등급/혜택</Right>
+                        </Flex>
+                        <Flex mt={15} mb={20} py={17} textAlign={'center'} justifyContent={'space-evenly'} rounded={5} doActive
+                              bc={'green'}>
+                            <Div textAlign={'center'}>
+                                <Link to={`/point`}>
+                                    <Div bold fontSize={14}>포인트</Div>
+                                    <Bold bold fontSize={10} fg={'secondary'}>
+                                        <Span fg={'green'} bold fontSize={13}>{ComUtil.addCommas(this.state.loginUser.point)}</Span>
+                                    </Bold>
+                                </Link>
+                            </Div>
+                            {this.state.loginUser && !this.state.loginUser.noBlockchain &&
+                            <Div textAlign={'center'}>
+                                <Link to={`/tokenHistory`}>
+                                    <Div bold fontSize={14}>적립금(BLY)</Div>
+                                    <Bold bold fontSize={13} fg={'secondary'}>
+                                        {(this.state.loading || !this.state.loginUser) ? '-' :
+                                            <Span fg={'green'} bold
+                                                  fontSize={13}>{ComUtil.addCommas(ComUtil.roundDown(this.state.tokenBalance, 2))}</Span>}
+                                    </Bold>
+                                </Link>
+                            </Div>
                             }
+                            {this.state.loginUser && donOwners.includes(this.state.loginUser.consumerNo) && //this.state.donnieBalance > 0 && //마지막 donnieBalance조건은 코멘트 해도되고 풀어도 됨. (코멘트 풀면 변환 후 이력조회 가능)
+                            <Div textAlign={'center'}>
+                                <Link to={`/donHistory`}>
+                                    <Div bold fontSize={14}>DON</Div>
+                                    <Bold bold fontSize={13} fg={'secondary'}>
+                                        <Span fg={'green'} bold
+                                              fontSize={13}>{ComUtil.addCommas(ComUtil.roundDown(this.state.donnieBalance, 2))}</Span>
+                                    </Bold>
+                                </Link>
+                            </Div>
+                            }
+                            <Div textAlign={'center'}>
+                                <Link to={'/mypage/couponList'}>
+                                    <Div bold fontSize={13}>쿠폰</Div>
+                                    <Bold bold fontSize={10} fg={'secondary'}>
+                                        <Span fg={'green'} bold fontSize={13}>{ComUtil.addCommas(this.state.couponCount)}</Span>
+                                    </Bold>
+                                </Link>
+                            </Div>
+                            <Div textAlign={'center'}>
+                                <Link to={'/goodsReviewList/1'}>
+                                    <Div bold fontSize={13}>리뷰작성</Div>
+                                    <Bold bold fontSize={10} fg={'secondary'}>
+                                        <Span fg={'green'} bold fontSize={13}>{ComUtil.addCommas(this.state.goodsReviewCount)}</Span>
+                                    </Bold>
+                                </Link>
+                            </Div>
+                        </Flex>
+                    </Div>
 
-                        </div>
-                    </div>
+                    <Divider/>
 
-
-                    <div className={Css.shippingStatusContainer}>
-                        <div className={Css.title}>
-                            주문/배송조회
-                        </div>
-
-                        {
-                            this.state.loading ? <Skeleton p={0}/> : (
-                                <div className={Css.status}>
-                                    <div className={Css.item}>
-                                        <Link to={'/cartList'}>
-                                            <div className={classNames(Css.green, Css.number)}>{this.state.cartLength}</div>
-                                            <div className={Css.text}>장바구니</div>
-                                        </Link>
-                                        <div className={classNames(Css.icon, 'mt-2')}><img src={icMoreArrow} alt={'more'}/></div>
-                                    </div>
-                                    <div className={Css.item}>
-                                        <Link to={`/mypage/orderList`}>
-                                            <div className={classNames(Css.green, Css.number)}>{this.state.paymentDoneCount}</div>
-                                            <div className={Css.text}>결제완료</div>
-                                        </Link>
-                                        <div className={classNames(Css.icon, 'mt-2')}><img src={icMoreArrow} alt={'more'}/></div>
-                                    </div>
-                                    <div className={Css.item}>
-                                        <Link to={`/mypage/orderList`}>
-                                            <div className={classNames(Css.green, Css.number)}>{this.state.inDeliveryCount}</div>
-                                            <div className={Css.text}>배송중</div>
-                                        </Link>
-                                        <div className={classNames(Css.icon, 'mt-2')}><img src={icMoreArrow} alt={'more'}/></div>
-                                    </div>
-                                    <div className={Css.item}>
-                                        <Link to={`/mypage/orderList`}>
-                                            <div className={classNames(Css.green, Css.number)}>{this.state.consumerOkCount}</div>
-                                            <div className={Css.text}>구매확정</div>
-                                        </Link>
-                                    </div>
-
-                                </div>
-                            )
-                        }
-
-                    </div>
-                    <div className={Css.listContainer}>
-                        <Link to={`/mypage/orderList`}>
-                            <div className={Css.item}>
-                                <img className={Css.icon} src={icMy1}/>
-                                <div className={Css.text}>주문목록
-                                    {/*빨간 배지 <span className={Css.circle}></span>*/}
-                                </div>
-                                <div className={classNames(Css.right, Css.icon)}><img src={icMoreArrow} alt={'more'}/></div>
-                            </div>
-                        </Link>
-                        <Link to={'/goodsReviewList/1'}>
-                            <div className={Css.item}>
-                                <img className={Css.icon} src={icMy2}/>
-                                <div className={Css.text}>상품후기</div>
-                                <div className={classNames(Css.right, Css.icon)}><img src={icMoreArrow} alt={'more'}/></div>
-                            </div>
-                        </Link>
-                        <Link to={'/mypage/goodsQnaList'}>
-                            <div className={Css.item}>
-                                <img className={Css.icon} src={icMy3}/>
-                                <div className={Css.text}>상품문의</div>
-                                <div className={classNames(Css.right, Css.icon)}><img src={icMoreArrow} alt={'more'}/></div>
-                            </div>
-                        </Link>
-                        <Link to={'/mypage/regularShopList'}>
-                            <div className={Css.item}>
-                                <img className={Css.icon} src={icMy4}/>
-                                <div className={Css.text}>단골상점</div>
-                                <div className={classNames(Css.right, Css.icon)}><img src={icMoreArrow} alt={'more'}/></div>
-                            </div>
-                        </Link>
-                        <Link to={'/zzimList'}>
-                            <div className={Css.item}>
-                                <img className={Css.icon} src={icMy5}/>
-                                <div className={Css.text}>찜한상품</div>
-                                <div className={classNames(Css.right, Css.icon)}><img src={icMoreArrow} alt={'more'}/></div>
-                            </div>
-                        </Link>
-                    </div>
-                    <div className={Css.listContainer}>
-                        <Link to={`/tokenHistory`}>
-                            <div className={Css.item}>
-                                <img className={Css.icon}  src={icMy6}/>
-                                <div className={Css.text}>
-                                    <span>자산</span>
-                                    {/*<span>내지갑</span>*/}
-                                    {/*<span className={Css.smallLight}>*/}
-                                    {/*<span>|</span>*/}
-                                    {/*<span>보유 적립금</span>*/}
-                                    {/*</span>*/}
-                                </div>
-                                <div className={classNames(Css.right, Css.icon)}>
-                                    <BlocerySymbolGreen style={{width: 13}}/>
-                                    <span className={Css.blct}>{(this.state.tokenBalance !== '')?ComUtil.addCommas(ComUtil.roundDown(this.state.tokenBalance, 2)):'-'}</span>
-                                    <span>BLY</span>
-                                    <img className={Css.moreArrow} src={icMoreArrow}/>
-                                </div>
-                            </div>
-                        </Link>
-
-                        {/*<Link to={'/mypage/tokenSwap'}>*/}
-                        {/*<div className={Css.item}>*/}
-                        {/*<Div className={Css.text} noti={this.state.newNotificationBadge} notiRight={-10}>>>>> (임시) 토큰스왑 </Div>*/}
-                        {/*<div className={classNames(Css.right, Css.icon)}><img src={icMoreArrow}/></div>*/}
-                        {/*</div>*/}
-                        {/*</Link>*/}
-
-                        <Link to={'/mypage/couponList'}>
-                            <div className={Css.item}>
-                                <img className={Css.icon}  src={icCoupon}/>
-                                <Div className={Css.text} noti={this.state.newCouponBadge ? 1 : 0} notiRight={-10}>쿠폰</Div>
-                                <div className={classNames(Css.right, Css.icon)}>
-                                    {
-                                        this.state.couponCount > 0 &&
-                                        <div>{this.state.couponCount}장</div>
-                                    }
-                                    <img src={icMoreArrow}/>
-                                </div>
-                            </div>
-                        </Link>
-
-                        <Link to={'/mypage/inviteFriend'}>
-                            <div className={Css.item}>
-                                <img className={Css.icon}  src={icInviteFriend}/>
-                                {/*<FaUserPlus/>*/}
-                                <Div className={Css.text}>친구초대</Div>
-                                <div className={classNames(Css.right, Css.icon)}>
-                                    {
-                                        //this.state.friendsCount > 0 &&
-                                        <div>{this.state.recommenderInfo.friendCount}명</div>
-                                    }
-                                    <img src={icMoreArrow}/>
-                                </div>
-                            </div>
-                        </Link>
+                    <ConsumerMypage loginUser={this.state.loginUser}/>
+                </Div>
+                {/*}*/}
 
 
-                        <Link to={'/mypage/notificationList'}>
-                            <div className={Css.item}>
-                                <img className={Css.icon}  src={icMy7}/>
-                                <Div className={Css.text} noti={this.state.newNotificationBadge ? 1 : 0} notiRight={-10}>알림</Div>
-                                <div className={classNames(Css.right, Css.icon)}><img src={icMoreArrow}/></div>
-                            </div>
-                        </Link>
-                        <Link to={'/mypage/setting'}>
-                            <div onClick={this.onSetting}  className={Css.item}>
-                                <img className={Css.icon}  src={icMy8}/>
-                                <div className={Css.text}>설정</div>
-                                <div className={classNames(Css.right, Css.icon)}><img src={icMoreArrow}/></div>
-                            </div>
-                        </Link>
-                    </div>
-                    <div className={Css.infoContainer}>
+                {/*{*/}
+                {/*    this.state.loginUser &&*/}
+                {/*        <Flex justifyContent={'center'} alignItems={'center'}>*/}
+                {/*            <BottomDotTab active={true} px={10}>쇼핑정보</BottomDotTab>*/}
+                {/*            <BottomDotTab px={10}*/}
+                {/*                          onClick={this.onMoveToPage.bind(this, `/consumersDetailActivity?consumerNo=${this.state.loginUser.consumerNo}`)}>프로필</BottomDotTab>*/}
+                {/*            {*/}
+                {/*                ComUtil.isProducer(this.state.loginUser.consumerNo) && <BottomDotTab px={10}*/}
+                {/*                                                                                     onClick={this.onMoveToPage.bind(this, `/producer/mypage`)}>생산자메뉴</BottomDotTab>*/}
+                {/*            }*/}
+                {/*        </Flex>*/}
+                {/*}*/}
 
-                        <div className={Css.item}>
-                            {/*<Link to={'/mypage/noticeList'} noti={this.state.newNoticeRegBadge}>*/}
-                            <Link to={'/noticeList'} noti={this.state.newNoticeRegBadge ? 1 : 0}>
-                                <img className={Css.icon}  src={icMore12}/>
-                                <div>공지사항</div>
-                            </Link>
-                        </div>
+                {/*<Hr/>*/}
+
+                {/*{*/}
+                {/*    this.state.loginUser &&*/}
+                {/*    <Div px={10} pt={10} mb={10}>*/}
+                {/*        <ProfileBig showArrowForward {...this.state.profile}*/}
+                {/*                    hideGrade={ComUtil.isProducer(this.state.loginUser.consumerNo)}*/}
+                {/*                    onClick={this.state.loginUser ? this.onMoveToPage.bind(this, '/mypage/infoManagementMenu') : this.onMoveToPage.bind(this, '/login')}/>*/}
+                {/*    </Div>*/}
+                {/*}*/}
+
+                {/*<Div px={15}>*/}
+                {/*    <Flex cursor justifyContent={'center'} alingItems={'center'}>*/}
+                {/*        {*/}
+                {/*            !this.state.loginUser ?*/}
+                {/*                <Div textAlign={'center'}>로그인하면 회원등급 혜택을 받으실 수 있어요!</Div>*/}
+                {/*                :*/}
+                {/*                <Div bg={'background'} rounded={14.8} py={5} px={20} textAlign={'center'} bold>*/}
+                {/*                    {this.state.nextLevelScore < 0 ? (*/}
+                {/*                            '월요일에 등급이 업그레이드 됩니다.'*/}
+                {/*                        ) :*/}
+                {/*                        <>다음 등급까지 <Span fg={'green'}>{ComUtil.addCommas(this.state.nextLevelScore)}</Span>점*/}
+                {/*                            남았습니다</>*/}
+                {/*                    }*/}
+                {/*                </Div>*/}
+                {/*        }*/}
+                {/*        <Right py={5} px={10} rounded={14.8} fontSize={12} fg={'green'} bc={'green'} textAlign={'center'}*/}
+                {/*               alignItems={'center'} onClick={this.onMoveToPage.bind(this, '/level')}>등급/혜택</Right>*/}
+                {/*    </Flex>*/}
+                {/*    <Flex mt={15} mb={20} py={17} textAlign={'center'} justifyContent={'space-evenly'} rounded={5} doActive*/}
+                {/*          bc={'green'}>*/}
+                {/*        <Div textAlign={'center'}>*/}
+                {/*            <Link to={`/point`}>*/}
+                {/*                <Div bold fontSize={14}>포인트</Div>*/}
+                {/*                <Bold bold fontSize={10} fg={'secondary'}>*/}
+                {/*                    {!this.state.loginUser ? '-' : <Span fg={'green'} bold*/}
+                {/*                                                         fontSize={13}>{ComUtil.addCommas(this.state.loginUser.point)}</Span>}*/}
+                {/*                </Bold>*/}
+                {/*            </Link>*/}
+                {/*        </Div>*/}
+                {/*        {this.state.loginUser && !this.state.loginUser.noBlockchain &&*/}
+                {/*        <Div textAlign={'center'}>*/}
+                {/*            <Link to={`/tokenHistory`}>*/}
+                {/*                <Div bold fontSize={14}>적립금(BLY)</Div>*/}
+                {/*                <Bold bold fontSize={13} fg={'secondary'}>*/}
+                {/*                    {(this.state.loading || !this.state.loginUser) ? '-' :*/}
+                {/*                        <Span fg={'green'} bold*/}
+                {/*                              fontSize={13}>{ComUtil.addCommas(ComUtil.roundDown(this.state.tokenBalance, 2))}</Span>}*/}
+                {/*                </Bold>*/}
+                {/*            </Link>*/}
+                {/*        </Div>*/}
+                {/*        }*/}
+                {/*        {this.state.loginUser && donOwners.includes(this.state.loginUser.consumerNo) && //this.state.donnieBalance > 0 && //마지막 donnieBalance조건은 코멘트 해도되고 풀어도 됨. (코멘트 풀면 변환 후 이력조회 가능)*/}
+                {/*        <Div textAlign={'center'}>*/}
+                {/*            <Link to={`/donHistory`}>*/}
+                {/*                <Div bold fontSize={14}>DON</Div>*/}
+                {/*                <Bold bold fontSize={13} fg={'secondary'}>*/}
+                {/*                    <Span fg={'green'} bold*/}
+                {/*                          fontSize={13}>{ComUtil.addCommas(ComUtil.roundDown(this.state.donnieBalance, 2))}</Span>*/}
+                {/*                </Bold>*/}
+                {/*            </Link>*/}
+                {/*        </Div>*/}
+                {/*        }*/}
+                {/*        <Div textAlign={'center'}>*/}
+                {/*            <Link to={'/mypage/couponList'}>*/}
+                {/*                <Div bold fontSize={13}>쿠폰</Div>*/}
+                {/*                <Div fontSize={10} fg={'secondary'}>*/}
+                {/*                    {!this.state.loginUser ? '-' : <Span fg={'green'} bold*/}
+                {/*                                                         fontSize={13}>{ComUtil.addCommas(this.state.couponCount)}</Span>}*/}
+                {/*                </Div>*/}
+                {/*            </Link>*/}
+                {/*        </Div>*/}
+                {/*        <Div textAlign={'center'}>*/}
+                {/*            <Link to={'/goodsReviewList/1'}>*/}
+                {/*                <Div bold fontSize={13}>리뷰작성</Div>*/}
+                {/*                <Bold bold fontSize={10} fg={'secondary'}>*/}
+                {/*                    {!this.state.loginUser ? '-' : <Span fg={'green'} bold*/}
+                {/*                                                         fontSize={13}>{ComUtil.addCommas(this.state.goodsReviewCount)}</Span>}*/}
+                {/*                </Bold>*/}
+                {/*            </Link>*/}
+                {/*        </Div>*/}
+                {/*    </Flex>*/}
+                {/*</Div>*/}
+
+                {/*<Divider/>*/}
+
+                {/*<ConsumerMypage loginUser={this.state.loginUser}/>*/}
+
+                {/*{*/}
+                {/*    this.state.loginUser && this.state.loginUser.producerFlag ?*/}
+                {/*        <PConsumer />*/}
+                {/*        :*/}
+                {/*        <ConsumerMypage />*/}
+                {/*}*/}
 
 
-                        <div className={Css.item}>
-                            <Link to={'/mypage/useGuide'}>
-                                <img className={Css.icon}  src={icMore11}/>
-                                <div>이용안내</div>
-                            </Link>
-                        </div>
-
-
-                        <div className={Css.item}>
-                            <Link to={'/mypage/consumerCenter'}>
-                                <img className={Css.icon}  src={icMore10}/>
-                                <div>고객센터</div>
-                            </Link>
-                        </div>
-
-                    </div>
-
-                </div>
-
-                {
-                    this.state.modalOpen &&
-                    <ModalPopup title={'KYC 신원 확인 안내'}
-                                content={<div>KYC 신원 확인은 마켓블리(MarketBly) App 내에서 토큰(BLY)출금 등 자산과 관련된 서비스를 이용하는데 있어 필요한 신원 확인 및 보증 절차입니다.
-                                    <br/><br/> 계정 보안, 자금 세탁과 테러 자금 조달 방지를 위해 출금 금액이 제한되어 있으며, KYC 신원 확인을 완료하면 출금 제한이 상향 조정됩니다.
-                                    {/*<br/><br/> -KYC 신원 확인 전 : 일 한도 1,250BLY <br/> -KYC 신원 확인 후 : 일 한도 250,000BLY</div>}*/}
-                                    <br/><br/> -KYC 신원 확인 전 : 일 한도 500BLY <br/> -KYC 신원 확인 후 : 일 한도 5,000BLY</div>}
-                                onClick={this.onClose}>
-
-                    </ModalPopup>
-                }
-
-                {
-                    this.state.abuserInfoModal &&
-                    <ModalPopup title={'어뷰저에 대한 안내'}
-                                onClick={this.onAbuserModalToggle}
-                                content={
-                                    <Div lineHeight={20} fontSize={13}>
-                                        <Flex dot alignItems={'flex-start'} mb={8}>
-                                            <Div>
-                                                어뷰저 등록은 <b>보안로직 감지에 의해 자동 처리</b>되며 사유는 다음과 같습니다. <br/>
-                                                - 마켓블리 불법적 접근 <br/>
-                                                - 이벤트 부정 참여 <br/>
-                                                - 기타 어뷰징에 인정되는 각종 행위
-                                            </Div>
-                                        </Flex>
-                                        <Flex dot alignItems={'flex-start'} mb={8}>
-                                            <Div>
-                                                어뷰저로 등록된 경우<br/>
-                                                - 상품구매 불가 <br/>
-                                                - BLY 입/출금 등의 지갑 이용 불가
-                                            </Div>
-                                        </Flex>
-                                        <Flex alignItems={'flex-start'} mb={8}>
-                                            <Div>
-                                                등의 조치가 되오니 이점 참고 부탁 드립니다.
-                                            </Div>
-                                        </Flex>
-                                    </Div>
-                                }
-                                />
-
-                                // content={<div>어뷰저 등록은 보안로직 감지에 의해 자동 처리되며 사유는 다음과 같습니다.
-                                //     <br/>- 마켓블리 불법적 접근
-                                //     <br/>- 이벤트 부정 참여
-                                //     <br/>- 기타 어뷰징에 인정되는 각종 행위
-                                //     <br/><br/>어뷰저로 등록된 경우
-                                //     <br/>- 상품구매 불가
-                                //     <br/>- BLY 입/출금 등의 지갑 이용 불가
-                                //     <br/>등의 조치가 되오니 이점 참고 부탁 드립니다.</div>}
-                                // onClick={this.onAbuserModalToggle}>
-                }
             </Fragment>
         )
     }
 }
+
+const MypageRouter = ({history}) => {
+    const [consumer, setConsumer] = useRecoilState(consumerState)
+    const [loading, setLoading] = useState(true)
+    const [loginInfoData, setLoginInfoData] = useState(null);
+
+    // const {consumer, isLoggedIn, isServerLoggedIn, reFetch} = useLogin()
+
+    // useEffect(() => {
+    //     console.log({consumer})
+    // }, [consumer])
+
+    useEffect(() => {
+
+        async function fetch() {
+
+            //백엔드 & 프론트 세션 싱크 항상 맞추기 위해(흰 화면 수정 코드)
+            try {
+                const loginInfo = await autoLoginCheckAndTryAsync()
+                setLoginInfoData(loginInfo)
+                setConsumer(ComUtil.getConsumerByLoginUser(loginInfo))
+
+
+                // //로그아웃시 체크로직 한곳. setCosumer(null)
+                // if (sessionStorage.getItem('logined')==0) {
+                //
+                //     setConsumer(null)
+                // }
+                // else if (!consumer) {
+                //     const loginInfo = await autoLoginCheckAndTryAsync()
+                //     console.log("mypage:loginInfo", loginInfo)
+                //     setLoginInfoData(loginInfo)
+                //     setConsumer(ComUtil.getConsumerByLoginUser(loginInfo))
+                // }
+
+                setTimeout(() => {
+                    setLoading(false)
+                }, 200)
+
+            }catch(err) {
+                console.error(err.message)
+                setLoading(false)
+            }
+        }
+
+        fetch()
+
+    }, [])
+
+    if (loading) return <Flex justifyContent={'center'} height={'calc(100vh - 56px - 52px)'} ><Spinner color={'success'} /></Flex>
+
+    if(consumer) return <Mypage location={history.location} history={history} />
+    else return <NoLoginUser />
+
+    {/*{WIDERPLANET SCRIPT START 2022.06.07}*/}
+    if(loginInfoData) return <TG ty={"Login"} />
+    {/*{WIDERPLANET SCRIPT END 2022.06.07}*/}
+}
+export default withRouter(MypageRouter)

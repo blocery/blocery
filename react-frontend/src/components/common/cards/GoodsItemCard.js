@@ -7,9 +7,9 @@ const GoodsItemCard = (props) => {
     function onGoodsClick(){
         props.onGoodsClick(props)
     }
-    function onFarmDiaryClick(){
-        props.onFarmDiaryClick(props)
-    }
+    // function onFarmDiaryClick(){
+    //     props.onFarmDiaryClick(props)
+    // }
     function onOrderClick(){
         props.onOrderClick(props)
     }

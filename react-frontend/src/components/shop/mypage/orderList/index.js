@@ -3,6 +3,7 @@ import Order from './Order'
 import OrderDetail from './OrderDetail'
 import UpdateAddress from './UpdateAddress'
 import OrderCancel from './OrderCancel'
+import OrderDetailGroup from './OrderDetailGroup'
 
 
 export {
@@ -10,7 +11,8 @@ export {
     Order,
     OrderDetail,
     UpdateAddress,
-    OrderCancel
+    OrderCancel,
+    OrderDetailGroup
 }
 
 

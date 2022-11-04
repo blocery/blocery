@@ -7,8 +7,11 @@ import { addGoodsQnA } from '~/lib/shopApi'
 import { Server } from '~/components/Properties'
 
 import {Div, Button} from '~/styledComponents/shared'
+import useLogin from "~/hooks/useLogin";
 
 const GoodsQueModalButton = ({children, goods, onClose = () => null}) => {
+
+    const login = useLogin()
 
     const [isOpen, setIsOpen] = useState(false)
     const [goodsQue, setGoodsQue] = useState('')
@@ -18,12 +21,9 @@ const GoodsQueModalButton = ({children, goods, onClose = () => null}) => {
         e.preventDefault();
 
         //유저 로그인 체크
-        const { data: userType } = await getLoginUserType()
-        if(userType !== 'consumer'){
-            Webview.openPopup('/login')
-            return
+        if (login.isLoggedIn()) {
+            toggle()
         }
-        toggle()
     }
 
     function toggle() {

@@ -1,3 +1,4 @@
+/*@import url('//cdn.rawgit.com/innks/NanumSquareRound/master/nanumsquareround.min.css');*/
 /*!**/
     /*DEMO STYLE*/
 /**!*/
@@ -87,102 +88,162 @@
     /*font-style: normal;*/
 /*}*/
 
-@font-face {
-    font-family: "SeoulHangangM";
-    src: url('./styles/fonts/SeoulHangang/SeoulHangangM.woff') format('woff');
-    font-weight: normal;
-    font-stretch: normal;
-    font-style: normal;
-    letter-spacing: normal;
-}
-@font-face {
-    font-family: "SeoulHangangL";
-    src: url('./styles/fonts/SeoulHangang/SeoulHangangL.woff') format('woff');
-    font-weight: normal;
-    font-stretch: normal;
-    font-style: normal;
-    letter-spacing: normal;
-}
-@font-face {
-    font-family: "SeoulHangangB";
-    src: url('./styles/fonts/SeoulHangang/SeoulHangangB.woff') format('woff');
-}
-@font-face {
-    font-family: "SeoulHangangEB";
-    src: url('./styles/fonts/SeoulHangang/SeoulHangangEB.woff') format('woff');
-}
 
 @font-face {
-    font-family: 'NotoSansKR';
-    font-style: normal;
-    font-weight: 100;
-    src: url('./styles/fonts/NotoSansKr/NotoSansKR-Thin.woff2') format('woff2'),
-    url('./styles/fonts/NotoSansKr/NotoSansKR-Thin.woff') format('woff'),
-    url('./styles/fonts/NotoSansKr/NotoSansKR-Thin.otf') format('opentype');
-}
-@font-face {
-    font-family: 'NotoSansKR';
-    font-style: normal;
+    font-family: "NanumBarunGothic";
+    src: url('./styles/fonts/NanumBarunGothic/NanumBarunGothicLight.woff')format('woff');
     font-weight: 300;
-    src: url('./styles/fonts/NotoSansKr/NotoSansKR-Light.woff2') format('woff2'),
-    url('./styles/fonts/NotoSansKr/NotoSansKR-Light.woff') format('woff'),
-    url('./styles/fonts/NotoSansKr/NotoSansKR-Light.otf') format('opentype');
-}
-@font-face {
-    font-family: 'NotoSansKR';
     font-style: normal;
-    font-weight: normal;
-    src: url('./styles/fonts/NotoSansKr/NotoSansKR-Regular.woff2') format('woff2'),
-    url('./styles/fonts/NotoSansKr/NotoSansKR-Regular.woff') format('woff'),
-    url('./styles/fonts/NotoSansKr/NotoSansKR-Regular.otf') format('opentype');
-}
-@font-face {
-    font-family: 'NotoSansKR';
-    font-style: normal;
-    font-weight: 500;
-    src: url('./styles/fonts/NotoSansKr/NotoSansKR-Medium.woff2') format('woff2'),
-    url('./styles/fonts/NotoSansKr/NotoSansKR-Medium.woff') format('woff'),
-    url('./styles/fonts/NotoSansKr/NotoSansKR-Medium.otf') format('opentype');
-}
-@font-face {
-    font-family: 'NotoSansKR';
-    font-style: normal;
-    font-weight: bold;
-    src: url('./styles/fonts/NotoSansKr/NotoSansKR-Bold.woff2') format('woff2'),
-    url('./styles/fonts/NotoSansKr/NotoSansKR-Bold.woff') format('woff'),
-    url('./styles/fonts/NotoSansKr/NotoSansKR-Bold.otf') format('opentype');
 }
 
-
 @font-face {
-    font-family: "Spoqa Han Sans";
-    font-weight: 200;
-    src: url('./styles/fonts/Spoqa Han Sans Thin.woff2') format('woff2'),
-    url('./styles/fonts/Spoqa Han Sans Thin.woff') format('woff'),
-    url('./styles/fonts/Spoqa Han Sans Thin.ttf') format('truetype');
-}
-@font-face {
-    font-family: "Spoqa Han Sans";
-    font-weight: 300;
-    src: url('./styles/fonts/Spoqa Han Sans Light.woff2') format('woff2'),
-    url('./styles/fonts/Spoqa Han Sans Light.woff') format('woff'),
-    url('./styles/fonts/Spoqa Han Sans Light.ttf') format('truetype');
-}
-@font-face {
-    font-family: "Spoqa Han Sans";
-    font-style: normal;
+    font-family: "NanumBarunGothic";
+    src: url('./styles/fonts/NanumBarunGothic/NanumBarunGothic.woff') format('woff');
     font-weight: 400;
-    src: url('./styles/fonts/Spoqa Han Sans Regular.woff2') format('woff2'),
-    url('./styles/fonts/Spoqa Han Sans Regular.woff') format('woff'),
-    url('./styles/fonts/Spoqa Han Sans Regular.ttf') format('truetype');
+    font-style: normal;
 }
+
+
 @font-face {
-    font-family: "Spoqa Han Sans";
-    font-weight: 500;
-    src: url('./styles/fonts/Spoqa Han Sans Bold.woff2') format('woff2'),
-    url('./styles/fonts/Spoqa Han Sans Bold.woff') format('woff'),
-    url('./styles/fonts/Spoqa Han Sans Bold.ttf') format('truetype');
+    font-family: "NanumBarunGothic";
+    src: url('./styles/fonts/NanumBarunGothic/NanumBarunGothicBold.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
 }
+
+
+/*@font-face {*/
+/*    font-family: "NanumSquareRound";*/
+/*    src: url('./styles/fonts/NanumSquareRound/NanumSquareRoundEB.woff') format('woff');*/
+/*    font-weight: 800;*/
+/*    font-style: normal;*/
+/*}*/
+
+@font-face {
+    font-family: "Montserrat";
+    src: url('./styles/fonts/Montserrat/Montserrat-Medium.woff') format('woff');
+    font-weight: 500;
+    font-style: normal;
+}
+
+
+@font-face {
+    font-family: "Montserrat";
+    src: url('./styles/fonts/Montserrat/Montserrat-Bold.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Montserrat";
+    src: url('./styles/fonts/Montserrat/Montserrat-ExtraBold.woff') format('woff');
+    font-weight: 900;
+    font-style: normal;
+}
+
+/*@font-face {*/
+/*    font-family: "NanumSquareBold";*/
+/*    src: url('./styles/fonts/NanumSquare/NanumSquareB.woff') format('woff');*/
+/*    !*font-weight: 900;*!*/
+/*    font-style: normal;*/
+/*}*/
+
+/*@font-face {*/
+/*    font-family: "SeoulHangangM";*/
+/*    src: url('./styles/fonts/SeoulHangang/SeoulHangangM.woff') format('woff');*/
+/*    font-weight: normal;*/
+/*    font-stretch: normal;*/
+/*    font-style: normal;*/
+/*    letter-spacing: normal;*/
+/*}*/
+/*@font-face {*/
+/*    font-family: "SeoulHangangL";*/
+/*    src: url('./styles/fonts/SeoulHangang/SeoulHangangL.woff') format('woff');*/
+/*    font-weight: normal;*/
+/*    font-stretch: normal;*/
+/*    font-style: normal;*/
+/*    letter-spacing: normal;*/
+/*}*/
+/*@font-face {*/
+/*    font-family: "SeoulHangangB";*/
+/*    src: url('./styles/fonts/SeoulHangang/SeoulHangangB.woff') format('woff');*/
+/*}*/
+/*@font-face {*/
+/*    font-family: "SeoulHangangEB";*/
+/*    src: url('./styles/fonts/SeoulHangang/SeoulHangangEB.woff') format('woff');*/
+/*}*/
+
+/*@font-face {*/
+/*    font-family: 'NotoSansKR';*/
+/*    font-style: normal;*/
+/*    font-weight: 100;*/
+/*    src: url('./styles/fonts/NotoSansKr/NotoSansKR-Thin.woff2') format('woff2'),*/
+/*    url('./styles/fonts/NotoSansKr/NotoSansKR-Thin.woff') format('woff'),*/
+/*    url('./styles/fonts/NotoSansKr/NotoSansKR-Thin.otf') format('opentype');*/
+/*}*/
+/*@font-face {*/
+/*    font-family: 'NotoSansKR';*/
+/*    font-style: normal;*/
+/*    font-weight: 300;*/
+/*    src: url('./styles/fonts/NotoSansKr/NotoSansKR-Light.woff2') format('woff2'),*/
+/*    url('./styles/fonts/NotoSansKr/NotoSansKR-Light.woff') format('woff'),*/
+/*    url('./styles/fonts/NotoSansKr/NotoSansKR-Light.otf') format('opentype');*/
+/*}*/
+/*@font-face {*/
+/*    font-family: 'NotoSansKR';*/
+/*    font-style: normal;*/
+/*    font-weight: normal;*/
+/*    src: url('./styles/fonts/NotoSansKr/NotoSansKR-Regular.woff2') format('woff2'),*/
+/*    url('./styles/fonts/NotoSansKr/NotoSansKR-Regular.woff') format('woff'),*/
+/*    url('./styles/fonts/NotoSansKr/NotoSansKR-Regular.otf') format('opentype');*/
+/*}*/
+/*@font-face {*/
+/*    font-family: 'NotoSansKR';*/
+/*    font-style: normal;*/
+/*    font-weight: 500;*/
+/*    src: url('./styles/fonts/NotoSansKr/NotoSansKR-Medium.woff2') format('woff2'),*/
+/*    url('./styles/fonts/NotoSansKr/NotoSansKR-Medium.woff') format('woff'),*/
+/*    url('./styles/fonts/NotoSansKr/NotoSansKR-Medium.otf') format('opentype');*/
+/*}*/
+/*@font-face {*/
+/*    font-family: 'NotoSansKR';*/
+/*    font-style: normal;*/
+/*    font-weight: bold;*/
+/*    src: url('./styles/fonts/NotoSansKr/NotoSansKR-Bold.woff2') format('woff2'),*/
+/*    url('./styles/fonts/NotoSansKr/NotoSansKR-Bold.woff') format('woff'),*/
+/*    url('./styles/fonts/NotoSansKr/NotoSansKR-Bold.otf') format('opentype');*/
+/*}*/
+
+
+/*@font-face {*/
+/*    font-family: "Spoqa Han Sans";*/
+/*    font-weight: 200;*/
+/*    src: url('./styles/fonts/Spoqa Han Sans Thin.woff2') format('woff2'),*/
+/*    url('./styles/fonts/Spoqa Han Sans Thin.woff') format('woff'),*/
+/*    url('./styles/fonts/Spoqa Han Sans Thin.ttf') format('truetype');*/
+/*}*/
+/*@font-face {*/
+/*    font-family: "Spoqa Han Sans";*/
+/*    font-weight: 300;*/
+/*    src: url('./styles/fonts/Spoqa Han Sans Light.woff2') format('woff2'),*/
+/*    url('./styles/fonts/Spoqa Han Sans Light.woff') format('woff'),*/
+/*    url('./styles/fonts/Spoqa Han Sans Light.ttf') format('truetype');*/
+/*}*/
+/*@font-face {*/
+/*    font-family: "Spoqa Han Sans";*/
+/*    font-style: normal;*/
+/*    font-weight: 400;*/
+/*    src: url('./styles/fonts/Spoqa Han Sans Regular.woff2') format('woff2'),*/
+/*    url('./styles/fonts/Spoqa Han Sans Regular.woff') format('woff'),*/
+/*    url('./styles/fonts/Spoqa Han Sans Regular.ttf') format('truetype');*/
+/*}*/
+/*@font-face {*/
+/*    font-family: "Spoqa Han Sans";*/
+/*    font-weight: 500;*/
+/*    src: url('./styles/fonts/Spoqa Han Sans Bold.woff2') format('woff2'),*/
+/*    url('./styles/fonts/Spoqa Han Sans Bold.woff') format('woff'),*/
+/*    url('./styles/fonts/Spoqa Han Sans Bold.ttf') format('truetype');*/
+/*}*/
 
 
 
@@ -195,14 +256,10 @@ html, body {
 
 html {
     font-size: 15px;
-    font-family: NotoSansKR, 'Sans-serif';
 }
 body {
-    /*font-family: 'Spoqa Han Sans', 'Spoqa Han Sans JP', 'Sans-serif';*/
-    font-family: NotoSansKR, 'Sans-serif';
-    /*font-size: 1rem;*/
-    /*letter-spacing: -0.4px;*/
-    /*line-height: 1.65;*/
+    font-family: 'NanumBarunGothic', 'Sans-serif';
+    letter-spacing: 0.3px;
 }
 
 a {
@@ -249,7 +306,7 @@ a {
 
 /* bullet 동그라미 컬러 */
 .swiper-pagination-bullet-active {
-    background-color: black;
+    background-color: #9fa3a7;
 }
 
 /* ================================== [swiper global customized class] END ================================== */
@@ -264,22 +321,22 @@ a {
     background-color: #e5e5e5;
 }
 
+/* TODO 아래 내용 주석처리함(2021.10.29) 디자인 이상 없는지 테스트 필요함 */
+/*input:read-only {*/
+/*    background-color:#f7f8f9;*/
+/*}*/
 
-input:read-only {
-    background-color:#ffffff;
-}
-
-input::-webkit-read-only {
-    background-color:#ffffff;
-}
-/* IE */
-input:-ms-read-only {
-    background-color:#ffffff;
-}
-/* Firefox */
-input:-moz-read-only {
-    background-color:#ffffff;
-}
+/*input::-webkit-read-only {*/
+/*    background-color:#f7f8f9;*/
+/*}*/
+/*!* IE *!*/
+/*input:-ms-read-only {*/
+/*    background-color:#f7f8f9;*/
+/*}*/
+/*!* Firefox *!*/
+/*input:-moz-read-only {*/
+/*    background-color:#f7f8f9;*/
+/*}*/
 
 /* IE9 이하를 위한 css */
 .placeholder {
@@ -319,30 +376,55 @@ input:-mos-input-placeholder {
     /*overflow: visible !important;*/
 /*}*/
 
-/* 0 ~ 600 까지 100%*/
-@media only screen and (min-width: 600px) {
-    /* For tablets: */
-    .shopMediaContainer{
-        width: 100%;
-    }
+/*!* 0 ~ 600 까지 100%*!*/
+/*@media only screen and (min-width: 600px) {*/
+/*    !* For tablets: *!*/
+/*    .shopMediaContainer{*/
+/*        width: 100%;*/
+/*    }*/
+/*}*/
+/*!* 601 ~ 768 까지, 이후부터는 계속 768px로 유지함*!*/
+/*@media only screen and (min-width: 768px) {*/
+/*    !* [부모] 자식 중앙정렬 *!*/
+/*    .shopMediaWrapper{*/
+/*        display: flex;*/
+/*        justify-content: center;*/
+/*    }*/
+
+/*    !* [자식] 크기 *!*/
+/*    .shopMediaContainer{*/
+/*        width: 768px;*/
+/*    }*/
+
+/*    .dom_bottom,            !* [탭바], [상품구매 푸터] *!*/
+/*    .dom_b2c_sidebar{       !* [b2c 사이드바] *!*/
+/*        max-width: 768px;*/
+/*    }*/
+
+
+/*}*/
+
+{/* css 변수 */}
+:root {
+
+    /*
+        react-toastify 에서 사용되는 컬러 override /styledComponents/Properties.js 의 컬러와 일치 하도록 대응
+        https://fkhadra.github.io/react-toastify/how-to-style#override-css-variables
+    */
+
+    /*--toastify-color-light: #fff;*/
+    --toastify-color-dark: #9fa3a7!important;    /* black */
+    --toastify-color-info: #1d57ae!important;    /* primary */
+    --toastify-color-success: #5a9267!important; /* green */
+    --toastify-color-warning: #ffa800!important; /* warning */
+    --toastify-color-error: #ff3a25!important;   /* danger */
+    /*--toastify-color-transparent: rgba(255, 255, 255, 0.7)*/
 }
-/* 601 ~ 768 까지, 이후부터는 계속 768px로 유지함*/
-@media only screen and (min-width: 768px) {
-    /* [부모] 자식 중앙정렬 */
-    .shopMediaWrapper{
-        display: flex;
-        justify-content: center;
+
+{/* 모바일 사이즈 대응 */}
+{/* 0 ~ 360px 까지는 14px로 */}
+@media (max-width: 360px) {
+    html {
+        font-size: 14px;
     }
-
-    /* [자식] 크기 */
-    .shopMediaContainer{
-        width: 768px;
-    }
-
-    .dom_bottom,            /* [탭바], [상품구매 푸터] */
-    .dom_b2c_sidebar{       /* [b2c 사이드바] */
-        max-width: 768px;
-    }
-
-
 }

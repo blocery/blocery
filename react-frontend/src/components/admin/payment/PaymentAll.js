@@ -8,9 +8,6 @@ import PaymentCheck from './PaymentCheck';
 
 //ag-grid
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
-
 import {MdRefresh} from "react-icons/md";
 import 'react-month-picker/css/month-picker.css'
 import MonthPicker from 'react-month-picker'
@@ -32,11 +29,12 @@ export default class PaymentAll extends Component{
         this.payoutLimitMonth =  limitMonth;
 
         this.state = {
+            btnSearchLoading: false,
             loading: false,
             chainLoading: false,
             modalOpen: false,
             selectCheckData: {},
-            data: null,
+            data: [],
             rowData: [],
             excelData: {
                 columns: [],
@@ -51,72 +49,66 @@ export default class PaymentAll extends Component{
                     cellStyle:this.getHeaderCellStyle,
                     children: [
                         {headerName: '생산자번호',width: 100, field: 'producerNo', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
-                        {headerName: '업체명',width: 180, field: 'producerFarmName', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
+                        {headerName: '업체명',width: 250, field: 'producerFarmName', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
                     ]
                 },
                 {
                     headerName: "매출내역",
                     cellStyle:this.getHeaderCellStyle,
                     children: [
-                        {headerName: '판매원가',width: 100, field: 'totalGoodsPrice', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
-                        {headerName: '배송비 + 지원금',width: 120, field: 'totalSupportPrice', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'},
+                        {headerName: '판매원가',width: 150, field: 'totalGoodsPrice', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
+                        {
+                            headerName: '배송비',width: 150, field: 'totalDeliveryFeeNew', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'},
                             cellRenderer: 'formatCurrencyRenderer',
                             filterParams:{clearButton: true},
                             valueGetter: function(params) {
-                                return params.data.totalSupportPrice + params.data.totalDeliveryFeeNew;
+                                return params.data.totalDeliveryFeeNew;
                             }
                         },
+                        {
+                            headerName: '지원금',width: 150, field: 'totalSupportPrice', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'},
+                            cellRenderer: 'formatCurrencyRenderer',
+                            filterParams:{clearButton: true},
+                            valueGetter: function(params) {
+                                return params.data.totalSupportPrice;
+                            }
+                        }
                     ]
                 },
                 {
                     headerName: "차감내역",
                     cellStyle:this.getHeaderCellStyle,
                     children: [
-                        {headerName: '판매수수료',width: 100, field: 'totalFeeRateMoney', cellStyle: {"textAlign":"left", 'background-color': '#ffe3ee'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
+                        {headerName: '판매수수료',width: 130, field: 'totalFeeRateMoney', cellStyle: {"textAlign":"left", 'background-color': '#ffe3ee'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
                     ]
                 },
                 {
                     headerName: "정산합계",
                     cellStyle:this.getHeaderCellStyle,
                     children: [
-                        {headerName: '합계',width: 100, field: 'totalSimplePayoutAmount', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
-                        {headerName: '공급가액',width: 100, field: 'totalSupplyValue', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
-                        {headerName: '부가세',width: 80, field: 'totalVat', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
-                    ]
-                },
-                {
-                    headerName: "BLCT 기정산내역",
-                    cellStyle:this.getHeaderCellStyle,
-                    children: [
-                        {headerName: '총매출',width: 80, field: 'totalBlctToken', cellStyle: {"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
-                        {headerName: '판매수수료',width: 100, field: 'totalFeeRateBlct', cellStyle: {"textAlign":"left", 'background-color': '#f1fff1'},
-                            filterParams:{clearButton: true},
-                            valueGetter: function(params) {
-                                return ComUtil.roundDown(params.data.totalFeeRateBlct,2);
-                            }
-                        },
-                        {headerName: '정산합계',width: 90, field: 'totalPayoutAmountBlct', cellStyle: {"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
-                        {headerName: '원화 환산',width: 100, field: 'totalPaidBlctToWon', cellStyle: {"textAlign":"left", 'background-color': '#f1fff1'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
+                        {headerName: '합계',width: 140, field: 'totalSimplePayoutAmount', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
+                        {headerName: '공급가액',width: 140, field: 'totalSupplyValue', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
+                        {headerName: '부가세',width: 120, field: 'totalVat', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
                     ]
                 },
                 {
                     headerName: "check",
                     cellStyle:this.getHeaderCellStyle,
                     children: [
-                        {headerName: '계산서',width: 80, field: 'invoice', cellStyle: this.getCellStyle,
+                        {headerName: '계산서',width: 100, field: 'invoice', cellStyle: ComUtil.getCellStyle,
                             filterParams:{clearButton: true},
                             valueGetter: function(params) {
                                 return params.data.invoice ? '발행' : '미발행';
                             }
                         },
-                        {headerName: '입금확인',width: 90, field: 'paymentStatus', cellStyle: this.getCellStyle,
+                        {headerName: '입금확인',width: 100, field: 'paymentStatus', cellStyle: ComUtil.getCellStyle,
                             filterParams:{clearButton: true},
                             valueGetter: function(params) {
                                 return params.data.paymentStatus === 0 ? '정산예정' : params.data.paymentStatus === 1 ? '계좌입금' : '이월';
                             }
                         },
-                        {headerName: '전월이월',width: 90, field: 'lastForwardAmount', cellStyle: this.getCellStyle, cellRenderer: 'formatCurrencyRenderer',  filterParams:{clearButton: true}},
-                        {headerName: '수정',width: 90, field: 'totalPaidBlctToWon', cellStyle: this.getCellStyle, cellRenderer: 'checkModifyRenderer', filterParams:{clearButton: true}},
+                        {headerName: '전월이월',width: 100, field: 'lastForwardAmount', cellStyle: ComUtil.getCellStyle, cellRenderer: 'formatCurrencyRenderer',  filterParams:{clearButton: true}},
+                        {headerName: '수정',width: 100, field: 'totalPaidBlctToWon', cellStyle: ComUtil.getCellStyle, cellRenderer: 'checkModifyRenderer', filterParams:{clearButton: true}},
                     ]
                 },
             ],
@@ -146,7 +138,7 @@ export default class PaymentAll extends Component{
         if (!user || user.email.indexOf('ezfarm') < 0) {
             this.props.history.push('/admin');
         }
-        await this.search();
+        // await this.search();
     }
 
     onRefreshClick = async () => {
@@ -178,15 +170,28 @@ export default class PaymentAll extends Component{
             searchMode = false; //정산가능한 달.
         }
 
-        this.setState({loading: true})
+        // this.setState({loading: true})
+        this.setState({btnSearchLoading: true})
+        if (this.gridApi) {
+            //ag-grid 레이지로딩중 보이기
+            this.gridApi.showLoadingOverlay();
+        }
 
-        const { status, data } = await getAllProducerPayoutList(year, month)
-        if(status !== 200){
+        const res1 = await Promise.all([
+            getAllTempProducerBlctMonth(year, month),
+            getAllProducerPayoutList(year, month)
+        ])
+
+        // const {data:tempProducerNotyetBlct} = await getAllTempProducerBlctMonth(year, month)
+        const tempProducerNotyetBlct = res1[0].data
+        console.slog("tempProducerNotyetBlct : ", tempProducerNotyetBlct);
+
+        // const { status, data } = await getAllProducerPayoutList(year, month)
+        const data = res1[1].data;
+        if(res1[1].status !== 200){
             alert('정산 리스트 조회에 실패 하였습니다')
             return
         }
-
-        // console.log(data);
 
         data.sort((b,a) => {
             return parseInt(a.totalSimplePayoutAmount) - parseInt(b.totalSimplePayoutAmount);
@@ -202,14 +207,18 @@ export default class PaymentAll extends Component{
             this.setState({
                 data: data,
                 loading: false,
+                btnSearchLoading: false,
                 isSearchDataExist: false,
                 searchMode: searchMode,
             })
+            //ag-grid api
+            if(this.gridApi) {
+                //ag-grid 레이지로딩중 감추기
+                this.gridApi.hideOverlay()
+            }
             return;
         }
 
-        const {data:tempProducerNotyetBlct} = await getAllTempProducerBlctMonth(year, month)
-        console.slog("tempProducerNotyetBlct : ", tempProducerNotyetBlct);
 
         // paymentCheck 조회 후 data에 붙여야 함..
         const result = data.map(async(producerPayout) => {
@@ -232,11 +241,16 @@ export default class PaymentAll extends Component{
             this.setState({
                 data: data,
                 loading: false,
+                btnSearchLoading: false,
                 isSearchDataExist: isSearchDataExist,
                 searchMode: searchMode,
                 tempProducerNotyetBlct: tempProducerNotyetBlct
             })
-
+            //ag-grid api
+            if(this.gridApi) {
+                //ag-grid 레이지로딩중 감추기
+                this.gridApi.hideOverlay()
+            }
             this.setExcelData();
         })
     }
@@ -256,7 +270,6 @@ export default class PaymentAll extends Component{
         const columns = [
             '생산자번호', '업체명', '매출_판매원가', '매출_배송비+지원금', '차감내역_판매수수료',
             '정산합계', '공급가액', '부가세',
-            'BLCT_기정산 총매출', 'BLCT_기정산 판매수수료', 'BLCT_기정산합계', 'BLCT_원화 환산',
             '게산서', '입금확인', '전월이월'
         ]
 
@@ -266,7 +279,6 @@ export default class PaymentAll extends Component{
             return [
                 payout.producerNo, payout.producerFarmName, payout.totalGoodsPrice, payout.totalSupportPrice + payout.totalDeliveryFeeNew, payout.totalFeeRateMoney,
                 payout.totalSimplePayoutAmount, payout.totalSupplyValue, payout.totalVat,
-                payout.totalBlctToken, payout.totalFeeRateBlct, payout.totalPayoutAmountBlct, payout.totalPaidBlctToWon,
                 invoice, paymentStatus,
                 payout.lastForwardAmount
             ]
@@ -286,21 +298,6 @@ export default class PaymentAll extends Component{
             display: "flex",
             alignItems: "center",
             justifyContent: 'center',
-            color: color,
-            textDecoration: textDecoration,
-            whiteSpace: whiteSpace
-        }
-    }
-
-    getCellStyle ({cellAlign,color,textDecoration,whiteSpace}){
-        if(cellAlign === 'left') cellAlign='flex-start';
-        else if(cellAlign === 'center') cellAlign='center';
-        else if(cellAlign === 'right') cellAlign='flex-end';
-        else cellAlign='flex-start';
-        return {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: cellAlign,
             color: color,
             textDecoration: textDecoration,
             whiteSpace: whiteSpace
@@ -350,7 +347,7 @@ export default class PaymentAll extends Component{
     }
 
     makeTitleText = (m) => {
-        return "블로서리 " + this.makeMonthText(m) + " 정산";
+        return "샵블리 " + this.makeMonthText(m) + " 정산";
     }
 
     handleClickMonthBox = () => {
@@ -504,11 +501,8 @@ export default class PaymentAll extends Component{
                                           onClick={this.handleClickMonthBox.bind(this)}/>
                             </div>
                             <div className="ml-3">
-                                <Button color={'info'} size={'sm'} block  style={{width: '100px'}}
-                                        onClick={this.onRefreshClick}>
-                                    <div className="d-flex">
-                                        <MdRefresh fontSize={'small'}/> 조회
-                                    </div>
+                                <Button color={'info'} size={'sm'} onClick={this.onRefreshClick} disabled={this.state.btnSearchLoading}>
+                                    <span fontSize={'small'}>검색</span>
                                 </Button>
                             </div>
 

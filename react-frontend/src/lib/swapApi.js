@@ -29,11 +29,14 @@ export const newAllocateSwapAccount = () =>  axios(Server.getRestAPIHost() + '/s
 //                                                                       : axios(Server.getRestAPIHost() + '/swap/swapBlyToBlct', { method: "post", params: {consumerNo: 0, blyAmount}, withCredentials: true, credentials: 'same-origin' })
 
 
-//OLD출금 이제 미사용.
-// export const swapBlctToBly = (blctAmount, extErcAccount, memo) => axios(Server.getRestAPIHost() + '/swap/swapBlctToBly', { method: "post", params: {blctAmount, extErcAccount, memo },withCredentials: true, credentials: 'same-origin' })
+//출금통제없이 새로사용.
+export const swapBlctToBly = (blctAmount, extErcAccount, memo) => axios(Server.getRestAPIHost() + '/swap/swapBlctToBly', { method: "post", params: {blctAmount, extErcAccount, memo },withCredentials: true, credentials: 'same-origin' })
 
-// 소비자: 신규 출금요청 -
-export const swapBlctToBlyRequest = (blctAmount, extErcAccount, memo) => axiosSecure(Server.getRestAPIHost() + '/swap/swapBlctToBlyRequest', { method: "post", params: {blctAmount, extErcAccount, memo },withCredentials: true, credentials: 'same-origin' })
+// 출금시 erc 실패의 경우 수동전송 및 db update
+export const sendManagerBlyToUserManual = (swapNo) => axios(Server.getRestAPIHost() + '/swap/sendManagerBlyToUserManual', { method: "post", params: {swapNo},withCredentials: true, credentials: 'same-origin' })
+
+// 소비자: 신규 출금요청 - 사용자 자산 통제불가로 사용안함
+// export const swapBlctToBlyRequest = (blctAmount, extErcAccount, memo) => axiosSecure(Server.getRestAPIHost() + '/swap/swapBlctToBlyRequest', { method: "post", params: {blctAmount, extErcAccount, memo },withCredentials: true, credentials: 'same-origin' })
 
 // 소비자: 입금화면 확인 시간 체크
 export const depositLastCheckDay = () => axios(Server.getRestAPIHost() + '/swap/depositLastCheckDay', { method: "get", withCredentials: true, credentials: 'same-origin'})
@@ -100,6 +103,10 @@ export const getSwapManagerEthBalance = () => axios(Server.getRestAPIHost() + '/
 
 export const getTodayAmountBlctToBly = () => axios(Server.getRestAPIHost() + '/swap/getTodayAmountBlctToBly', { method: "post", withCredentials: true, credentials: 'same-origin' })
 export const getTodayWithdrawCount = () => axios(Server.getRestAPIHost() + '/swap/getTodayWithdrawCount', { method: "get", withCredentials: true, credentials: 'same-origin' })
+
+//pivot 에서 추가
+export const getLevel1BlyTransferFee = () => axios(Server.getRestAPIHost() + '/swap/getLevel1BlyTransferFee', { method: "get", withCredentials: true, credentials: 'same-origin' })
+
 
 //OLD방식 제거
 //export const getAlreayDepositBly = () => axios(Server.getRestAPIHost() + '/swap/getAlreayDepositBly', { method: "get", withCredentials: true, credentials: 'same-origin' })

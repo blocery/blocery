@@ -1,9 +1,10 @@
 import React, {Component} from "react";
 import { getLoginAdminUser } from "~/lib/loginApi";
-import {Div} from '~/styledComponents/shared'
+import {Div, Flex, Right} from '~/styledComponents/shared'
 import {getAllBlctToWonCachedLog} from "~/lib/adminApi";
 import {AgGridReact} from "ag-grid-react";
 import ComUtil from '~/util/ComUtil'
+import moment from "moment-timezone";
 
 export default class BlySiseList extends Component {
     constructor(props) {
@@ -58,7 +59,11 @@ export default class BlySiseList extends Component {
 
     search = async () => {
         this.setState({loading: true})
-        const {status, data} = await getAllBlctToWonCachedLog();
+        const params = {
+            startDate: moment(moment().toDate()).add(-1,"months").format("YYYYMMDD"),
+            endDate: moment(moment().toDate()).format("YYYYMMDD")
+        };
+        const {status, data} = await getAllBlctToWonCachedLog(params);
         if(status !== 200){
             alert('응답이 실패 하였습니다');
             return;
@@ -94,7 +99,12 @@ export default class BlySiseList extends Component {
 
         return (
             <Div>
-                <Div>지급쿠폰 원화 : {ComUtil.addCommas(this.state.fixedWon)}원</Div>
+                <Flex>
+                    <Div>지급쿠폰 원화 : {ComUtil.addCommas(this.state.fixedWon)}원</Div>
+                    <Right>
+                        (한달 기준)
+                    </Right>
+                </Flex>
                 <div
                     className="ag-theme-balham"
                     style={{
@@ -102,19 +112,13 @@ export default class BlySiseList extends Component {
                     }}
                 >
                     <AgGridReact
-                        // enableSorting={true}                //정렬 여부
-                        // enableFilter={true}                 //필터링 여부
                         columnDefs={this.state.columnDefs}  //컬럼 세팅
                         rowSelection={'multiple'}
                         defaultColDef={this.state.defaultColDef}
-                        // components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
-                        // enableColResize={true}              //컬럼 크기 조정
                         overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                         overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
-                        // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
                         rowData={this.state.data}
                         frameworkComponents={this.state.frameworkComponents}
-                        // onRowClicked={this.onSelectionChanged.bind(this)}       // 클릭된 row
                     >
                     </AgGridReact>
                 </div>

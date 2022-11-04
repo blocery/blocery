@@ -4,39 +4,33 @@ import { Container, Row, Col } from 'reactstrap'
 import classNames from 'classnames'
 import {FaQuoteLeft, FaQuoteRight} from 'react-icons/fa'
 import { Server } from '~/components/Properties'
-import { ImageGalleryModal } from '~/components/common'
+import useImageViewer from "~/hooks/useImageViewer";
+import ComUtil from "~/util/ComUtil";
+import {Div, Img} from "~/styledComponents/shared";
 const EMPTY_TEXT = '-';
 const ProducerProfileCard = (props) => {
 
-    if(!props.producerNo) return null
 
-    const profileBackgroundImageUrl = (props.profileBackgroundImages && props.profileBackgroundImages.length > 0) && Server.getImageURL() + props.profileBackgroundImages[0].imageUrl
-    const profileImageUrl = (props.profileImages && props.profileImages.length > 0) && props.profileImages[0].imageUrl
+    const {openImageViewer} = useImageViewer()
+
+    const bgUrl = ComUtil.getFirstImageSrc(props.profileBackgroundImages)
+
+    const onProfileImageClick = () => {
+        openImageViewer(props.profileImages, 0)
+    }
+
+    if(!props.producerNo) return null
 
     return(
         <Fragment>
-            {/* 이미지 */}
-            <Container fluid>
-                <Row style={{marginBottom: 60}}>
-                    <Col xs={12} className='p-0'>
-                        <div className='position-relative d-flex justify-content-center'
-                             style={{
-                                 backgroundImage: profileBackgroundImageUrl ? `url(${profileBackgroundImageUrl})` : null,
-                                 backgroundColor: profileBackgroundImageUrl ? null : '#17a2b8',
-                                 height: '25vh',
-                                 backgroundPosition: 'center',
-                                 backgroundRepeat: 'no-repeat',
-                                 backgroundSize: 'cover'}}>
-                            <ImageGalleryModal
-                                images={[{imageUrl: profileImageUrl}]}
-                                modalImages={props.profileImages}
-                                className={classNames('position-absolute rounded-circle border-white cursor-pointer', Style.imageFace)}
-                                style={{width: 100, height: 100, bottom: -50, zIndex:1, objectFit: 'cover', backgroundColor: '#d6d8db'}}
-                            />
-                        </div>
-                    </Col>
-                </Row>
-            </Container>
+            <Div relative>
+                <Div bg={!bgUrl && 'green'}>
+                    <Img src={bgUrl} height={'40vmin'} cover/>
+                </Div>
+                <Div absolute center width={'25vmin'} height={'25vmin'}>
+                    <Img rounded={'20%'} src={ComUtil.getFirstImageSrc(props.profileImages)} alt="판매자 소개 사진" onClick={onProfileImageClick}/>
+                </Div>
+            </Div>
 
             {/* 농장 타이틀 */}
             <div className='mb-2'>

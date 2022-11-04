@@ -8,6 +8,7 @@ import ComUtil from "~/util/ComUtil";
 import {withRouter, Redirect} from 'react-router-dom'
 import {Div, Span, Link, Fixed} from "~/styledComponents/shared";
 import {Server} from "~/components/Properties";
+import BackNavigation from "~/components/common/navs/BackNavigation";
 
 
 const Card = withRouter(({goods, couponNo, history}) => {
@@ -103,7 +104,8 @@ const CouponGoods = (props) => {
 
     return (
         <>
-            <ShopXButtonNav fixed historyBack>무료쿠폰 사용</ShopXButtonNav>
+            {/*<ShopXButtonNav fixed historyBack>무료쿠폰 사용</ShopXButtonNav>*/}
+            <BackNavigation>무료쿠폰 사용</BackNavigation>
             <Div relative>
                 {
                     loading ? <Skeleton.List count={4} /> : (
@@ -125,7 +127,8 @@ const CouponGoods = (props) => {
                                     rounded={20}
                                     cursor
                                     display={'inline-block'}
-                                    onClick={()=> props.history.push(`/farmersDetailActivity?producerNo=${consumerCoupon.prodGoodsProducerNo}`)}
+                                    // onClick={()=> props.history.push(`/farmersDetailActivity?producerNo=${consumerCoupon.prodGoodsProducerNo}`)}
+                                    onClick={()=> props.history.push(`/consumersDetailActivity?consumerNo=${(900000000+consumerCoupon.prodGoodsProducerNo)}`)}
                                 >
                                     상점 페이지 방문
                                 </Div>

@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import {setConsumerStop, getConsumerByConsumerNo, getConsumerVerifyAuth, getNewAllocateSwapBlyAccount} from "~/lib/adminApi";
+import {setConsumerStop, getConsumerByConsumerNo, getConsumerDanalVerifyAuth, getConsumerVerifyAuth, getNewAllocateSwapBlyAccount} from "~/lib/adminApi";
 import {Div, Flex, Span, Button, Copy, A} from "~/styledComponents/shared";
 import styled from 'styled-components'
 import { Server } from '~/components/Properties';
@@ -10,6 +10,8 @@ import {getBalanceOfBlctAllAdmin} from '~/lib/smartcontractApi'
 import {FaCertificate} from 'react-icons/fa'
 import KycView from "~/components/common/contents/KycView";
 import adminApi from "~/lib/adminApi";
+import {gradeStore} from "~/store";
+import {GradeBadgeBig} from "~/styledComponents/ShopBlyLayouts";
 const Label = styled(Div)`
     min-width: 150px;
 `
@@ -18,6 +20,7 @@ const ConsumerBasicView = ({consumerNo, onClose}) => {
     const [modalOpen, setModalOpen, selected, setSelected, setModalState] = useModal()
 
     const [consumer, setConsumer] = useState()
+    const [danalVerifyAuthInfo, setDanalVerifyAuthInfo] = useState()
     const [verifyAuthInfo, setVerifyAuthInfo] = useState()
     const [newAllocateSwapBlyAccount, setNewAllocateSwapBlyAccount] = useState()
     const [ethScanUrl, setEthScanUrl] = useState('')
@@ -41,6 +44,9 @@ const ConsumerBasicView = ({consumerNo, onClose}) => {
     const getConsumer = async () => {
         const {data} = await getConsumerByConsumerNo(consumerNo)
         setConsumer(data)
+
+        const {data:DanalVerifyAuth} = await getConsumerDanalVerifyAuth(consumerNo)
+        setDanalVerifyAuthInfo(DanalVerifyAuth)
 
         const {data:VerifyAuth} = await getConsumerVerifyAuth(consumerNo)
         setVerifyAuthInfo(VerifyAuth)
@@ -96,10 +102,24 @@ const ConsumerBasicView = ({consumerNo, onClose}) => {
     }
 
     const onUpdateConsumerClick = async() => {
-        console.log({consumer})
+        //console.log({consumer})
         const {status, data} = await adminApi.updateConsumer(consumer);
         if (status === 200 && data) {
             alert('저장되었습니다.')
+        }
+    }
+
+    const onUpdateConsumerNameClick = async(name) => {
+        //console.log({consumer})
+        const oConsumer = Object.assign({},consumer);
+        oConsumer.name = name;
+        const {status, data} = await adminApi.updateConsumer(oConsumer);
+        if (status === 200 && data) {
+            setConsumer({
+                ...consumer,
+                name: oConsumer.name
+            })
+            alert('회원명이 동기화 되었습니다.')
         }
     }
 
@@ -111,9 +131,15 @@ const ConsumerBasicView = ({consumerNo, onClose}) => {
         })
     }
 
+    const getGender = (gender) => {
+        if(gender === 'male') return '남';
+        else if(gender === 'female') return '여';
+        return '';
+    }
+
     if (!consumer) return null
 
-    const {timestamp, name, phone, email, hintFront, hintBack, lastLogin, ip, stoppedUser, stoppedDate, stoppedReason, kycLevel, adminMemo, account} = consumer
+    const {timestamp, name, nickname, phone, email, hintFront, hintBack, lastLogin, ip, stoppedUser, stoppedDate, stoppedReason, kycLevel, adminMemo, account, level, recommenderNo, point, toDayPoint, noBlockchain} = consumer
     const {totalBalance, availableBalance, lockedBlct} = bly
 
     return (
@@ -151,9 +177,34 @@ const ConsumerBasicView = ({consumerNo, onClose}) => {
                 </Div>
             </Flex>
             <Flex mb={16}>
-                <Label>본인인증</Label>
+                <Label>다날본인인증</Label>
                 <Div flexGrow={1}>
-                    { verifyAuthInfo && verifyAuthInfo.certOk ? <span>{verifyAuthInfo.name+" "+(verifyAuthInfo.birthDay ? ComUtil.yyyymmdd2DateStr(verifyAuthInfo.birthDay):"") + " ("+(verifyAuthInfo.over19years ? '성인':'미성년자')+")"}</span>:'미인증'}
+                    {
+                        danalVerifyAuthInfo && danalVerifyAuthInfo.certified
+                            ?
+                            <>
+                            <span>
+                                {danalVerifyAuthInfo.name+"("+getGender(danalVerifyAuthInfo.gender)+")"+(danalVerifyAuthInfo.birthDay ? ComUtil.yyyymmdd2DateStr(danalVerifyAuthInfo.birthDay):"") + "("+(danalVerifyAuthInfo.over19years ? '성인':'미성년자')+")"}
+                            </span>
+                            <Button bg={'white'} bc={'dark'} px={10} onClick={onUpdateConsumerNameClick.bind(this, danalVerifyAuthInfo.name)}>회원명동기화</Button>
+                            </>
+                            :
+                            '미인증'
+                    }
+                </Div>
+            </Flex>
+            <Flex mb={16}>
+                <Label>카카오본인인증</Label>
+                <Div flexGrow={1}>
+                    {
+                        verifyAuthInfo && verifyAuthInfo.certOk ?
+                            <>
+                            <span>{verifyAuthInfo.name+" "+(verifyAuthInfo.birthDay ? ComUtil.yyyymmdd2DateStr(verifyAuthInfo.birthDay):"") + " ("+(verifyAuthInfo.over19years ? '성인':'미성년자')+")"}</span>
+                            <Button bg={'white'} bc={'dark'} px={10} onClick={onUpdateConsumerNameClick.bind(this, verifyAuthInfo.name)}>회원명동기화</Button>
+                            </>
+                            :
+                            '미인증'
+                    }
                 </Div>
             </Flex>
             <Flex mb={16}>
@@ -170,6 +221,14 @@ const ConsumerBasicView = ({consumerNo, onClose}) => {
                 </Div>
             </Flex>
             <Flex mb={16}>
+                <Label>등급</Label>
+                <Div flexGrow={1}>
+                     <span>
+                         <GradeBadgeBig level={level}><b>{gradeStore[level]}</b></GradeBadgeBig>
+                     </span>
+                </Div>
+            </Flex>
+            <Flex mb={16}>
                 <Label>소비자번호</Label>
                 <Flex flexGrow={1}>
                     <Copy onClick={copy.bind(this, consumerNo)}>{consumerNo}</Copy>
@@ -177,8 +236,11 @@ const ConsumerBasicView = ({consumerNo, onClose}) => {
                 </Flex>
             </Flex>
             <Flex mb={16} alignItems={'flex-start'}>
-                <Label>회원명</Label>
-                <Copy onClick={copy.bind(this, name)}>{name}</Copy>
+                <Label>회원명/닉네임</Label>
+                <Flex flexGrow={1}>
+                    <Copy rounded={4} onClick={copy.bind(this, name)}>{name}</Copy>
+                    <Copy rounded={4} ml={10} onClick={copy.bind(this, nickname)}>{nickname}</Copy>
+                </Flex>
             </Flex>
             {
                 newAllocateSwapBlyAccount &&
@@ -195,8 +257,16 @@ const ConsumerBasicView = ({consumerNo, onClose}) => {
                 </Flex>
             </Flex>
             <Flex mb={16} alignItems={'flex-start'}>
+                <Label>추천친구번호</Label>
+                <Div flexGrow={1}>{recommenderNo}</Div>
+            </Flex>
+            <Flex mb={16} alignItems={'flex-start'}>
                 <Label>Ont Account</Label>
                 <Div flexGrow={1}>{account}</Div>
+            </Flex>
+            <Flex mb={16} alignItems={'flex-start'}>
+                <Label>블록체인사용여부 </Label>
+                <Div flexGrow={1}>{noBlockchain ? "사용안함" : "사용"}</Div>
             </Flex>
             <Flex mb={16} alignItems={'flex-start'}>
                 <Label>결제비밀번호</Label>
@@ -212,6 +282,10 @@ const ConsumerBasicView = ({consumerNo, onClose}) => {
                         onChange={onInputChange}
                     />
                 </Div>
+            </Flex>
+            <Flex mb={16} alignItems={'flex-start'}>
+                <Label>보유 Point</Label>
+                <Div flexGrow={1}>전체 {ComUtil.addCommas(point)} / Today지급예정 {ComUtil.addCommas(toDayPoint)}</Div>
             </Flex>
             <Flex mb={16} alignItems={'flex-start'}>
                 <Label>보유 BLY</Label>

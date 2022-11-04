@@ -21,6 +21,7 @@ const PushNotiReg = (props) => { // props에 수정할 공지사항 key를 넘�
     const [reservedDateFocused, setReservedDateFocused] = useState(false);
     const [pushSent, setPushSent] = useState(pushNotiData.pushSent || false);
     const [adPush, setAdPush] = useState(pushNotiData.adPush || false);
+    const [userLevel, setUserLevel] = useState(pushNotiData.userLevel || 0);
 
     const [refUrl, setRefUrl] = useState('');
 
@@ -28,13 +29,21 @@ const PushNotiReg = (props) => { // props에 수정할 공지사항 key를 넘�
         urlOptions: [
             {value:'',label:'푸시알림 참조 URL 선택'},
             {value:'goods?goodsNo=상품번호',label:'상품 - 상품번호 입력 필요'},
-            {value:'home/3',label:'포텐타임'},
-            {value:'home/superReward',label:'슈퍼리워드'},
-            {value:'home/4',label:'예약할인'},
-            {value:'home/5',label:'베스트'},
-            {value:'home/6',label:'신상품'},
-            {value:'home/7',label:'단골상품'},
+            {value:'store/deal',label:'쑥쑥-계약재배'},
+            {value:'store/mdPick',label:'기획전'},
+            {value:'store/potenTime',label:'포텐타임'},
+            {value:'store/superReward',label:'슈퍼리워드'},
+            {value:'store/specialPriceDeal',label:'특가딜'},
+            {value:'store/best',label:'베스트'},
+            {value:'store/new',label:'신상품'},
+            {value:'my/favoriteGoodsList',label:'단골상품'},
             {value:'event?no=이벤트번호',label:'이벤트 - 이벤트번호 입력 필요'},
+            {value:'eventList',label:'이벤트(목록)'},
+            {value:'home/people/1',label:'피플(생산자)'},
+            {value:'home/people/2',label:'피플(소비자)'},
+            {value:'community/roulette',label:'매일매일룰렛'},
+            {value:'community/goodsReviewMain',label:'실시간리뷰'},
+            {value:'community/boardVoteMain',label:'당신의선택'},
         ],
         hourOptions: [
             {value:'00',label:'00'},
@@ -55,6 +64,13 @@ const PushNotiReg = (props) => { // props에 수정할 공지사항 key를 넘�
             {value:'30',label:'30'},
             {value:'40',label:'40'},
             {value:'50',label:'50'},
+        ],
+        levelOptions : [
+            {value:0,label:'전체'},
+            {value:1,label:'VVIP'},
+            {value:2,label:'VIP'},
+            {value:3,label:'GOLD'},
+            {value:4,label:'SILVER'},
         ]
     }
 
@@ -78,7 +94,7 @@ const PushNotiReg = (props) => { // props에 수정할 공지사항 key를 넘�
         }
     }, []);
 
-    const onSave= async () => {
+    const onSave= () => {
 
         if(title.length == 0){
             alert("알림문구는 필수입니다!");
@@ -97,16 +113,22 @@ const PushNotiReg = (props) => { // props에 수정할 공지사항 key를 넘�
             reserved: reservedValue,
             reservedDateHHmm: reservedDateHHmm,
             pushSent: pushSent,
-            adPush: adPush
+            adPush: adPush,
+            userLevel: userLevel
         }
 
-        const { status, data } = await regPushNoti(pushNoti);
-        if(data) {
-            alert('푸시알림을 등록하였습니다.');
-            props.onClose();
-        } else {
-            alert('푸사일림 등록에 실패하였습니다.');
-        }
+        regPushNoti(pushNoti); // 푸쉬를 sleep 주면서 돌리면서 front에서 요청만 하고 기다리지 않도록 수정
+
+        alert('푸시알림을 요청하였습니다.');
+        props.onClose();
+
+        // const { status, data } = await regPushNoti(pushNoti);
+        // if(data) {
+        //     alert('푸시알림을 등록하였습니다.');
+        //     props.onClose();
+        // } else {
+        //     alert('푸시알림 등록에 실패하였습니다.');
+        // }
     }
 
     const onSelectUserType = (e) => {
@@ -157,15 +179,23 @@ const PushNotiReg = (props) => { // props에 수정할 공지사항 key를 넘�
         setUrl(data.value);
     }
 
+    const onLevelOptionsChange = (data) => {
+        setUserLevel(data.value)
+    }
+
     return(
         <Container>
             <Row>
                 <Col xs={'5'}> 푸시알림 대상 </Col>
                 <Col xs={'7'}>
-                    <Input type='select' name='select' id='userType' onChange={onSelectUserType}>
-                        <option name='radio_consumer' value='consumer' selected={ userType === 'consumer' }>소비자</option>
+                    <Select options={state.levelOptions}
+                            value={state.levelOptions.find(item => item.value === userLevel)}
+                            onChange={onLevelOptionsChange}
+                    />
+                    {/*<Input type='select' name='select' id='userType' onChange={onSelectUserType}>*/}
+                    {/*    <option name='radio_consumer' value='consumer' selected={ userType === 'consumer' }>소비자</option>*/}
                         {/*<option name='radio_producer' value='producer' selected={ userType === 'producer' }>생산자</option>*/}
-                    </Input>
+                    {/*</Input>*/}
                 </Col>
             </Row>
             <hr/>

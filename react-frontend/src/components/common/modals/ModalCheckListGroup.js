@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ModalWithNav, CheckListGroup } from '~/components/common'
-import {FaCaretDown} from 'react-icons/fa'
+import {BsCaretDownFill} from 'react-icons/bs'
+
 import classNames from 'classnames'
 
 //상단의 필터나 정렬에서 사용할 용도로 만들어진 컴포넌트 입니다(물론 다른 용도로 사용가능)
@@ -46,7 +47,7 @@ const ModalCheckListGroup = (props) => {
                 style={props.style || null}
             >
                 <span className={'mr-1'}>{label}</span>
-                <FaCaretDown />
+                <BsCaretDownFill />
             </span>
 
             {/* 폰트가 자동으로? 줄어들어서 강제로 15px로 해 주었음 */}

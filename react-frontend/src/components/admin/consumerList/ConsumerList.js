@@ -1,10 +1,12 @@
 import React, { Component } from 'react';
 import {
     getAllConsumers,
+    getOneConsumer,
     getConsumerCount,
     getConsumerStopedCount,
     getConsumerDormancyCount,
-    getSemiConsumerCount
+    getSemiConsumerCount,
+    getOrderCountByConsumers
 } from '~/lib/adminApi'
 import { scOntGetBalanceOfBlctAdmin } from '~/lib/smartcontractApi'
 import { Server } from '~/components/Properties';
@@ -14,20 +16,20 @@ import ComUtil from '~/util/ComUtil'
 
 import BlctRenderer from '../SCRenderers/BlctRenderer';
 import {ExcelDownload} from '~/components/common'
-import {Button, Modal, ModalBody, ModalFooter, ModalHeader} from 'reactstrap'
+import {Button, Input, Modal, ModalBody, ModalFooter, ModalHeader} from 'reactstrap'
 
 import { AgGridReact } from 'ag-grid-react';
 
 import SearchDates from '~/components/common/search/SearchDates'
-import InviteFriendCountRenderer from './InviteFriendCountRenderer'
-import AbuserRenderer from '../../common/agGridRenderers/AbuserRenderer';
+import AbuserRenderer from '~/components/common/agGridRenderers/AbuserRenderer';
 import ConsumerDetail from "~/components/common/contents/ConsumerDetail";
 
 import moment from "moment-timezone";
-import {Div, Flex, Hr, Span, FilterGroup} from '~/styledComponents/shared'
+import {Div, Flex, Hr, Span, FilterGroup, Space, Right, Textarea} from '~/styledComponents/shared'
 import FilterContainer from "~/components/common/gridFilter/FilterContainer";
 import InputFilter from "~/components/common/gridFilter/InputFilter";
 import CheckboxFilter from "~/components/common/gridFilter/CheckboxFilter";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
 
 
 export default class ConsumerList extends Component{
@@ -44,14 +46,18 @@ export default class ConsumerList extends Component{
                 columns: [],
                 data: []
             },
+            independentSearchBy:'phone',
+
             columnDefs: [
                 {headerName: "소비자번호", field: "consumerNo", width: 140},
                 {headerName: "이름", field: "name",cellRenderer: "nameRenderer"},
+                {headerName: "별명", field: "nickname",width: 140},
                 {headerName: "어뷰징", field: "abuser",
                     suppressFilter: true,   //no filter
                     suppressSorting: true,  //no sort
                     cellRenderer: "abuserRenderer"},
                 {headerName: "email", field: "email", width: 200},
+                {headerName: "등급", field: "level", width: 100},
                 {headerName: "구분", field: "authType", width: 100, cellRenderer: "authTypeRenderer"},
                 {headerName: "카카오ID", field: "authId", width: 100},
                 {headerName: "phone", field: "phone", width: 150, cellRenderer: "phoneRenderer"},
@@ -59,9 +65,10 @@ export default class ConsumerList extends Component{
                 {headerName: "BLCT", field: "blct", cellRenderer: "blctRenderer", width: 150},
                 {headerName: "가입일", field: "timestampUtc", width: 150},
                 {headerName: "탈퇴일", field: "stoppedDateUTC", width: 150},
+                {headerName: "iostAccount", field: "iostAccount", width: 140},
                 {headerName: "마지막로그인일", field: "lastLoginUtc", width: 150},
                 {headerName: "접속IP", field: "ip", width: 150},
-                {headerName: "추천친구수", field: "inviteFriendCount", width: 150, cellRenderer: "inviteFriendCountRenderer"},
+                {headerName: "추천친구수", field: "inviteFriendCount", width: 150},
                 {
                     headerName: "내추천번호", field: "inviteCode", width: 100,
                     valueGetter: function(params) {
@@ -73,7 +80,7 @@ export default class ConsumerList extends Component{
                     }
                 },
                 {
-                    headerName: "추천친구", field: "recommenderNo", width: 120,
+                    headerName: "추천친구", field: "encodedRecommenderNo", width: 120,
                     valueGetter: function(params) {
                         if(params.data.recommenderNo > 0){
                             const inviteCode = ComUtil.encodeInviteCode(params.data.recommenderNo)
@@ -120,7 +127,6 @@ export default class ConsumerList extends Component{
                 nameRenderer: this.nameRenderer,
                 phoneRenderer: this.phoneRenderer,
                 authTypeRenderer: this.authTypeRenderer,
-                inviteFriendCountRenderer: InviteFriendCountRenderer,
                 abuserRenderer: AbuserRenderer
             },
             modal: false,
@@ -131,7 +137,9 @@ export default class ConsumerList extends Component{
             consumerCount: 0,
             consumerStopedCount: 0,
             consumerDormancyCount: 0,
-            semiConsumerCount: 0
+            semiConsumerCount: 0,
+            searchConsumerNo: '',
+            consumerOrderCount: ''
         }
     }
 
@@ -148,44 +156,59 @@ export default class ConsumerList extends Component{
     onGridReady(params) {
         //API init
         this.gridApi = params.api
+        this.columnApi = params.columnApi
         //this.gridColumnApi = params.columnApi
         // console.log("onGridReady");
     }
 
-    search = async (searchButtonClicked) => {
+    search = async (searchButtonClicked, consumerObj) => {
 
-        if(searchButtonClicked) {
-            if (!this.state.startDate || !this.state.endDate) {
-                alert('시작일과 종료일을 선택해주세요')
-                return;
+        // console.log('consumerObj')
+        // console.log(consumerObj)
+
+        let allData;
+        //1건 독립조회 추가
+        if (consumerObj) {
+
+           let {data} = await getOneConsumer(consumerObj);
+           allData = data;
+
+        //기존 일반 조회
+        } else {
+            if (searchButtonClicked) {
+                if (!this.state.startDate || !this.state.endDate) {
+                    alert('시작일과 종료일을 선택해주세요')
+                    return;
+                }
             }
+
+            if (this.gridApi) {
+                //ag-grid 레이지로딩중 보이기
+                this.gridApi.showLoadingOverlay();
+            }
+            const params = {
+                startDate: this.state.startDate ? moment(this.state.startDate).format('YYYYMMDD') : null,
+                endDate: this.state.endDate ? moment(this.state.endDate).format('YYYYMMDD') : null
+            };
+            const {status, data} = await getAllConsumers(params)
+
+            if (status !== 200) {
+                alert('응답이 실패 하였습니다')
+                return
+            }
+
+            // manager를 data맨 위에 넣기
+            let managerAccount = await this.getBaseAccount();
+            let manager = {
+                consumerNo: 0,
+                name: '매니저',
+                account: managerAccount
+            }
+            data.unshift(manager);
+            allData = data;
         }
 
-        if(this.gridApi) {
-            //ag-grid 레이지로딩중 보이기
-            this.gridApi.showLoadingOverlay();
-        }
-        const params = {
-            startDate:this.state.startDate ? moment(this.state.startDate).format('YYYYMMDD'):null,
-            endDate:this.state.endDate ? moment(this.state.endDate).format('YYYYMMDD'):null
-        };
-        const { status, data } = await getAllConsumers(params)
-
-        if(status !== 200){
-            alert('응답이 실패 하였습니다')
-            return
-        }
-
-        // manager를 data맨 위에 넣기
-        let managerAccount = await this.getBaseAccount();
-        let manager = {
-            consumerNo: 0,
-            name: '매니저',
-            account: managerAccount
-        }
-        data.unshift(manager);
-
-        data.map((item) => {
+        allData.map((item) => {
 
             if (this.state.showBlctBalance) {
                 item.getBalanceOfBlct = scOntGetBalanceOfBlctAdmin;
@@ -213,7 +236,7 @@ export default class ConsumerList extends Component{
 
         this.setState({
             ...this.state,
-            data: data,
+            data: allData,
             consumerCount: consumerCount,
             consumerStopedCount: consumerStopedCount,
             consumerDormancyCount: consumerDormancyCount,
@@ -342,29 +365,90 @@ export default class ConsumerList extends Component{
         ComUtil.copyTextToClipboard(value, '', '');
     }
 
+    //1건 독립조회
+    oneIndependentSearch = ()=> {
+
+        const searchField = this.state.independentSearchBy //'phone,'email','consumerNo'등
+
+        const inputValue = window.prompt('검색할 소비자 ' + searchField +':')
+        if (inputValue) {
+            let consumerObj;
+            switch (searchField) {
+                case 'phone': consumerObj = {phone:inputValue};break;
+                case 'email': consumerObj = {email:inputValue};break;
+                case 'name': consumerObj = {name:inputValue};break;
+                case 'nickname': consumerObj = {nickname:inputValue};break;
+                case 'consumerNo': consumerObj = {consumerNo:inputValue};break;
+                case 'recommenderNo': consumerObj = {recommenderNo:inputValue};break;
+                case 'ip': consumerObj = {ip:inputValue};break;
+                case 'level': consumerObj = {level:inputValue};break;
+            }
+            this.search(false, consumerObj)
+        }
+    }
+    onIndependentSearchByChange = (e)=> {
+        this.setState({
+            independentSearchBy:e.target.value
+        })
+    }
+
+
+    onChangeSearchConsumerNo = (e) => {
+        this.setState({
+            searchConsumerNo: e.target.value
+        })
+    }
+
+    searchConsumerOrderCount = async() => {
+        alert('조회중입니다. 잠시만 기다려주세요');
+        let {data} = await getOrderCountByConsumers(this.state.searchConsumerNo);
+        console.log(data);
+        this.setState({
+            consumerOrderCount: JSON.stringify(data)
+        })
+    }
 
     render() {
         return (
-            <div>
-                <div className="ml-2 mt-2 mr-2">
-                    <Flex bc={'secondary'} m={3} p={7}>
-                        <Div pl={10} pr={20} py={1}> 기 간 (가입일) </Div>
-                        <Div ml={10} >
-                            <Flex>
+            <Div p={16}>
+                <Div p={10} bc={'secondary'} mb={10}>
+                    <Space>
+                        <Div>기 간 (가입일)</Div>
+                        <Div>
+                            <Space>
                                 <SearchDates
+                                    isHiddenAll={true}
+                                    isCurrenYeartHidden={true}
                                     gubun={this.state.selectedGubun}
                                     startDate={this.state.startDate}
                                     endDate={this.state.endDate}
                                     onChange={this.onDatesChange}
                                 />
-                                <Button className="ml-3" color="primary" onClick={() => this.search(true)}> 검 색 </Button>
-                                <Button className="ml-3" color="secondary" onClick={this.showBlctBalanceButtonClick.bind(this)}> Blct잔고 출력 </Button>
-                            </Flex>
+                                <MenuButton onClick={() => this.search(true)}> 검 색 </MenuButton>
+                                <MenuButton onClick={this.showBlctBalanceButtonClick.bind(this)}> Blct잔고 출력 </MenuButton>
+                            </Space>
                         </Div>
-                    </Flex>
-                </div>
+                    </Space>
+                </Div>
+
+                <Div p={10} bc={'secondary'} mb={10}>
+                    <Space>
+                        <Input type='select' name='select' id='independentSearchBy' style={{width: 130}} onChange={this.onIndependentSearchByChange}>
+                            <option name='radio1' value="phone">phone</option>
+                            <option name='radio2' value="email">email</option>
+                            <option name='radio3' value="name">name</option>
+                            <option name='radio4' value="nickname">nickname</option>
+                            <option name='radio5' value="consumerNo">consumerNo</option>
+                            <option name='radio6' value="recommenderNo">recommenderNo</option>
+                            <option name='radio6' value="ip">ip</option>
+                            <option name='radio6' value="level">등급(level)</option>
+                        </Input>
+                        <Button onClick={this.oneIndependentSearch} className={'ml-2'}> 소비자 별도조회 (버튼클릭후 조건입력) </Button>
+                    </Space>
+                </Div>
+
                 {/* filter START */}
-                <FilterContainer gridApi={this.gridApi} excelFileName={'소비자 목록'}>
+                <FilterContainer gridApi={this.gridApi} columnApi={this.columnApi} excelFileName={'소비자 목록'}>
                     <FilterGroup>
                         <InputFilter
                             gridApi={this.gridApi}
@@ -406,15 +490,21 @@ export default class ConsumerList extends Component{
                     </FilterGroup>
                 </FilterContainer>
                 {/* filter END */}
-                <div className="d-flex p-1">
-                    <div  className="d-flex">
+
+                <Flex mb={10}>
+                    <Div>
                         <ExcelDownload data={this.state.excelData}
                                        fileName="소비자전체목록확인"
                                        buttonName = "Excel 다운로드"
                         />
-                    </div>
-                    <div className="flex-grow-1 text-right">[현재Page {this.state.data.length-1}명]   총 {this.state.consumerCount+this.state.consumerStopedCount}명[탈퇴:{this.state.consumerStopedCount}, 휴면{this.state.consumerDormancyCount}]  +  준회원(선물수령자) {this.state.semiConsumerCount}명</div>
-                </div>
+                    </Div>
+
+                    <Right>
+                        <span>
+                            [현재Page {this.state.data.length-1}명] 총회원 {ComUtil.addCommas(this.state.consumerCount+this.state.consumerStopedCount)}명 = 실회원 {ComUtil.addCommas(this.state.consumerCount)}명 (활성 {ComUtil.addCommas(this.state.consumerCount - this.state.consumerDormancyCount)} + 휴면 {ComUtil.addCommas(this.state.consumerDormancyCount)}) + 탈퇴 {ComUtil.addCommas(this.state.consumerStopedCount)}, 준회원(선물수령자) {ComUtil.addCommas(this.state.semiConsumerCount)}명
+                        </span>
+                    </Right>
+                </Flex>
 
                 <div
                     className="ag-theme-balham"
@@ -423,13 +513,9 @@ export default class ConsumerList extends Component{
                     }}
                 >
                     <AgGridReact
-                        // enableSorting={true}                //정렬 여부
-                        // enableFilter={true}                 //필터링 여부
                         columnDefs={this.state.isSearch ? this.state.searchColumnDefs : this.state.columnDefs}  //컬럼 세팅
                         rowSelection={'multiple'}
                         defaultColDef={this.state.defaultColDef}
-                        // components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
-                        // enableColResize={true}              //컬럼 크기 조정
                         overlayLoadingTemplate={this.state.overlayLoadingTemplate}
                         overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
                         onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
@@ -440,6 +526,15 @@ export default class ConsumerList extends Component{
                     >
                     </AgGridReact>
                 </div>
+
+
+                <Space mt={30} mb={10}> [ 특정소비자 구매건수 조회 ] <Button className='ml-2' onClick={this.searchConsumerOrderCount}> 검색 </Button></Space>
+                <Div className='mb-2'>
+                    <Input mb={5} type="text" placeholder="소비자번호 (,로 구분해서 여러개 입력) " value={this.state.searchConsumerNo} onChange={this.onChangeSearchConsumerNo}/>
+                </Div>
+                <Div>
+                    <Textarea placeholder="구매건수 결과" style={{width: '100%'}} readOnly value={this.state.consumerOrderCount}/>
+                </Div>
 
                 <Modal size="lg" isOpen={this.state.modal}
                        toggle={this.toggle} >
@@ -455,7 +550,7 @@ export default class ConsumerList extends Component{
                     </ModalFooter>
                 </Modal>
 
-            </div>
+            </Div>
         )
     }
 }

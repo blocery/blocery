@@ -27,6 +27,7 @@ const NewTokenSwapDepositList = (props) => {
 
     const [modalOpen, setModalOpen, selected, setSelected, setModalState] = useModal()
     const [gridApi, setGridApi] = useState(null);
+    const [columnApi, setColumnApi] = useState()
     const [agGrid, setAgGrid] = useState({
         columnBlyToDefs: [
             {headerName: "erc20 임시계정", width: 330, field: "swapAccount"},
@@ -324,6 +325,7 @@ const NewTokenSwapDepositList = (props) => {
     const onGridReady = (params) => {
         //API init
         setGridApi(params.api);
+        setColumnApi(params.columnApi)
     }
 
 
@@ -349,7 +351,7 @@ const NewTokenSwapDepositList = (props) => {
                 <div className="ml-3"><b>{ComUtil.toCurrency(totalBlctIn)}BLY</b></div>
             </div>
 
-            <FilterContainer gridApi={gridApi} excelFileName={'토큰 입금 내역'} >
+            <FilterContainer gridApi={gridApi} columnApi={columnApi} excelFileName={'토큰 입금 내역'} >
                 <FilterGroup>
                     <InputFilter
                         gridApi={gridApi}
@@ -413,17 +415,13 @@ const NewTokenSwapDepositList = (props) => {
                 }}
             >
                 <AgGridReact
-                    // enableSorting={true}
-                    // enableFilter={true}
                     columnDefs={agGrid.columnBlyToDefs}
                     defaultColDef={agGrid.defaultColDef}
                     rowSelection={'single'}  //멀티체크 가능 여부
-                    // enableColResize={true}
                     overlayLoadingTemplate={agGrid.overlayLoadingTemplate}
                     overlayNoRowsTempalte={agGrid.overlayNoRowsTemplate}
                     frameworkComponents={agGrid.frameworkComponents}
                     rowData={blyToBlctList}
-                    //onRowClicked={selectRow}
                     onCellDoubleClicked={({value})=>ComUtil.copyTextToClipboard(value, '', '')}
                     onGridReady={onGridReady}   //그리드 init(최초한번실행)
                 />

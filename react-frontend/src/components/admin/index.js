@@ -1,13 +1,17 @@
 import AdminLogin from './AdminLogin'
 import {ConsumerList, ConsumerStoppedList, StoppedConsumer, RecommendFriendList, AbuserList} from './consumerList'
+import {GoodsStepList} from './goodsStep'
 import ProducerList from './producerList'
+import ProducerJoinList from './producerJoin'
 import ProducerRegRequest from './producerRegRequest'
-import ProducerPayout from './producerPayout'
-import {ProducerGoodsQnaList, ProducerGoodsQnaAnswer} from './producerQnaList'
+import {ProducerQnaList, ProducerQnaAnswer} from './producerQnaList'
+import {GoodsReviewList} from './goodsReview'
+import {GoodsReviewReplyReportList, ReportInfoViewContent} from './goodsReviewReplyReport'
+import {BoardReplyReportList, BoardReportList, ProfileReportList, ProfileBlockList, BoardRankingList} from './boardAndReply'
 import {OrderList,OrderCardTempList} from './orderList'
 import OrderStats from './orderStats'
 import GoodsList from './goodsList'
-import SimpleAdmin from './simpleAdmin'
+import { DealGoodsList } from './dealGoodsList'
 import SetToken from './setToken'
 import { TokenSwapInList, TokenSwapOutList, NewTokenSwapDepositList } from './tokenSwapList'
 import { DonAirDropList } from './donAirDrop'
@@ -19,13 +23,13 @@ import ItemList from './itemList'
 import ItemReg from './itemReg'
 import NoticeList from './noticeList'
 import NoticeReg from './noticeReg'
+import HoliDayList from './holiday'
 import {PushNotiList, PushNotiReg} from './pushNotification'
 import EventPaymentList from './event'
 import B2cHomeSetting from './b2cHomeSetting'
 import EventInfoList from './eventList'
 import {B2cMdPickList,B2cMdPickReg} from './b2cMdPick'
 import {B2cTimeSaleList,B2cTimeSaleReg} from './b2cTimeSale'
-import {B2cBlyTimeList,B2cBlyTimeReg} from './b2cBlyTime'
 import {B2cSuperRewardList,B2cSuperRewardReg} from './b2cSuperReward'
 import ProducerFeeRateList from './producerFeeRate'
 import BlctStats from './blctStats'
@@ -39,18 +43,29 @@ import {HomeBannerList,HomeBannerReg} from './homeBanner'
 import {GoPaxJoinEventList, GoPaxCardEventList} from './goPaxEvent'
 import {InviteFriendCountList, InviteFriendList, InviteFriendGoodsList} from './inviteFriend'
 import {ProducerCancelReqList} from './producerCancelReqList'
+import BoardVote from "~/components/admin/boardVote";
+import HashTag from "~/components/admin/hashTag";
+import HashTagGroupManager from "~/components/admin/hashTagGroupManager";
+import {FaqList} from "~/components/admin/faqList"
+import {PointList} from "~/components/admin/point"
+import RouletteManage from "~/components/admin/roulette";
+import HoliDayList from "./holiday";
 
 export {
     AdminLogin,
     ConsumerList, ConsumerStoppedList, StoppedConsumer, RecommendFriendList, AbuserList,
+    GoodsStepList,
     ProducerList,
+    ProducerJoinList,
     ProducerRegRequest,
-    ProducerPayout,
-    ProducerGoodsQnaList, ProducerGoodsQnaAnswer,
+    GoodsReviewList,
+    GoodsReviewReplyReportList, ReportInfoViewContent,
+    BoardReplyReportList, BoardReportList, ProfileReportList, ProfileBlockList, BoardRankingList,
+    ProducerQnaList, ProducerQnaAnswer,
     OrderList, OrderCardTempList,
     OrderStats,
     GoodsList,
-    SimpleAdmin,
+    DealGoodsList,
     AddAdmin,
     ConsumerKycList,
     SetToken,
@@ -61,9 +76,9 @@ export {
     TransportCompanyReg,
     ItemList,
     ItemReg,
-    NoticeList,
+    NoticeList, NoticeReg,
     PushNotiList, PushNotiReg,
-    NoticeReg,
+    HoliDayList,
     EventPaymentList,
     B2cHomeSetting,
     EventInfoList,
@@ -72,7 +87,6 @@ export {
     BlctStats,
     BlctToWon,
     B2cTimeSaleList,B2cTimeSaleReg,
-    B2cBlyTimeList, B2cBlyTimeReg,
     B2cSuperRewardList,B2cSuperRewardReg,
     BountyEventHistory,
     CouponMasterList,
@@ -82,5 +96,11 @@ export {
     HomeBannerList, HomeBannerReg,
     GoPaxJoinEventList, GoPaxCardEventList,
     InviteFriendCountList, InviteFriendList, InviteFriendGoodsList,
-    ProducerCancelReqList
+    ProducerCancelReqList,
+    BoardVote,
+    HashTag,
+    HashTagGroupManager,
+    FaqList,
+    PointList,
+    RouletteManage
 }

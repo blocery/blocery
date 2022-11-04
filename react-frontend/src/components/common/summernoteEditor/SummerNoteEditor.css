@@ -1,0 +1,256 @@
+.note-editor.note-frame.fullscreen, .note-editor.note-airframe.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    z-index: 2000;
+    background-color: white;
+}
+
+.note-editable {
+    font-family: "NanumSquareRound";
+    text-align: left
+}
+
+.note-modal .modal-header {
+    display: block;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 1rem 1rem;
+    border-bottom: 1px solid #dee2e6;
+    border-top-left-radius: calc(0.3rem - 1px);
+    border-top-right-radius: calc(0.3rem - 1px);
+}
+/*.note-group-image-url {*/
+/*    display: none;*/
+/*}*/
+
+/*Toolbar panel*/
+.note-editor .note-toolbar {
+    text-align: left;
+    background: #f0f0f1;
+    border-bottom: 1px solid #c2cad8;
+    /*-webkit-box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.14), 0 3px 4px 0 rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2);*/
+    /*box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.14), 0 3px 4px 0 rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2);*/
+}
+
+.note-editor .note-toolbar .note-dropdown-menu, .note-popover .popover-content .note-dropdown-menu {
+    min-width: 160px;
+    padding: 5px 0;
+    margin: 2px 0 0;
+    font-size: 14px;
+    text-align: left;
+    list-style: none;
+}
+
+/*Buttons from toolbar*/
+.summernote .btn-group, .popover-content .btn-group {
+    background: transparent;
+    -webkit-box-shadow: none;
+    box-shadow: none;
+}
+.note-popover {
+    background: #f0f0f1!important;
+}
+.summernote .btn, .note-btn {
+    color: rgba(0, 0, 0, .54)!important;
+    background-color: white!important;
+    border: 1px solid gray;
+    padding: 6px 12px;
+    font-size: 12px;
+    line-height: 1.42857;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-box-shadow: none;
+    box-shadow: none;
+}
+.summernote .dropdown-toggle:after {
+    vertical-align: middle;
+}
+.note-editor .dropdown-menu>li>a {
+    display: block;
+    padding: 3px 20px;
+    clear: both;
+    font-weight: 400;
+    line-height: 1.42857143;
+    color: #333;
+    white-space: nowrap;
+}
+.note-editor.card {
+    -webkit-box-shadow: none;
+    box-shadow: none;
+    border-radius: 2px;
+}
+
+/* dropdown icon css bug modify */
+.note-icon-caret::before {
+    content: "";
+}
+.note-editor .dropdown-toggle::after {
+    display: inline-block;
+    margin-left: 0em;
+    vertical-align: 0.255em;
+    content: "";
+    border-top: 0.3em solid;
+    border-right: 0.3em solid transparent;
+    border-bottom: 0;
+    border-left: 0.3em solid transparent;
+}
+
+/* Border of the Summernote textarea */
+.note-editor.note-frame {
+    border: 1px solid rgba(0, 0, 0, .14);
+}
+
+/* Padding of the text in textarea */
+.note-editor.note-frame .note-editing-area .note-editable {
+    padding-top: 1rem;
+}
+
+/* blockqutoe class */
+blockquote.blockquote {
+    border-left: 4px solid green;
+    margin: 5px 5%;
+    padding-left: 16px;
+}
+
+li.checkmarker {
+    margin: 0px 0px 0px 3%;
+    padding: 20px 0 20px 60px;
+    list-style: none;
+    background-image: url("/bullets/goodsBullet.jpeg");
+    background-repeat: no-repeat;
+    background-position: left center;
+    background-size: 42px;
+    font-size: 30px;
+    line-height: 1.1;
+}
+
+/* codeview class */
+pre.pre {
+    display: block;
+    padding: 9.5px;
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.42857143;
+    color: #333;
+    word-break: break-all;
+    word-wrap: break-word;
+    background-color: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* ================= [커스텀 템플릿 class] 시작 ================= */
+/* 템플릿 최상단 컨테이너 */
+/* 템플릿 최상단 컨테이너 */
+.note-custom-template-container {
+    color: #505050;
+    padding-bottom: 32px;
+}
+.note-custom-template-container img {
+    /* 이미지 원본 사이즈로 나오게, 하지만 상품상세 wrapper 에서 상품상세의 모든이미지는 width:100%!important 로 제어중임 */
+    width: max-content;
+}
+
+/* 템플릿 최상단 컨테이너 : 첫번째 이미지 위 아래 패딩 적용 */
+.note-custom-template-container > img:first-child {
+    padding: 14px 0;
+}
+
+/* 박스 껍데기 */
+.note-custom-text-box {
+    padding: 0 32px;
+    margin: 35px 0;
+}
+
+/* 타이틀 - 대 */
+.note-custom-text-box-title-lg {
+    font-size: 20px;
+    line-height: 1.3;
+    letter-spacing: .5px;
+    margin-bottom: 20px;
+}
+
+/* 타이틀 - 중 */
+.note-custom-text-box-title-md {
+    font-size: 18px;
+    line-height: 1.3;
+    letter-spacing: .4px;
+    margin-bottom: 14px;
+}
+
+/* 타이틀 - 소 */
+.note-custom-text-box-title-sm {
+    font-size: 15px;
+    line-height: 1.3;
+    letter-spacing: .4px;
+    margin-bottom: 9px;
+}
+
+
+/*  상세 내용 */
+.note-custom-text-box-desc {
+    font-size: 14px;
+    font-weight: lighter;
+    line-height: 1.7;
+}
+
+
+/* 녹색 라인 */
+.note-custom-vertical-line {
+    border-left: 5px solid green;
+    margin-right: 11px;
+}
+
+
+/* 샵블리 체크포인트, 크기비교, 이렇게 포장됩니다 : 박스 */
+.note-custom-text-green-box {
+    padding: 0 32px;
+}
+
+
+/* 체크포인트 : 타이틀 */
+.note-custom-check-point-title {
+    font-size: 18px;
+    letter-spacing: .5px;
+    text-align: center;
+    color: #5a9267;
+    margin-top: 62px;
+    margin-bottom: 24px;
+}
+
+
+/* 체크박스 wrapper */
+.note-custom-text-green-box > li {
+    margin-bottom: 14px;
+}
+.note-custom-text-green-box > li:last-child {
+    margin: 0;
+}
+/* 체크박스 및 텍스트 */
+.note-custom-checkbox {
+    background-image: url("/bullets/goodsBullet.jpeg");
+    background-repeat: no-repeat;
+    list-style: none;
+    background-size: 29px;
+    min-height: 29px;
+    background-position: left top;
+    padding-left: 37px;
+
+    font-size: 14px;
+    line-height: 1.36;
+}
+
+
+/* 포장방법은 업체 사정에 따라 달라질 수 있습니다. */
+.note-custom-pack-small-text {
+    text-align: center;
+    font-size: 11px;
+    color: #505050;
+    margin-top: 16px;
+}
+
+/* ================= [커스텀 템플릿 class] 끝 ================= */

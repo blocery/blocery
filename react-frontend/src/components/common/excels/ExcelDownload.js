@@ -3,6 +3,7 @@
 import React from "react";
 import { Button } from 'reactstrap'
 import ExcelUtil from '~/util/ExcelUtil'
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
 
 class ExcelDownload extends React.Component {
     constructor(props){
@@ -13,13 +14,13 @@ class ExcelDownload extends React.Component {
         //if(!this.props.data) return null
 
         return (
-            <Button color={'info'} size={this.props.size ? this.props.size : 'sm'} onClick = {() => ExcelUtil.download(this.props.fileName, this.props.data)}>
+            <MenuButton onClick = {() => ExcelUtil.download(this.props.fileName, this.props.data)}>
                 <div className="d-flex">
                     {
                         (this.props.buttonName)? this.props.buttonName : '엑셀 다운로드'
                     }
                 </div>
-            </Button>
+            </MenuButton>
         );
 
 

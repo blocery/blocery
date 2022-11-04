@@ -228,7 +228,7 @@ export default class GoodsDetailBannerReg extends Component {
                                 defaultCount={1}
                                 isShownMainText={false}
                                 onChange={this.onGoodsBannerImagesChange}
-                                isNoResizing={true}
+                                quality={1}
                             />
                         </div>
                         <span className={'small text-secondary'}>

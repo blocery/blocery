@@ -6,30 +6,30 @@ import { getTimeSaleAdminList, delTimeSale } from '~/lib/adminApi'
 import moment from 'moment-timezone'
 import { ModalConfirm,  AdminModalWithNav } from '~/components/common'
 import { B2cTimeSaleReg } from '~/components/admin/b2cTimeSale'
-
+import TimeSaleRenderer from './TimeSaleRenderer';
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
 import { Cell } from '~/components/common'
 import { Server } from '../../Properties'
 
 import DatePicker from "react-datepicker";
 import "react-datepicker/src/stylesheets/datepicker.scss";
+import {Div, Flex, Right, Space, Span} from "~/styledComponents/shared";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
 
 export default class B2cTimeSaleList extends Component{
     constructor(props) {
         super(props);
+        this.gridRef = React.createRef();
         this.state = {
             search: {
                 year:moment().format('YYYY')
             },
-            loading: false,
             data: [],
             columnDefs: [
                 {
                     headerName: "포텐타임 시작일", field: "timeSaleStart", sort:"desc",
                     suppressSizeToFit: true,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 180,
                     cellRenderer: "formatDatesRenderer",
                     valueGetter: function(params) {
@@ -62,7 +62,7 @@ export default class B2cTimeSaleList extends Component{
                 {
                     headerName: "포텐타임 종료일", field: "timeSaleEnd",
                     suppressSizeToFit: true,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 180,
                     cellRenderer: "formatDatesRenderer",
                     valueGetter: function(params) {
@@ -94,12 +94,12 @@ export default class B2cTimeSaleList extends Component{
                 },
                 {
                     headerName: "생산자No", field: "producerNo",
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 80
                 },
                 {
                     headerName: "생산자명", field: "producerFarmNm",
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 100
                 },
                 {
@@ -107,29 +107,29 @@ export default class B2cTimeSaleList extends Component{
                     field: "goodsImages",
                     suppressFilter: true,   //no filter
                     suppressSorting: true,  //no sort
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer:"goodsImageRenderer",
                     width: 120
                 },
                 {
                     headerName: "상품No", field: "goodsNo",
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 80
                 },
                 {
                     headerName: "상품명",
-                    field: "goodsNm",
+                    field: "googNm",
                     suppressSizeToFit: true,
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'left'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'left'}),
                     cellRenderer: "titleRenderer",
                     width: 250
                 },
                 {
                     headerName: "우선순위", field: "timeSalePriority",
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 80
                 },
                 {
@@ -139,7 +139,7 @@ export default class B2cTimeSaleList extends Component{
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer: "timeSaleConsumerPriceRenderer",
                     width: 100
                 },
@@ -150,20 +150,14 @@ export default class B2cTimeSaleList extends Component{
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer: "timeSaleCurrentPriceRenderer",
                     width: 100
                 },
                 {
                     headerName: "정산가", field: "currentPrice",
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     cellRenderer: "settlementPriceRenderer",
-                    width: 100
-                },
-                {
-                    headerName: "판매지원금", field: "timeSaleSupportPrice",
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
-                    cellRenderer: "supportPriceRenderer",
                     width: 100
                 },
                 {
@@ -173,8 +167,8 @@ export default class B2cTimeSaleList extends Component{
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
-                    cellRenderer: "timeSalePriceRenderer",
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
+                    cellRenderer: "TimeSaleRenderer",
                     width: 100
                 },
                 {
@@ -182,7 +176,7 @@ export default class B2cTimeSaleList extends Component{
                     //suppressFilter: true,   //no filter
                     //suppressSorting: true,  //no sort
                     suppressSizeToFit: true,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 150,
                     cellRenderer: "timeSaleStateRenderer",
                     filterParams: {
@@ -196,7 +190,7 @@ export default class B2cTimeSaleList extends Component{
                     headerName: "비고",
                     suppressFilter: true,   //no filter
                     suppressSorting: true,  //no sort
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 150,
                     cellRenderer: "delButtonRenderer"
                 },
@@ -206,7 +200,7 @@ export default class B2cTimeSaleList extends Component{
                 resizable: true,
                 filter: true,
                 sortable: true,
-                floatingFilter: false,
+                floatingFilter: true,
                 filterParams: {
                     newRowsAction: 'keep'
                 }
@@ -224,11 +218,10 @@ export default class B2cTimeSaleList extends Component{
                 timeSaleCurrentPriceRenderer:this.timeSaleCurrentPriceRenderer,
                 settlementPriceRenderer:this.settlementPriceRenderer,
                 supportPriceRenderer:this.supportPriceRenderer,
-                timeSalePriceRenderer:this.timeSalePriceRenderer,
+                TimeSaleRenderer:TimeSaleRenderer,
                 timeSaleStateRenderer:this.timeSaleStateRenderer,
                 delButtonRenderer:this.delButtonRenderer
             },
-            rowHeight: 75,
             timeSaleGoodsNo:"",
             timeSaleModalTitle:"",
             isTimeSaleModalOpen:false
@@ -255,21 +248,8 @@ export default class B2cTimeSaleList extends Component{
     //     this.gridColumnApi = params.columnApi;
     // }
 
-    // Ag-Grid Cell 스타일 기본 적용 함수
-    getCellStyle ({cellAlign,color,textDecoration,whiteSpace, fontWeight}){
-        if(cellAlign === 'left') cellAlign='flex-start';
-        else if(cellAlign === 'center') cellAlign='center';
-        else if(cellAlign === 'right') cellAlign='flex-end';
-        else cellAlign='flex-start';
-        return {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: cellAlign,
-            color: color,
-            textDecoration: textDecoration,
-            whiteSpace: whiteSpace,
-            fontWeight: fontWeight
-        }
+    getRowHeight(params) {
+        return 50;
     }
 
     //Ag-Grid Cell 숫자콤마적용 렌더러
@@ -304,19 +284,22 @@ export default class B2cTimeSaleList extends Component{
 
     titleRenderer = ({value, data:rowData}) => {
         const stateNm = B2cTimeSaleList.getTimeSaleStateNm(rowData);
+
+        //2022.05 googNm-> 관리자용 goodsEventOptionNm    (예전상품이면 goodsNm, eventFlag상품이면 + eventOptionName.)
+        const goodsEventOptionNm = (rowData.eventOptionName && rowData.eventOptionName!==rowData.goodsNm)? rowData.goodsNm + ' [' + rowData.eventOptionName + ']': rowData.goodsNm;
         return (
             <Cell textAlign="left">
                 {
                     stateNm=="종료" && (
                         <div style={{color: 'dark'}}>
-                            {rowData.goodsNm}
+                            {goodsEventOptionNm}
                         </div>
                     )
                 }
                 {
                     stateNm!="종료" && (
                         <div onClick={this.regTimeSale.bind(this, rowData.goodsNo)} style={{color: 'blue'}}>
-                            <u>{rowData.goodsNm}</u>
+                            <u>{goodsEventOptionNm}</u>
                         </div>
                     )
                 }
@@ -333,11 +316,11 @@ export default class B2cTimeSaleList extends Component{
 
     //판매가
     timeSaleCurrentPriceRenderer = ({value, data:rowData}) => {
-        return (
-            <span>
-                {ComUtil.addCommas(rowData.defaultCurrentPrice)}원({Math.round(rowData.defaultDiscountRate,0)}%)<br/>
-            </span>
-        );
+        if(rowData.goodsNm === rowData.eventOptionName){
+            return (<span>{ComUtil.addCommas(rowData.defaultCurrentPrice)}원({Math.round(rowData.defaultDiscountRate,0)}%)</span>);
+        }else{
+            return (<span>{ComUtil.addCommas(rowData.eventOptionPrice)}원</span>);
+        }
     };
 
     //정산가
@@ -349,26 +332,6 @@ export default class B2cTimeSaleList extends Component{
             </span>
         )
     }
-
-    //판매지원금
-    supportPriceRenderer = ({value, data:rowData}) => {
-        return (
-            <span>
-                {ComUtil.addCommas(rowData.timeSaleSupportPrice)}원
-            </span>
-        )
-    }
-
-    //타임세일가
-    timeSalePriceRenderer = ({value, data:rowData}) => {
-        const potenSaleRate = 100-(rowData.timeSalePrice/rowData.consumerPrice*100)
-        return (
-            <span>
-                {ComUtil.addCommas(rowData.timeSalePrice)}원({Math.round((potenSaleRate*10)/10.0)}%)<br/>
-                {/*Fee : {rowData.timeSaleFeeRate} %*/}
-            </span>
-        );
-    };
 
     //상태 명칭 가져오기
     static getTimeSaleStateNm = (data) => {
@@ -425,7 +388,11 @@ export default class B2cTimeSaleList extends Component{
 
 
     search = async () => {
-        this.setState({loading: true});
+        const {api} = this.gridRef.current;
+        if (api) {
+            //ag-grid 레이지로딩중 보이기
+            api.showLoadingOverlay();
+        }
         const searchInfo = this.state.search;
         const params = {
             year:searchInfo.year
@@ -437,9 +404,13 @@ export default class B2cTimeSaleList extends Component{
             return
         }
         this.setState({
-            data: data,
-            loading: false
+            data: data
         });
+        //ag-grid api
+        if(api) {
+            //ag-grid 레이지로딩중 감추기
+            api.hideOverlay()
+        }
     };
 
     onDelTimeSale = async(goodsNo, isConfirmed) => {
@@ -491,68 +462,61 @@ export default class B2cTimeSaleList extends Component{
 
     render() {
         const ExampleCustomDateInput = ({ value, onClick }) => (
-            <Button
-                color="secondary"
-                active={true}
-                onClick={onClick}>포텐타임 {value} 년</Button>
+            <MenuButton onClick={onClick}>포텐타임 {value} 년</MenuButton>
         );
         return (
-            <div>
-                <div className="d-flex align-items-center p-1">
-                    <div className="pl-1">
-                        <span className="text-success">{this.state.data.length}</span>개의 포텐타임
-                    </div>
-                    <div className='ml-2'>
-                        <DatePicker
-                            selected={new Date(moment().set('year',this.state.search.year))}
-                            onChange={this.onSearchDateChange}
-                            showYearPicker
-                            dateFormat="yyyy"
-                            customInput={<ExampleCustomDateInput />}
-                        />
-                    </div>
-                    <div className='ml-2'>
-                        <Button color={'info'} onClick={this.search}>검색</Button>
-                    </div>
-                    <div className="flex-grow-1 text-right">
-                        <Button outline size='sm' color={'info'} onClick={this.regTimeSale.bind(this,'')} className='m-2'>포텐타임 등록</Button>
-                    </div>
-                </div>
-                <div className="p-1">
-                    <div
-                        className="ag-theme-balham"
-                        style={{
-                            height: '550px'
-                        }}
-                    >
-                        <AgGridReact
-                            // enableSorting={true}                //정렬 여부
-                            // enableFilter={true}                 //필터링 여부
-                            floatingFilter={true}               //Header 플로팅 필터 여부
-                            columnDefs={this.state.columnDefs}  //컬럼 세팅
-                            defaultColDef={this.state.defaultColDef}
-                            rowHeight={this.state.rowHeight}
-                            // enableColResize={true}              //컬럼 크기 조정
-                            overlayLoadingTemplate={this.state.overlayLoadingTemplate}
-                            overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
-                            // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
-                            rowData={this.state.data}
-                            components={this.state.components}
-                            frameworkComponents={this.state.frameworkComponents}
-                        >
-                        </AgGridReact>
+            <Div p={16}>
 
-                    </div>
-                    <AdminModalWithNav
-                        show={this.state.isTimeSaleModalOpen}
-                        title={this.state.timeSaleModalTitle}
-                        onClose={this.onTimeSalePopupClose}>
-                        <B2cTimeSaleReg
-                            timeSaleGoodsNo={this.state.timeSaleGoodsNo}
-                        />
-                    </AdminModalWithNav>
+                <Flex mb={10}>
+                    <Div>
+                        <Space>
+                            <MenuButton bg={'green'} onClick={this.regTimeSale.bind(this,'')}>포텐타임 등록</MenuButton>
+                            <DatePicker
+                                selected={new Date(moment().set('year',this.state.search.year))}
+                                onChange={this.onSearchDateChange}
+                                showYearPicker
+                                dateFormat="yyyy"
+                                customInput={<ExampleCustomDateInput />}
+                            />
+                            <MenuButton onClick={this.search}>검색</MenuButton>
+                        </Space>
+                    </Div>
+                    <Right>
+                        <Span fg={'green'} >{this.state.data.length}</Span>개의 포텐타임
+                    </Right>
+                </Flex>
+
+
+                <div
+                    className="ag-theme-balham"
+                    style={{
+                        height: '550px'
+                    }}
+                >
+                    <AgGridReact
+                        ref={this.gridRef}
+                        columnDefs={this.state.columnDefs}  //컬럼 세팅
+                        defaultColDef={this.state.defaultColDef}
+                        getRowHeight={this.getRowHeight}
+                        overlayLoadingTemplate={this.state.overlayLoadingTemplate}
+                        overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
+                        // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
+                        rowData={this.state.data}
+                        components={this.state.components}
+                        frameworkComponents={this.state.frameworkComponents}
+                    >
+                    </AgGridReact>
+
                 </div>
-            </div>
+                <AdminModalWithNav
+                    show={this.state.isTimeSaleModalOpen}
+                    title={this.state.timeSaleModalTitle}
+                    onClose={this.onTimeSalePopupClose}>
+                    <B2cTimeSaleReg
+                        timeSaleGoodsNo={this.state.timeSaleGoodsNo}
+                    />
+                </AdminModalWithNav>
+            </Div>
         )
     }
 }

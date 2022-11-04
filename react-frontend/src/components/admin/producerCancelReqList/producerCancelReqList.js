@@ -1,18 +1,17 @@
 import React, { Component } from 'react';
-import { Button } from 'reactstrap';
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
 import {getLoginAdminUser} from "~/lib/loginApi";
-import {getAllProducerCancelList, confirmProducerCancel, requestAdminOkStatusBatch} from "~/lib/adminApi";
+import {getAllProducerCancelList, confirmProducerCancel, confirmProducerCancelBack} from "~/lib/adminApi";
 import ComUtil from "~/util/ComUtil";
-import {ModalConfirm} from "~/components/common";
-import {getSwapBlctToBlyById} from "~/lib/swapApi";
+import {BlocerySpinner, ModalConfirm} from "~/components/common";
+import {Div, Flex, Right, Space} from "~/styledComponents/shared";
+import {MenuButton, SmButton} from "~/styledComponents/shared/AdminLayouts";
 
 export default class ProducerCancelReqList extends Component {
     constructor(props) {
         super(props);
         this.state = {
+            processLoading:false,
             data: [],
             frameworkComponents: {
                 payMethodNmRenderer: this.payMethodNmRenderer,
@@ -21,20 +20,20 @@ export default class ProducerCancelReqList extends Component {
                 cancelRenderer: this.cancelRenderer
             },
             columnDefs: [
-                {
-                    headerName: "주문번호", field: "orderSeq",
+                {headerName: "취소요청일자", field: "producerCancelReqDate", width: 150,
                     headerCheckboxSelection: true,
                     headerCheckboxSelectionFilteredOnly: true,  //전체 체크시 필터된 것만 체크
                     checkboxSelection: true,
                 },
+                {headerName: "주문번호", field: "orderSeq"},
                 {headerName: "상태", field: "orderStatus", width: 80},
                 {headerName: "농가명", field: "farmName", width: 100},
-                {headerName: "상품명", field: "goodsNm", width: 150},
+                {headerName: "상품명", field: "goodsOptionNm", width: 150},
                 {headerName: "취소/환불진행", width: 110, cellRenderer: "cancelRenderer"},
                 {headerName: "취소/환불사유", field:"producerCancelReason", width: 150},
                 {headerName: "상품종류", field: "directGoods", width: 90,
                     valueGetter: function(params) {
-                        return params.data.directGoods ? "즉시" : "예약";
+                        return params.data.directGoods ? "즉시" : (params.data.dealGoods ? "공동구매" : "예약");
                     }
                 },
                 {
@@ -141,7 +140,7 @@ export default class ProducerCancelReqList extends Component {
             // let consumerOkDateToString = data[index].consumerOkDate;
             let trackingNumberTimeToString = data[index].trackingNumberTimestamp ? ComUtil.utcToString(data[index].trackingNumberTimestamp,'YYYY-MM-DD HH:mm'):null;
             // let trackingNumberTimeToString = data[index].trackingNumberTimestamp;
-
+            let producerCancelReqDateToString = data[index].producerCancelReqDate ? ComUtil.utcToString(data[index].producerCancelReqDate,'YYYY-MM-DD HH:mm'):null;
 
             let cardPrice = (data[index].cardPrice == 0)? null: data[index].cardPrice;
             let blctToken = (data[index].blctToken == 0)? null: data[index].blctToken;
@@ -153,6 +152,7 @@ export default class ProducerCancelReqList extends Component {
 
             data[index].cardPrice = cardPrice;
             data[index].blctToken = blctToken;
+            data[index].producerCancelReqDate = producerCancelReqDateToString;
 
         })
 
@@ -173,6 +173,10 @@ export default class ProducerCancelReqList extends Component {
 
         if(order.consumerOkDate) {
             orderStatus = '구매확정'
+        } else if(order.payStatus === 'scheduled') {
+            orderStatus = '주문예약'
+        } else if(order.payStatus === 'revoked') {
+            orderStatus = '주문예약취소'
         } else if(order.payStatus === 'cancelled') {
             orderStatus = '취소완료'
         } else if(order.trackingNumber) {
@@ -235,13 +239,13 @@ export default class ProducerCancelReqList extends Component {
                 <div> - </div>
                 :
                 (rowData.reqProducerCancel === 1 ?
-                    <ModalConfirm title={'주문취소처리'} content={<div>해당 주문을 취소 하시겠습니까?</div>} onClick={this.onOrderCancel.bind(this, rowData)}>
-                        <Button size='sm'>주문취소처리</Button>
-                    </ModalConfirm>
-                    :
-                    <ModalConfirm title={'환불처리'} content={<div>해당 주문을 환불 하시겠습니까?</div>} onClick={this.onOrderCancel.bind(this, rowData)}>
-                        <Button size='sm'>환불처리</Button>
-                    </ModalConfirm>
+                        <ModalConfirm title={'주문취소처리'} content={<div>해당 주문을 취소 하시겠습니까?</div>} onClick={this.onOrderCancel.bind(this, rowData)}>
+                            <SmButton fg={'danger'}>주문취소처리</SmButton>
+                        </ModalConfirm>
+                        :
+                        <ModalConfirm title={'환불처리'} content={<div>해당 주문을 환불 하시겠습니까?</div>} onClick={this.onOrderCancel.bind(this, rowData)}>
+                            <SmButton fg={'green'}>환불처리</SmButton>
+                        </ModalConfirm>
                 )
         )
     }
@@ -253,8 +257,11 @@ export default class ProducerCancelReqList extends Component {
     onOrderCancel = async (rowData, confirmed) => {
         if(confirmed) {
             this.setState({ loading: true });
-
-            const {status, data} = await confirmProducerCancel(rowData.orderSeq);
+            const producerCancelReason = window.prompt('소비자한테 보여줄 취소사유 입력', '재고없음')
+            if (!producerCancelReason) {
+                return
+            }
+            const {status, data} = await confirmProducerCancel(rowData.orderSeq,producerCancelReason);
             if (status === 200) {
                 alert('처리완료되었습니다.');
                 this.search();
@@ -291,12 +298,51 @@ export default class ProducerCancelReqList extends Component {
             return
         }
 
+        const producerCancelReason = window.prompt('소비자한테 보여줄 취소사유 입력', '재고없음')
+        if (!producerCancelReason) {
+            return
+        }
+
         //const promises = updateRows.map(item => requestAdminOkStatusBatch(item.swapBlctToBlyNo))
-        const promises = updateRows.map(item=> confirmProducerCancel(item.orderSeq))
-        await Promise.all(promises)
+        // const promises = updateRows.map(async item=> await confirmProducerCancel(item.orderSeq, producerCancelReason))
+        this.setState({processLoading:true});
+        await updateRows.reduce( async (promise, item) => {
+            await promise;
+            await confirmProducerCancel(item.orderSeq, producerCancelReason);
+        }, {});
+
+        // await Promise.all(promises)
 
         alert('처리되었습니다.')
-        this.setState({selectedRows:[]})
+        this.setState({selectedRows:[],processLoading:false})
+
+        //새로고침
+        this.search()
+    }
+
+    onMultiCancelBackClick = async () => {
+        //체크된 목록 중 업데이트
+        const updateRows = await this.getAvailableRows()
+
+        if (updateRows.length <= 0){
+            alert('철회할 건이 없습니다')
+            return
+        }
+
+        if (!window.confirm(`${ComUtil.addCommas(updateRows.length)}건을 철회 하시겠습니까?`)) {
+            return
+        }
+
+        // const promises = updateRows.map(item=> confirmProducerCancelBack(item.orderSeq))
+        // await Promise.all(promises)
+        this.setState({processLoading:true});
+        await updateRows.reduce( async (promise, item) => {
+            await promise;
+            await confirmProducerCancelBack(item.orderSeq);
+        }, {});
+
+        alert('철회처리되었습니다.')
+        this.setState({selectedRows:[],processLoading:false})
 
         //새로고침
         this.search()
@@ -315,49 +361,54 @@ export default class ProducerCancelReqList extends Component {
 
     render() {
         return (
-            <div>
+            <Div p={16}>
+                {
+                    this.state.processLoading && <BlocerySpinner/>
+                }
 
-                <div className="d-flex align-items-center p-1">
-                    <div>
+                <Flex mb={10} minHeight={33}>
+                    <Space>
                         {
                             (this.state.selectedRows.length > 0) && (
-                                <Button size={'sm'} className={'mr-1'} onClick={this.onMultiCancelClick}>
+                                <MenuButton bg={'green'} onClick={this.onMultiCancelClick}>
                                     {this.state.selectedRows.length}건 주문취소/환불처리
-                                </Button>
+                                </MenuButton>
                             )
                         }
-                    </div>
-                    <div className="flex-grow-1 text-right">
+                        {
+                            (this.state.selectedRows.length > 0) && (
+                                <MenuButton bg={'green'} onClick={this.onMultiCancelBackClick}>
+                                    {this.state.selectedRows.length}건 철회처리
+                                </MenuButton>
+                            )
+                        }
+                    </Space>
+                    <Right>
                         총 {this.state.data.length} 건
-                    </div>
-                </div>
-                <div className="p-1">
-                    <div
-                        className="ag-theme-balham"
-                        style={{
-                            height: '600px'
-                        }}
+                    </Right>
+                </Flex>
+
+                <div
+                    className="ag-theme-balham"
+                    style={{
+                        height: '600px'
+                    }}
+                >
+                    <AgGridReact
+                        columnDefs={this.state.columnDefs}  //컬럼 세팅
+                        defaultColDef={this.state.defaultColDef}
+                        frameworkComponents={this.state.frameworkComponents}
+                        overlayLoadingTemplate={this.state.overlayLoadingTemplate}
+                        overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
+                        onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
+                        rowData={this.state.data}
+                        onCellDoubleClicked={this.copy}
+                        rowSelection={'multiple'} //멀티체크 가능 여부
+                        onSelectionChanged={this.onSelectionChanged.bind(this)}
                     >
-                        <AgGridReact
-                            // enableSorting={true}                //정렬 여부
-                            // enableFilter={true}                 //필터링 여부
-                            columnDefs={this.state.columnDefs}  //컬럼 세팅
-                            defaultColDef={this.state.defaultColDef}
-                            frameworkComponents={this.state.frameworkComponents}
-                            // components={this.state.components}  //custom renderer 지정, 물론 정해져있는 api도 있음
-                            // enableColResize={true}              //컬럼 크기 조정
-                            overlayLoadingTemplate={this.state.overlayLoadingTemplate}
-                            overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
-                            onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
-                            rowData={this.state.data}
-                            onCellDoubleClicked={this.copy}
-                            rowSelection={'multiple'} //멀티체크 가능 여부
-                            onSelectionChanged={this.onSelectionChanged.bind(this)}
-                        >
-                        </AgGridReact>
-                    </div>
+                    </AgGridReact>
                 </div>
-            </div>
-         )
+            </Div>
+        )
     }
 }

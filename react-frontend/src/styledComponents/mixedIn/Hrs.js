@@ -13,5 +13,5 @@ export const HrHeavy = styled(Hr)`
 `;
 
 export const HrHeavyX2 = styled(Hr)`
-    border-width: 10px;
+    border-width: 6px;
 `;

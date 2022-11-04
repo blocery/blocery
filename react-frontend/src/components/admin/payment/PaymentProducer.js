@@ -1,58 +1,55 @@
 import React, { Component, Fragment } from 'react';
-import { FormGroup, Button, Input } from 'reactstrap'
-import { getAllProducers, getPaymentProducer } from '~/lib/adminApi'
+import {FormGroup, Button, Input, Modal, ModalHeader, ModalBody, ModalFooter} from 'reactstrap'
+import {Flex, Div, Button as StButton, Input as StInput} from "~/styledComponents/shared";
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
+import { getPaymentProducerGigan } from '~/lib/adminApi'
 import ComUtil from '~/util/ComUtil'
-import { BlockChainSpinner, BlocerySpinner, ExcelDownload, MonthBox } from '~/components/common'
-
+import { ExcelDownload } from '~/components/common'
 //ag-grid
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
-
-import {MdRefresh} from "react-icons/md";
-import 'react-month-picker/css/month-picker.css'
-import MonthPicker from 'react-month-picker'
+import {FaSearchPlus} from "react-icons/fa";
+import SearchDates from "~/components/common/search/SearchDates";
 import moment from 'moment-timezone'
-
-const pickerLang = {
-    months: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
+import MathUtil from "~/util/MathUtil";
+import ProducerList from '~/components/common/modalContents/producerList'
+import {localReplaceText} from "~/util/bzLogic";
+const isLocalFoodAdjDeliveryChk = (data) => {
+    //옥천로컬푸드일경우 배송비 제외
+    if(data.producerNo == 157){
+        return true;
+    }
+    return false;
 }
-
 export default class PaymentProducer extends Component{
 
     constructor(props) {
         super(props);
-
-        const today =  moment();
-        const initMonth = today.subtract(1, 'month');
-        const limitMonth = {year: initMonth.year(), month: initMonth.month() + 1};
-
-        this.payoutLimitMonth =  limitMonth;
-
         this.state = {
             loading: false,
-            chainLoading: false,
+            btnSearchLoading: false,
+            isSearchDataExist:false,
+            search: {
+                selectedGubun: '', //'week': 최초화면을 오늘(day)또는 1주일(week)로 설정.
+                startDate: moment(moment().toDate()).startOf("month").add(-1,"days").startOf("month"),
+                endDate: moment(moment().toDate()).startOf("month").add(-1, "days").endOf('month'),
+            },
             modalOpen: false,
-            selectCheckData: {},
-            data: null,
-            summaryData: null,
-            rowData: [],
+            producerModalOpen: false,
+            summaryData: [],
+            data: [],
             excelData: {
                 columns: [],
                 data: []
             },
             tipOpen: false,
-            showMonthPicker:false,
-            searchMonthValue: limitMonth,
+
             searchProducerNo: 0,
-            producerList: [],
-            isSearchDataExist:false,
+            searchProducerNm: "",
 
             columnSummaryDefs: [
                 {headerName: "과세여부", field: "vatFlag", cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, width: 90},
                 {
                     headerName: "매출내역 (소비자결제금액 A = B + C)",
-                    cellStyle:this.getHeaderCellStyle,
                     children: [
                         {headerName: '소비자결제금액(A)',width: 150, field: 'summaryConsumerGoodsPrice', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
                         {headerName: '판매원가(B)',width: 120, field: 'summaryTotalGoodsPrice', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
@@ -61,35 +58,37 @@ export default class PaymentProducer extends Component{
                 },
                 {
                     headerName: "지원금",
-                    cellStyle:this.getHeaderCellStyle,
                     children: [
                         {headerName: '쿠폰지원금(D)',width: 120, field: 'summaryTotalSupportPrice', cellStyle: {"textAlign":"left", 'background-color': '#d9d9d9'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
                     ]
                 },
                 {
                     headerName: "수수료(판매원가*수수료율)",
-                    cellStyle:this.getHeaderCellStyle,
                     children: [
-                        // {headerName: '수수료율(%)',width: 170, field: 'summaryFeeRate', cellStyle: {"textAlign":"left", 'background-color': '#ffe3ee'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
-                        {headerName: '수수료(E)',width: 170, field: 'summaryTotalFeeRateMoney', cellStyle: {"textAlign":"left", 'background-color': '#ffe3ee'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
+                        {headerName: '수수료(E)',width: 170, field: 'summaryTotalFeeRateMoney', cellStyle: {"textAlign":"left", 'background-color': '#ffe3ee'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}}
                     ]
                 },
                 {
                     headerName: "정산내역",
-                    cellStyle:this.getHeaderCellStyle,
                     children: [
-                        {headerName: '총정산금액 (F)=A+D-E',width: 200, field: 'summarySimplePayoutAmount', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
-                        {headerName: '공급가액(G)=F/1.1',width: 200, field: 'summaryTotalSupplyValue', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
-                        {headerName: '부가세(H)=G*10%',width: 200, field: 'summaryTotalVat', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},},
+                        {headerName: '총정산금액 (F)=A-E',width: 200, field: 'summarySimplePayoutAmount', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
+                        {headerName: '공급가액(G)=F-H',width: 200, field: 'summaryTotalSupplyValue', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
+                        {headerName: '부가세(H)',width: 200, field: 'summaryTotalVat', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},},
                     ]
                 },
             ],
             columnDefs: [
                 {
                     headerName: "주문내역",
-                    cellStyle:this.getHeaderCellStyle,
                     children: [
-                        {headerName: '주문일',width: 140, field: 'orderDate', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
+                        {
+                            headerName: '확정일',width: 140, field: 'consumerOkDate', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
+                            valueGetter: function(params) {
+                                return ComUtil.utcToString(params.data.consumerOkDate,'YYYY-MM-DD HH:mm');
+                            }
+                        },
+                        {
+                            headrName: '주문일',width: 140, field: 'orderDate', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
                             valueGetter: function(params) {
                                 return ComUtil.utcToString(params.data.orderDate,'YYYY-MM-DD HH:mm');
                             }
@@ -98,62 +97,60 @@ export default class PaymentProducer extends Component{
                         {headerName: '주문자',width: 90, field: 'consumerNm', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
                         {headerName: '상품번호',width: 90, field: 'goodsNo', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
                         {headerName: '품목',width: 250, field: 'goodsNm', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
-                        {headerName: '상품구분',width: 90, field: 'timeSaleGoods', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
+                        {
+                            headerName: '상품구분',width: 90, field: 'timeSaleGoods', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
                             valueGetter: function(params) {
                                 return params.data.timeSaleGoods? "포텐타임" : params.data.blyTimeGoods? "블리타임" : "일반상품";
                             }
                         },
-                        {headerName: '환불여부',width: 110, field: 'refundFlag', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
+                        {
+                            headerName: '환불여부',width: 110, field: 'refundFlag', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
                             valueGetter: function(params) {
-                                return params.data.refundFlag? "환불" :
-                                    params.data.partialRefundCount > 0 ? `(+부분환불 ${params.data.partialRefundCount}건)` :
-                                    "-";
+                                return params.data.refundFlag? "환불" : (params.data.partialRefundCount > 0 ? `(+부분환불 ${params.data.partialRefundCount}건)` : "-");
                             }
                         },
                         {headerName: '판매가',width: 80, field: 'currentPrice', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
-                        {headerName: '쿠폰지원금',width: 100, field: 'timeSaleSupportPrice', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                        {
+                            headerName: '쿠폰지원금',width: 100, field: 'timeSaleSupportPrice', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
                             valueGetter: function(params) {
                                 let supportPrice = 0;
                                 if(params.data.timeSaleGoods) {
-                                    supportPrice = (params.data.usedCouponBlyAmount * params.data.orderBlctExchangeRate / params.data.orderCnt).toFixed(0)
+                                    supportPrice = MathUtil.dividedBy(MathUtil.roundHalf(MathUtil.multipliedBy(params.data.usedCouponBlyAmount,params.data.orderBlctExchangeRate)),params.data.orderCnt);
                                 }
-
                                 return supportPrice;
-                                // return params.data.totalSupportPrice / params.data.orderCnt;
                             }
                         },
                         {headerName: '수량',width: 70, field: 'orderCnt', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
-                        {headerName: '과세여부',width: 90, field: 'vatFlag', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
+                        {
+                            headerName: '과세여부',width: 90, field: 'vatFlag', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
                             valueGetter: function(params) {
-                                return params.data.vatFlag? "과세" : "비과세";
+                                return params.data.vatFlag? "과세" : "면세";
                             }
                         },
                     ]
                 },
                 {
                     headerName: "매출내역 (소비자결제금액 A = B + C)",
-                    cellStyle:this.getHeaderCellStyle,
                     children: [
-                        {headerName: '소비자결제금액(A)',width: 130, field: 'totalGoodsPrice', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'},
+                        {headerName: '소비자결제금액(A)',width: 130, field: 'totalConsumerOrderPrice', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'},
                             cellRenderer: 'formatCurrencyRenderer',
                             filterParams:{clearButton: true},
                             valueGetter: function(params) {
-                                return params.data.totalGoodsPrice + params.data.totalSupportPrice + params.data.deliveryFee;
+                                return MathUtil.plusBy(params.data.totalGoodsPrice,params.data.adminDeliveryFee);
                             }
                         },
                         {headerName: '판매원가(B)',width: 100, field: 'totalGoodsPrice', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
-                        {headerName: '배송비(C)',width: 90, field: 'deliveryFee', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
+                        {headerName: '배송비(C)',width: 90, field: 'adminDeliveryFee', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
                     ]
                 },
                 {
                     headerName: "지원금",
-                    cellStyle:this.getHeaderCellStyle,
                     children: [
                         {headerName: '쿠폰지원금(D)',width: 120, field: 'totalSupportPrice', cellStyle: {"textAlign":"left", 'background-color': '#d9d9d9'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
                             valueGetter: function(params) {
                                 let supportPrice = 0;
                                 if(params.data.timeSaleGoods) {
-                                    supportPrice = (params.data.usedCouponBlyAmount * params.data.orderBlctExchangeRate).toFixed(0)
+                                    supportPrice = MathUtil.roundHalf(MathUtil.multipliedBy(params.data.usedCouponBlyAmount,params.data.orderBlctExchangeRate))
                                 }
                                 return supportPrice;
                             }
@@ -162,52 +159,68 @@ export default class PaymentProducer extends Component{
                 },
                 {
                     headerName: "수수료(판매원가 * 수수료율)",
-                    cellStyle:this.getHeaderCellStyle,
                     children: [
-                        {headerName: '수수료율(%)',width: 110, field: 'feeRate', cellStyle: {"textAlign":"left", 'background-color': '#ffe3ee'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
-                            // valueGetter: function(params) {
-                            //     return params.data.feeRate;
-                            // }
-                        },
-                        {headerName: '수수료(E)',width: 100, field: 'totalFeeRateMoney', cellStyle: {"textAlign":"left", 'background-color': '#ffe3ee'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                        {
+                            headerName: '수수료율(%)',width: 110, field: 'feeRate', cellStyle: {"textAlign":"left", 'background-color': '#ffe3ee'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
                             valueGetter: function(params) {
-                                return (params.data.currentPrice * params.data.feeRate / 100).toFixed(0) * params.data.orderCnt;
+                                return (params.data.feeRate).toFixed(2);
+                            }
+                        },
+                        {
+                            headerName: '수수료(E)',width: 100, field: 'totalFeeRateMoney', cellStyle: {"textAlign":"left", 'background-color': '#ffe3ee'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                            valueGetter: function(params) {
+                                return MathUtil.multipliedBy(MathUtil.roundHalf(MathUtil.multipliedBy(params.data.currentPrice ,MathUtil.dividedBy(params.data.feeRate,100))),params.data.orderCnt);
                             }
                         },
                     ]
                 },
                 {
                     headerName: "총정산금액(F)",
-                    cellStyle:this.getHeaderCellStyle,
                     children: [
-                        {headerName: '(F)=A+D-E',width: 100, field: 'simplePayoutAmount', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
-                    ]
-                },
-                {
-                    headerName: "공급가액(G)",
-                    cellStyle:this.getHeaderCellStyle,
-                    children: [
-                        {headerName: '(G)=F/1.1',width: 100, field: 'totalSupplyValue', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                        {
+                            headerName: '(F)=A-E',width: 100, field: 'simplePayoutAmount', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
                             valueGetter: function(params) {
-                                return params.data.vatFlag ? Math.round(params.data.simplePayoutAmount / 1.1) : params.data.simplePayoutAmount;
+                                let paymentAmt = params.data.simplePayoutAmount;
+                                if(isLocalFoodAdjDeliveryChk(params.data)){
+                                    paymentAmt = MathUtil.minusBy(params.data.simplePayoutAmount,params.data.adminDeliveryFee);
+                                }
+                                return paymentAmt;
                             }
                         },
                     ]
                 },
                 {
-                    headerName: "부가세(H)",
-                    cellStyle:this.getHeaderCellStyle,
+                    headerName: "공급가액(G)",
                     children: [
-                        {headerName: '(H)=G*10%',width: 110, field: 'totalVat', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                        {
+                            headerName: '(G)=F-H',width: 100, field: 'totalSupplyValue', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
                             valueGetter: function(params) {
-                                return params.data.vatFlag ? Math.round((params.data.simplePayoutAmount / 1.1) * 0.1) : 0;
+                                let paymentAmt = params.data.simplePayoutAmount;
+                                if(isLocalFoodAdjDeliveryChk(params.data)){
+                                    paymentAmt = MathUtil.minusBy(params.data.simplePayoutAmount,params.data.adminDeliveryFee);
+                                }
+                                return params.data.vatFlag ? MathUtil.roundHalf(MathUtil.dividedBy(paymentAmt,1.1)) : paymentAmt;
+                            }
+                        }
+                    ]
+                },
+                {
+                    headerName: "부가세(H)",
+                    children: [
+                        {
+                            headerName: '(H)',width: 110, field: 'totalVat', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                            valueGetter: function(params) {
+                                let paymentAmt = params.data.simplePayoutAmount;
+                                if(isLocalFoodAdjDeliveryChk(params.data)){
+                                    paymentAmt = MathUtil.minusBy(params.data.simplePayoutAmount,params.data.adminDeliveryFee);
+                                }
+                                return params.data.vatFlag ? MathUtil.roundHalf(MathUtil.multipliedBy(MathUtil.dividedBy(paymentAmt,1.1),0.1)) : 0;
                             }
                         },
                     ]
                 },
                 // {
                 //     headerName: "BLCT 기정산내역",
-                //     cellStyle:this.getHeaderCellStyle,
                 //     children: [
                 //         {headerName: '총매출',width: 80, field: 'totalBlctToken', cellStyle: {"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
                 //         {headerName: '판매수수료',width: 100, field: 'totalFeeRateBlct', cellStyle: {"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
@@ -238,42 +251,343 @@ export default class PaymentProducer extends Component{
     }
 
     async componentDidMount() {
-        await this.getAllproducerList()
+        await this.getInit();
     }
 
-    getAllproducerList = async() => {
-        let {data:producerList} = await getAllProducers();
-        // console.log(producerList);
+    getInit = async(searchProducerNo) => {
+        let producerNo = this.state.searchProducerNo;
+        if(searchProducerNo){
+            producerNo = searchProducerNo;
+        }
 
-        producerList.sort(function (a, b) {
-            if (a.farmName > b.farmName) {
-                return 1;
+        let columnSummaryDefsHeaderName1 = '업체지급금액(F)=A-E';
+        let columnSummaryDefsHeaderName2 = '(F)=A-E';
+        let columnLocalfoodFarmerNo = null;
+        let columnLocalFarmerName = null;
+        const paramData = {
+            producerNo:producerNo
+        }
+        //로컬푸드 계산서 발행내역
+        let columnLocalSummary = null;
+        if(isLocalFoodAdjDeliveryChk(paramData)){
+            columnSummaryDefsHeaderName1 = '업체지급금액(F)=B-E';
+            columnSummaryDefsHeaderName2 = '(F)=B-E';
+
+            columnLocalfoodFarmerNo = {headerName: '로컬농가No',width: 120, field: 'localFarmerNo', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}};
+            columnLocalFarmerName = {headerName: '로컬농가',width: 90, field: 'localFarmName', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}};
+
+            columnLocalSummary = {
+                headerName: "로컬푸드 계산서 발행내역",
+                children: [
+                    {
+                        headerName: "판매원가(B)", width: 200, field: 'localSummaryTotalGoodsPrice',
+                        cellStyle: function (params){
+                            if(params.data.vatFlag == '합계금액'){
+                                return {"textAlign":"left", "font-weight":"bold", "background-color":"#f3ce4e"};
+                            }
+                            return {"textAlign":"left", "background-color":"#f3ce4e"};
+                        },
+                        cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}
+                    },
+                    {
+                        headerName: '공급가액(I)=B-J',width: 200, field: 'localSummaryTotalSupplyValue',
+                        cellStyle: function (params){
+                            if(params.data.vatFlag == '합계금액'){
+                                return {"textAlign":"left", "font-weight":"bold", "background-color":"#f3ce4e"};
+                            }
+                            return {"textAlign":"left", "background-color":"#f3ce4e"};
+                        },
+                        cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}
+                    },
+                    {
+                        headerName: '부가세(J)',width: 200, field: 'localSummaryTotalVat',
+                        cellStyle: function (params){
+                            if(params.data.vatFlag == '합계금액'){
+                                return {"textAlign":"left", "font-weight":"bold", "background-color":"#f3ce4e"};
+                            }
+                            return {"textAlign":"left", "background-color":"#f3ce4e"};
+                        },
+                        cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                    },
+                ]
+            };
+        }
+        let columnSummaryDefs = [
+            {
+                headerName: "과세여부", field: "vatFlag",
+                cellStyle: function (params){
+                    if(params.data.vatFlag == '합계금액'){
+                        return {"textAlign":"left", "font-weight":"bold", "background-color":"#d9e8f6"};
+                    }
+                    return {"textAlign":"left", "background-color": '#f1fff1'};
+                },
+                width: 90
+            },
+            {
+                headerName: "매출내역 (소비자결제금액 A = B + C)",
+                children: [
+                    {
+                        headerName: '소비자결제금액(A)',width: 150, field: 'summaryConsumerGoodsPrice',
+                        cellStyle: function (params){
+                            if(params.data.vatFlag == '합계금액'){
+                                return {"textAlign":"left", "font-weight":"bold", "background-color":"#fafab4"};
+                            }
+                            return {"textAlign":"left", "background-color":"#fafab4"};
+                        },
+                        cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}
+                    },
+                    {
+                        headerName: '판매원가(B)',width: 120, field: 'summaryTotalGoodsPrice',
+                        cellStyle: function (params){
+                            if(params.data.vatFlag == '합계금액'){
+                                return {"textAlign":"left", "font-weight":"bold", "background-color":"#fafab4"};
+                            }
+                            return {"textAlign":"left", "background-color": '#fafab4'};
+                        },
+                        cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}
+                    },
+                    {
+                        headerName: '배송비(C)',width: 110, field: 'summaryDeliveryFee',
+                        cellStyle: function (params){
+                            if(params.data.vatFlag == '합계금액'){
+                                return {"textAlign":"left", "font-weight":"bold", "background-color":"#fafab4"};
+                            }
+                            return {"textAlign":"left", "background-color":"#fafab4"};
+                        },
+                        cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}
+                    },
+                ]
+            },
+            {
+                headerName: "지원금",
+                children: [
+                    {
+                        headerName: '쿠폰지원금(D)',width: 120, field: 'summaryTotalSupportPrice',
+                        cellStyle: function (params){
+                            if(params.data.vatFlag == '합계금액'){
+                                return {"textAlign":"left", "font-weight":"bold", "background-color":"#d9d9d9"};
+                            }
+                            return {"textAlign":"left", "background-color":"#d9d9d9"};
+                        },
+                        cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}
+                    },
+                ]
+            },
+            {
+                headerName: "수수료(E)",
+                children: [
+                    {
+                        headerName: '판매원가(B) * 수수료율(%)',width: 170, field: 'summaryTotalFeeRateMoney',
+                        cellStyle: function (params){
+                            if(params.data.vatFlag == '합계금액'){
+                                return {"textAlign":"left", "font-weight":"bold", "background-color":"#ffe3ee"};
+                            }
+                            return {"textAlign":"left", "background-color":"#ffe3ee"};
+                        },
+                        cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}
+                    },
+                ]
+            },
+            {
+                headerName: "정산내역",
+                children: [
+                    {
+                        headerName: columnSummaryDefsHeaderName1,
+                        width: 200, field: 'summarySimplePayoutAmount',
+                        cellStyle: function (params){
+                            if(params.data.vatFlag == '합계금액'){
+                                return {"textAlign":"left", "font-weight":"bold", "background-color":"#EBFBFF"};
+                            }
+                            return {"textAlign":"left", "background-color":"#EBFBFF"};
+                        },
+                        cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}
+                    },
+                    {
+                        headerName: '공급가액(G)=F-H',width: 200, field: 'summaryTotalSupplyValue',
+                        cellStyle: function (params){
+                            if(params.data.vatFlag == '합계금액'){
+                                return {"textAlign":"left", "font-weight":"bold", "background-color":"#EBFBFF"};
+                            }
+                            return {"textAlign":"left", "background-color":"#EBFBFF"};
+                        },
+                        cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}
+                    },
+                    {
+                        headerName: '부가세(H)',width: 200, field: 'summaryTotalVat',
+                        cellStyle: function (params){
+                            if(params.data.vatFlag == '합계금액'){
+                                return {"textAlign":"left", "font-weight":"bold", "background-color":"#EBFBFF"};
+                            }
+                            return {"textAlign":"left", "background-color":"#EBFBFF"};
+                        },
+                        cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}
+                    }
+                ]
+            },
+            columnLocalSummary
+        ];
+        let columnDefs = [
+            {
+                headerName: "주문내역",
+                children: [
+                    {
+                        headerName: '확정일',width: 140, field: 'consumerOkDate', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            return ComUtil.utcToString(params.data.consumerOkDate,'YYYY-MM-DD HH:mm');
+                        }
+                    },
+                    {
+                        headerName: '주문일',width: 140, field: 'orderDate', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            return ComUtil.utcToString(params.data.orderDate,'YYYY-MM-DD HH:mm');
+                        }
+                    },
+                    {headerName: '주문번호',width: 100, field: 'orderSeq', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
+                    {headerName: '주문자',width: 90, field: 'consumerNm', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
+                    columnLocalfoodFarmerNo,
+                    columnLocalFarmerName,
+                    {
+                        headerName: '구분', width: 90, field: 'consumerNm', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            return localReplaceText(params.data)
+                            // return (params.data.refundForReplace && params.data.orderPrice < 0) ? "- 전표" :
+                            //     (params.data.refundForReplace && params.data.orderPrice > 0) ? "+ 전표" :
+                            //         params.data.csRefundFlag ? "대체" : "일반"
+                        }
+                    },
+                    {headerName: '상품번호',width: 90, field: 'goodsNo', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
+                    {headerName: '품목',width: 250, field: 'goodsNm', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
+                    {
+                        headerName: '상품구분',width: 90, field: 'timeSaleGoods', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            return params.data.timeSaleGoods? "포텐타임" : params.data.blyTimeGoods? "블리타임" : params.data.superRewardGoods? "슈퍼리워드" : "일반상품";
+                        }
+                    },
+                    {
+                        headerName: '환불여부',width: 110, field: 'refundFlag', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            return params.data.refundFlag? "환불" : (params.data.partialRefundCount > 0 ? `(+부분환불 ${params.data.partialRefundCount}건)` : "-");
+                        }
+                    },
+                    {headerName: '판매가',width: 80, field: 'currentPrice', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
+                    {
+                        headerName: '쿠폰지원금',width: 100, field: 'timeSaleSupportPrice', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            let supportPrice = 0;
+                            if(params.data.timeSaleGoods) {
+                                supportPrice = MathUtil.roundHalf(MathUtil.dividedBy(MathUtil.multipliedBy(params.data.usedCouponBlyAmount,params.data.orderBlctExchangeRate),params.data.orderCnt));
+                            }
+                            return supportPrice;
+                        }
+                    },
+                    {headerName: '수량',width: 70, field: 'orderCnt', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true}},
+                    {
+                        headerName: '과세여부',width: 90, field: 'vatFlag', cellStyle:{"textAlign":"left", 'background-color': '#f1fff1'}, filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            return params.data.vatFlag? "과세" : "면세";
+                        }
+                    },
+                ]
+            },
+            {
+                headerName: "매출내역 (소비자결제금액 A = B + C)",
+                children: [
+                    {
+                        headerName: '소비자결제금액(A)',width: 130, field: 'consumerGoodsPrice', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'},
+                        cellRenderer: 'formatCurrencyRenderer',
+                        filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            return params.data.totalGoodsPrice + params.data.totalSupportPrice + params.data.adminDeliveryFee;
+                        }
+                    },
+                    {headerName: '판매원가(B)',width: 100, field: 'totalGoodsPrice', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
+                    {headerName: '배송비(C)',width: 90, field: 'adminDeliveryFee', cellStyle: {"textAlign":"left", 'background-color': '#fafab4'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true}},
+                ]
+            },
+            {
+                headerName: "지원금",
+                children: [
+                    {
+                        headerName: '쿠폰지원금(D)',width: 120, field: 'totalSupportPrice', cellStyle: {"textAlign":"left", 'background-color': '#d9d9d9'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            let supportPrice = 0;
+                            if(params.data.timeSaleGoods) {
+                                supportPrice = MathUtil.roundHalf(MathUtil.multipliedBy(params.data.usedCouponBlyAmount,params.data.orderBlctExchangeRate));
+                            }
+                            return supportPrice;
+                        }
+                    },
+                ]
+            },
+            {
+                headerName: "수수료(판매원가 * 수수료율)",
+                children: [
+                    {
+                        headerName: '수수료율(%)',width: 110, field: 'feeRate', cellStyle: {"textAlign":"left", 'background-color': '#ffe3ee'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            return params.data.timeSaleGoods ? "-" : (params.data.blyTimeGoods ? "-" : (params.data.superRewardGoods ? "-" : params.data.feeRate.toFixed(2)));
+                        }
+                    },
+                    {
+                        headerName: '수수료(E)',width: 100, field: 'totalFeeRateMoney', cellStyle: {"textAlign":"left", 'background-color': '#ffe3ee'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            return MathUtil.multipliedBy(MathUtil.roundHalf(MathUtil.multipliedBy(params.data.currentPrice,MathUtil.dividedBy(params.data.feeRate,100))),params.data.orderCnt);
+                        }
+                    },
+                ]
+            },
+            {
+                headerName: "정산금액(F)",
+                children: [
+                    {
+                        headerName: columnSummaryDefsHeaderName2,
+                        width: 100, field: 'simplePayoutAmount', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            let paymentAmt = params.data.simplePayoutAmount;
+                            if(isLocalFoodAdjDeliveryChk(params.data)){
+                                paymentAmt = MathUtil.minusBy(params.data.simplePayoutAmount,params.data.adminDeliveryFee);
+                            }
+                            return paymentAmt;
+                        }
+                    },
+                ]
+            },
+            {
+                headerName: "공급가액(G)",
+                children: [
+                    {
+                        headerName: '(G)=F-H',width: 100, field: 'totalSupplyValue', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            let paymentAmt = params.data.simplePayoutAmount;
+                            if(isLocalFoodAdjDeliveryChk(params.data)){
+                                paymentAmt = MathUtil.minusBy(params.data.simplePayoutAmount,params.data.adminDeliveryFee);
+                            }
+                            return params.data.vatFlag ? MathUtil.roundHalf(MathUtil.dividedBy(paymentAmt,1.1)) : paymentAmt;
+                        }
+                    },
+                ]
+            },
+            {
+                headerName: "부가세(H)",
+                children: [
+                    {
+                        headerName: '(H)',width: 110, field: 'totalVat', cellStyle: {"textAlign":"left", 'background-color': '#EBFBFF'}, cellRenderer: 'formatCurrencyRenderer', filterParams:{clearButton: true},
+                        valueGetter: function(params) {
+                            let paymentAmt = params.data.simplePayoutAmount;
+                            if(isLocalFoodAdjDeliveryChk(params.data)){
+                                paymentAmt = MathUtil.minusBy(params.data.simplePayoutAmount,params.data.adminDeliveryFee);
+                            }
+                            return params.data.vatFlag ? MathUtil.roundHalf(MathUtil.multipliedBy(MathUtil.dividedBy(paymentAmt,1.1),0.1)) : 0;
+                        }
+                    },
+                ]
             }
-            if (b.farmName > a.farmName) {
-                return -1;
-            }
-            return 0;
-        });
+        ];
 
         this.setState({
-            producerList: producerList
+            columnSummaryDefs: columnSummaryDefs,
+            columnDefs: columnDefs
         })
-    }
-
-    // Ag-Grid Cell 스타일 기본 적용 함수
-    getCellStyle ({cellAlign,color,textDecoration,whiteSpace}){
-        if(cellAlign === 'left') cellAlign='flex-start';
-        else if(cellAlign === 'center') cellAlign='center';
-        else if(cellAlign === 'right') cellAlign='flex-end';
-        else cellAlign='flex-start';
-        return {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: cellAlign,
-            color: color,
-            textDecoration: textDecoration,
-            whiteSpace: whiteSpace
-        }
     }
 
     formatCurrencyRenderer = ({value, data:rowData}) => {
@@ -281,53 +595,41 @@ export default class PaymentProducer extends Component{
     }
 
     //[이벤트] 그리드 로드 후 callback 이벤트
+    onSummeryGridReady(params) {
+        //API init
+        this.summeryGridApi = params.api;
+        //this.summeryGridColumnApi = params.columnApi;
+    }
+    onSummeryGridFilterChanged () {
+        // this.setExcelData();
+    }
+
     onGridReady(params) {
         //API init
         this.gridApi = params.api;
         this.gridColumnApi = params.columnApi;
     }
-
     onGridFilterChanged () {
         // this.setExcelData();
     }
 
     makeTitleText = (m) => {
-        return "블로서리 " + this.makeMonthText(m) + " 정산_생산자번호_" + this.state.searchProducerNo;
+        return "샵블리 " + this.makeGiganText() + " 정산_생산자번호_" + this.state.searchProducerNo;
     }
 
-    makeMonthText = (m) => {
-        // console.log('***********', m);
-        if (m && m.year && m.month) return (m.year + "년 " + pickerLang.months[m.month-1])
-        return '?'
-    }
-
-    handleClickMonthBox = () => {
-        this.setState({
-            showMonthPicker: true,
-        })
-    }
-
-    handleAMonthChange = (value, text) => {
-        let data = {
-            year: value,
-            month: text
-        }
-        this.handleAMonthDismiss(data);
-    }
-    handleAMonthDismiss= (value) => {
-        this.setState({
-            showMonthPicker:false,
-            searchMonthValue: value,
-        });
-    }
-
-    onSelectProducer = (e) => {
-        this.setState({
-            searchProducerNo : e.target.selectedOptions[0].value
-        })
+    makeGiganText = () => {
+        const title = moment(this.state.search.startDate).format("YYMMDD")+"_"+moment(this.state.search.endDate).format("YYMMDD")+"내역";
+        return title;
     }
 
     onRefreshClick = async() => {
+        const startDate = moment(this.state.search.startDate);
+        const endDate = moment(this.state.search.endDate);
+        const daysCnt = endDate.diff(startDate, 'days');
+        if(daysCnt > 31){
+            alert("31일 이상으로 검색을 하실 수 없습니다. 한달안으로 검색조건을 변경하세요.")
+            return;
+        }
         if(this.state.searchProducerNo === 0) {
             alert("업체명을 선택해 주세요.");
             return;
@@ -336,8 +638,21 @@ export default class PaymentProducer extends Component{
     }
 
     search = async() => {
-        let {data} = await getPaymentProducer(this.state.searchProducerNo, this.state.searchMonthValue.year, this.state.searchMonthValue.month);
-        console.log(data);
+        if (this.summeryGridApi) {
+            //ag-grid 레이지로딩중 보이기
+            this.summeryGridApi.showLoadingOverlay();
+        }
+        if (this.gridApi) {
+            //ag-grid 레이지로딩중 보이기
+            this.gridApi.showLoadingOverlay();
+        }
+        this.setState({btnSearchLoading: true});
+
+        const startDate = this.state.search.startDate ?  moment(this.state.search.startDate).format("YYYYMMDD"):null;
+        const endDate = this.state.search.endDate ?  moment(this.state.search.endDate).format("YYYYMMDD"):null;
+        let {data} = await getPaymentProducerGigan(this.state.searchProducerNo, startDate, endDate);
+
+        //console.log(data);
         let isSearchDataExist = data.length > 0;
 
         // summaryData 세팅하기
@@ -351,10 +666,14 @@ export default class PaymentProducer extends Component{
             summaryTotalFeeRateMoney:0,
             summarySimplePayoutAmount:0,
             summaryTotalSupplyValue:0,
-            summaryTotalVat:0
+            summaryTotalVat:0,
+
+            localSummaryTotalGoodsPrice:0,
+            localSummaryTotalSupplyValue:0,
+            localSummaryTotalVat:0
         };
         let notVatSummary = {
-            vatFlag: '비과세',
+            vatFlag: '면세',
             summaryConsumerGoodsPrice:0,
             summaryTotalGoodsPrice:0,
             summaryTotalSupportPrice:0,
@@ -363,57 +682,114 @@ export default class PaymentProducer extends Component{
             summaryTotalFeeRateMoney:0,
             summarySimplePayoutAmount:0,
             summaryTotalSupplyValue:0,
-            summaryTotalVat:0
+            summaryTotalVat:0,
+
+            localSummaryTotalGoodsPrice:0,
+            localSummaryTotalSupplyValue:0,
+            localSummaryTotalVat:0
+        };
+
+        let totVatSummary = {
+            vatFlag: '합계금액',
+            summaryConsumerGoodsPrice:0,
+            summaryTotalGoodsPrice:0,
+            summaryTotalSupportPrice:0,
+            summaryDeliveryFee:0,
+            summaryTotalFeeRateMoney:0,
+            summarySimplePayoutAmount:0,
+            summaryTotalSupplyValue:0,
+            summaryTotalVat:0,
+
+            localSummaryTotalGoodsPrice:0,
+            localSummaryTotalSupplyValue:0,
+            localSummaryTotalVat:0
         };
 
         data.map(orderDetail => {
-            let consumerGoodsPrice = orderDetail.totalGoodsPrice + orderDetail.deliveryFee;
-            let totalFeeRateMoney = (orderDetail.currentPrice * orderDetail.feeRate / 100).toFixed(0) * orderDetail.orderCnt;
+            let consumerGoodsPrice = orderDetail.totalGoodsPrice + orderDetail.adminDeliveryFee;
+            let totalFeeRateMoney = MathUtil.multipliedBy(MathUtil.roundHalf(MathUtil.multipliedBy(orderDetail.currentPrice,MathUtil.dividedBy(orderDetail.feeRate,100))),orderDetail.orderCnt);
+            let paymentAmt = orderDetail.simplePayoutAmount;
+            let goodsPrice = orderDetail.totalGoodsPrice;
 
+            //옥천로컬푸드 157일경우 배송비 제외
+            if(isLocalFoodAdjDeliveryChk(orderDetail)){
+                paymentAmt = MathUtil.minusBy(orderDetail.simplePayoutAmount,orderDetail.adminDeliveryFee);
+            }
             if(orderDetail.vatFlag && !orderDetail.refundFlag) {
                 vatSummary.summaryConsumerGoodsPrice = vatSummary.summaryConsumerGoodsPrice + consumerGoodsPrice;
-                vatSummary.summaryTotalGoodsPrice = vatSummary.summaryTotalGoodsPrice + orderDetail.totalGoodsPrice;
+                vatSummary.summaryTotalGoodsPrice = vatSummary.summaryTotalGoodsPrice + goodsPrice;
 
                 // 포텐타임의 경우에만 더해야함.
                 if(orderDetail.timeSaleGoods) {
-                    vatSummary.summaryTotalSupportPrice = vatSummary.summaryTotalSupportPrice + parseInt((orderDetail.usedCouponBlyAmount * orderDetail.orderBlctExchangeRate).toFixed(0))
-                    // vatSummary.summaryTotalSupportPrice = vatSummary.summaryTotalSupportPrice + orderDetail.totalSupportPrice;
+                    vatSummary.summaryTotalSupportPrice = vatSummary.summaryTotalSupportPrice + MathUtil.roundHalf(MathUtil.multipliedBy(orderDetail.usedCouponBlyAmount,orderDetail.orderBlctExchangeRate));
                 }
 
-                vatSummary.summaryDeliveryFee = vatSummary.summaryDeliveryFee + orderDetail.deliveryFee;
+                vatSummary.summaryDeliveryFee = vatSummary.summaryDeliveryFee + orderDetail.adminDeliveryFee;
                 vatSummary.summaryFeeRate = orderDetail.feeRate;
                 vatSummary.summaryTotalFeeRateMoney = vatSummary.summaryTotalFeeRateMoney + totalFeeRateMoney;
-                vatSummary.summarySimplePayoutAmount = vatSummary.summarySimplePayoutAmount + orderDetail.simplePayoutAmount;
-                vatSummary.summaryTotalSupplyValue = vatSummary.summaryTotalSupplyValue + Math.round(orderDetail.simplePayoutAmount / 1.1);
-                vatSummary.summaryTotalVat = vatSummary.summaryTotalVat + Math.round((orderDetail.simplePayoutAmount / 1.1) * 0.1);
+                vatSummary.summarySimplePayoutAmount = vatSummary.summarySimplePayoutAmount + paymentAmt;
+                vatSummary.summaryTotalSupplyValue = vatSummary.summaryTotalSupplyValue + MathUtil.roundHalf(MathUtil.dividedBy(paymentAmt,1.1));
+                vatSummary.summaryTotalVat = vatSummary.summaryTotalVat + MathUtil.roundHalf(MathUtil.multipliedBy(MathUtil.dividedBy(paymentAmt,1.1),0.1));
+
+                vatSummary.localSummaryTotalGoodsPrice = vatSummary.localSummaryTotalGoodsPrice + goodsPrice;
+                vatSummary.localSummaryTotalSupplyValue = vatSummary.localSummaryTotalSupplyValue + MathUtil.roundHalf(MathUtil.dividedBy(goodsPrice,1.1));
+                vatSummary.localSummaryTotalVat = vatSummary.localSummaryTotalVat + MathUtil.roundHalf(MathUtil.multipliedBy(MathUtil.dividedBy(goodsPrice,1.1),0.1));
 
             } else if(!orderDetail.refundFlag) {
                 notVatSummary.summaryConsumerGoodsPrice = notVatSummary.summaryConsumerGoodsPrice + consumerGoodsPrice;
-                notVatSummary.summaryTotalGoodsPrice = notVatSummary.summaryTotalGoodsPrice + orderDetail.totalGoodsPrice;
+                notVatSummary.summaryTotalGoodsPrice = notVatSummary.summaryTotalGoodsPrice + goodsPrice;
 
                 // 포텐타임의 경우에만 더해야함.
                 if(orderDetail.timeSaleGoods) {
-                    notVatSummary.summaryTotalSupportPrice = notVatSummary.summaryTotalSupportPrice + parseInt((orderDetail.usedCouponBlyAmount * orderDetail.orderBlctExchangeRate).toFixed(0))
-                    // notVatSummary.summaryTotalSupportPrice = notVatSummary.summaryTotalSupportPrice + orderDetail.totalSupportPrice;
+                    notVatSummary.summaryTotalSupportPrice = notVatSummary.summaryTotalSupportPrice + MathUtil.roundHalf(MathUtil.multipliedBy(orderDetail.usedCouponBlyAmount,orderDetail.orderBlctExchangeRate));
                 }
 
-                notVatSummary.summaryDeliveryFee = notVatSummary.summaryDeliveryFee + orderDetail.deliveryFee;
+                notVatSummary.summaryDeliveryFee = notVatSummary.summaryDeliveryFee + orderDetail.adminDeliveryFee;
                 notVatSummary.summaryFeeRate = orderDetail.feeRate;
                 notVatSummary.summaryTotalFeeRateMoney = notVatSummary.summaryTotalFeeRateMoney + totalFeeRateMoney;
-                notVatSummary.summarySimplePayoutAmount = notVatSummary.summarySimplePayoutAmount + orderDetail.simplePayoutAmount;
-                notVatSummary.summaryTotalSupplyValue = notVatSummary.summaryTotalSupplyValue + orderDetail.simplePayoutAmount;
-            }
-        })
+                notVatSummary.summarySimplePayoutAmount = notVatSummary.summarySimplePayoutAmount + paymentAmt;
+                notVatSummary.summaryTotalSupplyValue = notVatSummary.summaryTotalSupplyValue + paymentAmt;
+                notVatSummary.summaryTotalVat = notVatSummary.summaryTotalVat + 0;
 
-        let summaryData = [vatSummary, notVatSummary];
+                notVatSummary.localSummaryTotalGoodsPrice = notVatSummary.localSummaryTotalGoodsPrice +  goodsPrice;
+                notVatSummary.localSummaryTotalSupplyValue = notVatSummary.localSummaryTotalSupplyValue + goodsPrice;
+                notVatSummary.localSummaryTotalVat = notVatSummary.localSummaryTotalVat + 0;
+            }
+        });
+
+        totVatSummary.summaryConsumerGoodsPrice = vatSummary.summaryConsumerGoodsPrice + notVatSummary.summaryConsumerGoodsPrice;
+        totVatSummary.summaryTotalGoodsPrice = vatSummary.summaryTotalGoodsPrice + notVatSummary.summaryTotalGoodsPrice;
+        totVatSummary.summaryTotalSupportPrice = vatSummary.summaryTotalSupportPrice + notVatSummary.summaryTotalSupportPrice;
+        totVatSummary.summaryDeliveryFee = vatSummary.summaryDeliveryFee + notVatSummary.summaryDeliveryFee;
+        totVatSummary.summaryTotalFeeRateMoney = vatSummary.summaryTotalFeeRateMoney + notVatSummary.summaryTotalFeeRateMoney;
+        totVatSummary.summarySimplePayoutAmount = vatSummary.summarySimplePayoutAmount + notVatSummary.summarySimplePayoutAmount;
+        totVatSummary.summaryTotalSupplyValue = vatSummary.summaryTotalSupplyValue + notVatSummary.summaryTotalSupplyValue;
+        totVatSummary.summaryTotalVat = vatSummary.summaryTotalVat + notVatSummary.summaryTotalVat;
+
+        totVatSummary.localSummaryTotalGoodsPrice = vatSummary.localSummaryTotalGoodsPrice + notVatSummary.localSummaryTotalGoodsPrice;
+        totVatSummary.localSummaryTotalSupplyValue = vatSummary.localSummaryTotalSupplyValue + notVatSummary.localSummaryTotalSupplyValue;
+        totVatSummary.localSummaryTotalVat = vatSummary.localSummaryTotalVat + notVatSummary.localSummaryTotalVat;
+
+
+        let summaryData = [vatSummary, notVatSummary, totVatSummary];
         this.setState({
-            loading: false,
+            btnSearchLoading: false,
             isSearchDataExist: isSearchDataExist,
             data:data,
             summaryData: summaryData
         })
 
         this.setExcelData();
+
+        if(this.summeryGridApi) {
+            //ag-grid 레이지로딩중 감추기
+            this.summeryGridApi.hideOverlay()
+        }
+        //ag-grid api
+        if(this.gridApi) {
+            //ag-grid 레이지로딩중 감추기
+            this.gridApi.hideOverlay()
+        }
     }
 
 
@@ -429,34 +805,40 @@ export default class PaymentProducer extends Component{
 
     getExcelData = () => {
         const columns = [
-            '주문일', '주문번호', '주문자', '상품번호', '품목', '상품구분', '환불여부', '판매가', '쿠폰지원금', '수량', '과세여부',
-            '소비자결제금액(A) A = B+C', '판매원가(B)', '배송비(C)', '쿠폰지원금(D)',
+            '확정일', '주문일', '주문번호', '주문자', '상품번호', '품목', '상품구분', '환불여부', '판매가', '쿠폰지원금', '수량', '과세여부',
+            '소비자결제금액(A=B+C)', '판매원가(B)', '배송비(C)', '쿠폰지원금(D)',
             '수수료율', '수수료(E)',
-            '총정산금액(F = A+D-E)', '공급가액(G = F/1.1)', '부가세(H = G*10%)'
+            '총정산금액(F=A-E)', '공급가액(G=F-H)', '부가세(H)'
         ]
 
         const excelData = this.state.data.map((orderDetail) => {
+            const consumerOkDate = ComUtil.utcToString(orderDetail.consumerOkDate,'YYYY-MM-DD HH:mm');
             const orderDate = ComUtil.utcToString(orderDetail.orderDate,'YYYY-MM-DD HH:mm');
             const timeSaleGoods = orderDetail.timeSaleGoods ? "포텐타임" : "일반상품";
-            const vatFlag = orderDetail.vatFlag ? "과세" : "비과세";
+            const vatFlag = orderDetail.vatFlag ? "과세" : "면세";
             const refundFlag = orderDetail.refundFlag ? "환불" : "-";
 
             // 쿠폰지원금
-            const timeSaleSupportPrice = orderDetail.timeSaleGoods ? (orderDetail.usedCouponBlyAmount * orderDetail.orderBlctExchangeRate / orderDetail.orderCnt).toFixed(0) : 0;
+            const timeSaleSupportPrice = orderDetail.timeSaleGoods ? MathUtil.roundHalf(MathUtil.roundHalf(MathUtil.dividedBy(MathUtil.multipliedBy(orderDetail.usedCouponBlyAmount,orderDetail.orderBlctExchangeRate),orderDetail.orderCnt))) : 0;
             // const timeSaleSupportPrice = orderDetail.totalSupportPrice / orderDetail.orderCnt;
 
-            const totalGoodsPrice = orderDetail.totalGoodsPrice + orderDetail.totalSupportPrice + orderDetail.deliveryFee;
-            const feeRateMoney = (orderDetail.currentPrice * orderDetail.feeRate / 100).toFixed(0) * orderDetail.orderCnt;
-            const supplyValue = orderDetail.vatFlag ? Math.round(orderDetail.simplePayoutAmount / 1.1) : 0;
-            const vat = orderDetail.vatFlag ? Math.round(orderDetail.simplePayoutAmount / 1.1 * 0.1) : 0;
+            const totalGoodsPrice = orderDetail.totalGoodsPrice + orderDetail.totalSupportPrice + orderDetail.adminDeliveryFee;
+            const feeRateMoney = MathUtil.multipliedBy(MathUtil.roundHalf(MathUtil.multipliedBy(orderDetail.currentPrice,MathUtil.dividedBy(orderDetail.feeRate,100))),orderDetail.orderCnt);
+            let paymentAmt = orderDetail.simplePayoutAmount;
+            if(isLocalFoodAdjDeliveryChk(orderDetail)){
+                paymentAmt = MathUtil.minusBy(orderDetail.simplePayoutAmount,orderDetail.adminDeliveryFee);
+            }
 
-            const orderDetailTotalSupportPrice = orderDetail.timeSaleGoods ? (orderDetail.usedCouponBlyAmount * orderDetail.orderBlctExchangeRate).toFixed(0) : 0;
+            const supplyValue = orderDetail.vatFlag ? MathUtil.roundHalf(MathUtil.dividedBy(paymentAmt,1.1)) : paymentAmt;
+            const vat = orderDetail.vatFlag ? MathUtil.roundHalf(MathUtil.multipliedBy(MathUtil.dividedBy(paymentAmt,1.1),0.1)) : 0;
+
+            const orderDetailTotalSupportPrice = orderDetail.timeSaleGoods ? MathUtil.roundHalf(MathUtil.multipliedBy(orderDetail.usedCouponBlyAmount,orderDetail.orderBlctExchangeRate)) : 0;
 
             return [
-                orderDate, orderDetail.orderSeq, orderDetail.consumerNm, orderDetail.goodsNo, orderDetail.goodsNm, timeSaleGoods, refundFlag, orderDetail.currentPrice, timeSaleSupportPrice, orderDetail.orderCnt, vatFlag,
-                totalGoodsPrice, orderDetail.totalGoodsPrice, orderDetail.deliveryFee, orderDetailTotalSupportPrice,
-                orderDetail.feeRate, feeRateMoney,
-                orderDetail.simplePayoutAmount, supplyValue, vat
+                consumerOkDate, orderDate, orderDetail.orderSeq, orderDetail.consumerNm, orderDetail.goodsNo, orderDetail.goodsNm, timeSaleGoods, refundFlag, orderDetail.currentPrice, timeSaleSupportPrice, orderDetail.orderCnt, vatFlag,
+                totalGoodsPrice, orderDetail.totalGoodsPrice, orderDetail.adminDeliveryFee, orderDetailTotalSupportPrice,
+                (orderDetail.feeRate).toFixed(2), feeRateMoney,
+                paymentAmt, supplyValue, vat
             ]
         });
 
@@ -476,58 +858,67 @@ export default class PaymentProducer extends Component{
         ComUtil.copyTextToClipboard(value, '', '');
     }
 
+    //오늘의 생산자 클릭
+    onProducerClick = () => {
+        this.toggleProducerModal();
+    }
+
+    onProducerModalClosed = async (data) => {
+        if (data) {
+            this.setState({
+                searchProducerNo : data.producerNo,
+                searchProducerNm : data.farmName
+            });
+            await this.getInit(data.producerNo);
+        }
+        this.toggleProducerModal();
+    }
+
+    toggleProducerModal = () => {
+        this.setState({
+            producerModalOpen: !this.state.producerModalOpen
+        })
+    }
+
+    onDatesChange = async (data) => {
+        await this.setState({
+            search: {
+                startDate: data.startDate,
+                endDate: data.endDate,
+                selectedGubun: data.gubun
+            }
+        });
+    }
+
     render() {
         const state = this.state
         return (
             <Fragment>
-                {
-                    state.chainLoading && <BlockChainSpinner/>
-                }
-                {
-                    state.loading && <BlocerySpinner/>
-                }
-
                 <FormGroup>
                     <div className='p-3'>
                         <div className='p-1 mt-1 d-flex align-items-center'>
-                            <div>
-                                {
-                                    state.showMonthPicker &&
-                                    <MonthPicker
-                                        show={true}
-                                        years={[2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029]}
-                                        value={state.searchMonthValue}
-                                        lang={pickerLang.months}
-                                        onChange={this.handleAMonthChange.bind(this)}
-                                        onDismiss={this.handleAMonthDismiss.bind(this)}
-                                    >
-                                    </MonthPicker>
-                                }
-                                <MonthBox value={this.makeMonthText(state.searchMonthValue)}
-                                          onClick={this.handleClickMonthBox.bind(this)}/>
+                            <div className='pt-3 pb-3 d-flex'>
+                                <SearchDates
+                                    btnAllHidden={true}
+                                    isHiddenAll={true}
+                                    isCurrenYeartHidden={true}
+                                    gubun={state.search.selectedGubun}
+                                    startDate={state.search.startDate}
+                                    endDate={state.search.endDate}
+                                    onChange={this.onDatesChange}
+                                />
                             </div>
 
                             <div className="ml-4">
-                                <Input type='select' name='select' id='userType' onChange={this.onSelectProducer}>
-                                    <option name='default' default>업체명 선택</option>
-                                    {
-                                        state.producerList.map((producer) => {
-                                            return (
-                                                <option key={producer.producerNo} name={`radio_producer${producer.producerNo}`} value={producer.producerNo} selected={ state.searchProducerNo === producer.producerNo }>{producer.farmName}</option>
-                                            )
-                                        })
-                                    }
-                                </Input>
-
+                                <Flex bc={'secondary'} p={5}>
+                                    <StInput readOnly={true} width={70} value={this.state.searchProducerNo} mr={5} />
+                                    <StInput readOnly={true} width={200} value={this.state.searchProducerNm} mr={5} />
+                                    <StButton bg={'green'} fg={'white'} onClick={this.onProducerClick} px={10}><FaSearchPlus/>{' 생산자검색'}</StButton>
+                                </Flex>
                             </div>
 
                             <div className="ml-3">
-                                <Button color={'info'} size={'sm'} block  style={{width: '100px'}}
-                                        onClick={this.onRefreshClick}>
-                                    <div className="d-flex">
-                                        <MdRefresh fontSize={'small'}/> 조회
-                                    </div>
-                                </Button>
+                                <MenuButton bg={'green'} fg={'white'} onClick={this.onRefreshClick} disabled={this.state.btnSearchLoading}>검색</MenuButton>
                             </div>
 
                             <div className='d-flex ml-auto'>
@@ -536,8 +927,8 @@ export default class PaymentProducer extends Component{
                                     <div className="ml-5 mr-3">
                                         {/*<label><h6>{this.makeTitleText(this.state.searchMonthValue)}</h6></label>*/}
                                         <ExcelDownload data={state.excelData}
-                                                       fileName={this.makeTitleText(state.searchMonthValue)}
-                                                       sheetName={this.makeTitleText(state.searchMonthValue)}
+                                                       fileName={this.makeTitleText()}
+                                                       sheetName={this.makeTitleText()}
                                                        button={
                                                            <Button color={'info'} size={'sm'} style={{width: '100px'}}>
                                                                <div className="d-flex">
@@ -554,7 +945,7 @@ export default class PaymentProducer extends Component{
                     <div className='border mt-1 ml-2 mr-2 mb-3 p-3'>
                         <div className='p-1'>
                             <div className="d-flex">
-                            <h5>MarketBly 정산 tip! </h5>
+                            <h5>ShopBly 정산 tip! </h5>
                                 <div className="ml-2">
                                     <Button color={'secondary'} outline size={'sm'} onClick={this.toggleTip}> {this.state.tipOpen ? ' ▲ ' : ' ▼ ' } </Button>
                                 </div>
@@ -566,7 +957,7 @@ export default class PaymentProducer extends Component{
                                 * '판매원가'란 결제금액에서 배송비와 쿠폰지원금을 뺀 금액입니다.(수수료 적용 O) <br/>
                                 * 배송비와 쿠폰지원금에는 판매수수료가 적용되지 않습니다. <br/>
                                 <br/>
-                                2. MarketBly는 합포장(묶음배송) 주문건이라도 판매 상품별로 개별주문번호가 생성됩니다. <br/>
+                                2. ShopBly는 합포장(묶음배송) 주문건이라도 판매 상품별로 개별주문번호가 생성됩니다. <br/>
                                 * 합포장(묶음배송) 상품'의 배송비가 발생할 경우, 가장 빠른 주문번호 한 건에 반영합니다. <br/>가
                                 * 합포장(묶음배송) 주문은 주문번호를 통해 확인하실수 있습니다.(앞에 4자리가 동일해요!) <br/>
                                 <div className='border m-2 p-2 d-inline-block'>
@@ -584,13 +975,13 @@ export default class PaymentProducer extends Component{
                     <div
                         className="ag-theme-balham mb-3 ml-2 mr-2"
                         style={{
-                            height: '150px'
+                            height: '165px'
                         }}
                     >
-                        <br/>
-                        { this.state.isSearchDataExist &&
+                        {
+                            this.state.isSearchDataExist &&
                             <div>
-                                {`${this.state.searchMonthValue.year}년 ${this.state.searchMonthValue.month}월 내역`}
+                                {`${moment(state.search.startDate).format("YYYY-MM-DD")} ~ ${moment(state.search.endDate).format("YYYY-MM-DD")} 내역`}
                             </div>
                         }
                         <AgGridReact
@@ -600,10 +991,10 @@ export default class PaymentProducer extends Component{
                             columnDefs={state.columnSummaryDefs}  //컬럼 세팅
                             defaultColDef={state.defaultColDef}
                             // enableColResize={true}              //컬럼 크기 조정
-                            overlayLoadingTemplate={state.overlayNoRowsTemplate}
+                            overlayLoadingTemplate={state.overlayLoadingTemplate}
                             overlayNoRowsTemplate={state.overlayNoRowsTemplate}
-                            onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
-                            onFilterChanged={this.onGridFilterChanged.bind(this)}
+                            onGridReady={this.onSummeryGridReady.bind(this)}   //그리드 init(최초한번실행)
+                            onFilterChanged={this.onSummeryGridFilterChanged.bind(this)}
                             rowData={state.summaryData}
                             components={state.components}
                             frameworkComponents={state.frameworkComponents}
@@ -612,16 +1003,12 @@ export default class PaymentProducer extends Component{
                         >
                         </AgGridReact>
                     </div>
-
-
-
                     <div
                         className="ag-theme-balham mb-3 ml-2 mr-2"
                         style={{
                             height: '500px'
                         }}
                     >
-                        <br/>
                         <AgGridReact
                             // enableSorting={true}                //정렬 여부
                             // enableFilter={true}                 //필터링 여부
@@ -629,7 +1016,7 @@ export default class PaymentProducer extends Component{
                             columnDefs={state.columnDefs}  //컬럼 세팅
                             defaultColDef={state.defaultColDef}
                             // enableColResize={true}              //컬럼 크기 조정
-                            overlayLoadingTemplate={state.overlayNoRowsTemplate}
+                            overlayLoadingTemplate={state.overlayLoadingTemplate}
                             overlayNoRowsTemplate={state.overlayNoRowsTemplate}
                             onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
                             onFilterChanged={this.onGridFilterChanged.bind(this)}
@@ -643,6 +1030,24 @@ export default class PaymentProducer extends Component{
 
 
                 </FormGroup>
+
+                {/*생산자 모달 */}
+                <Modal size="lg" isOpen={this.state.producerModalOpen}
+                       toggle={this.toggleProducerModal} >
+                    <ModalHeader toggle={this.toggleProducerModal}>
+                        생산자 검색
+                    </ModalHeader>
+                    <ModalBody>
+                        <ProducerList
+                            onClose={this.onProducerModalClosed}
+                        />
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="secondary"
+                                onClick={this.toggleProducerModal}>취소</Button>
+                    </ModalFooter>
+                </Modal>
+
             </Fragment>
         )
     }

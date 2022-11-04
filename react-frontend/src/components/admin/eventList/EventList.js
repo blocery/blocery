@@ -3,20 +3,25 @@ import { Button } from 'reactstrap'
 import ComUtil from '~/util/ComUtil'
 import { getLoginAdminUser } from '~/lib/loginApi'
 import { getEventInfoList, delEventInfo } from '~/lib/adminApi'
-
 import { ModalConfirm, AdminModalFullPopupWithNav } from '~/components/common'
 import EventReg from '~/components/admin/eventList/EventReg'
-
 import { AgGridReact } from 'ag-grid-react';
-// import "ag-grid-community/src/styles/ag-grid.scss";
-// import "ag-grid-community/src/styles/ag-theme-balham.scss";
 import { Cell } from '~/components/common'
+import {MenuButton} from "~/styledComponents/shared/AdminLayouts";
+import {Div, Flex, Right, Space, Span} from "~/styledComponents/shared";
+import {Server} from "~/components/Properties";
+import moment from "moment-timezone";
+import DatePicker from "react-datepicker";
+import "react-datepicker/src/stylesheets/datepicker.scss";
 
 export default class EventList extends Component{
     constructor(props) {
         super(props);
+        this.gridRef = React.createRef();
         this.state = {
-            loading: false,
+            search: {
+                year:moment().format('YYYY')
+            },
             data: [],
             columnDefs: [
                 {
@@ -26,8 +31,21 @@ export default class EventList extends Component{
                         clearButton: true //클리어버튼
                     },
                     sortable: true,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 150
+                },
+                {
+                    headerName: "타입", field: "eventType",
+                    suppressSizeToFit: true,
+                    filterParams: {
+                        clearButton: true //클리어버튼
+                    },
+                    sortable: true,
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
+                    width: 100,
+                    valueGetter: function(params) {
+                        return params.data.eventType === 1 ? 'listUrl' : 'event';
+                    },
                 },
                 {
                     headerName: "이벤트 타이틀",
@@ -36,14 +54,89 @@ export default class EventList extends Component{
                     filterParams: {
                         clearButton: true //클리어버튼
                     },
-                    cellStyle:this.getCellStyle({cellAlign: 'left'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'left'}),
                     cellRenderer: "titleRenderer",
                     width: 400
                 },
                 {
+                    headerName: "이벤트 이미지",
+                    field: "images",
+                    suppressFilter: false,   //no filter
+                    suppressSorting: false,  //no sort
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
+                    cellRenderer:"imageRenderer",
+                    width: 120
+                },
+                {
+                    headerName: "이벤트 시작일", field: "startDay",
+                    suppressSizeToFit: true,
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
+                    width: 180,
+                    cellRenderer: "formatIntDateRenderer",
+                    valueGetter: function(params) {
+                        //console.log("params",params);
+                        //기공된 필터링 데이터로 필터링 되게 적용 (UTCDate 변환)
+                        let v_Date = params.data.startDay ? ComUtil.intToDateString(params.data.startDay, 'YYYY-MM-DD') : null;
+                        return v_Date;
+                    },
+                    filter: "agDateColumnFilter",
+                    filterParams: {
+                        comparator: function (filterLocalDateAtMidnight, cellValue) {
+                            let dateAsString = cellValue;
+                            if (dateAsString == null) return -1;
+                            let filterLocalDate = ComUtil.utcToString(filterLocalDateAtMidnight);
+                            let cellDate = ComUtil.utcToString(dateAsString);
+                            if (filterLocalDate == cellDate) {
+                                return 0;
+                            }
+                            else if (cellDate < filterLocalDate) {
+                                return -1;
+                            }
+                            else if (cellDate > filterLocalDate) {
+                                return 1;
+                            }
+                        },
+                        browserDatePicker: true, //달력
+                        clearButton: true //클리어버튼
+                    }
+                },
+                {
+                    headerName: "이벤트 종료일", field: "endDay",
+                    suppressSizeToFit: true,
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
+                    width: 180,
+                    cellRenderer: "formatIntDateRenderer",
+                    valueGetter: function(params) {
+                        //console.log("params",params);
+                        //기공된 필터링 데이터로 필터링 되게 적용 (UTCDate 변환)
+                        let v_Date = params.data.endDay ? ComUtil.intToDateString(params.data.endDay, 'YYYY-MM-DD') : null;
+                        return v_Date;
+                    },
+                    filter: "agDateColumnFilter",
+                    filterParams: {
+                        comparator: function (filterLocalDateAtMidnight, cellValue) {
+                            let dateAsString = cellValue;
+                            if (dateAsString == null) return -1;
+                            let filterLocalDate = ComUtil.utcToString(filterLocalDateAtMidnight);
+                            let cellDate = ComUtil.utcToString(dateAsString);
+                            if (filterLocalDate == cellDate) {
+                                return 0;
+                            }
+                            else if (cellDate < filterLocalDate) {
+                                return -1;
+                            }
+                            else if (cellDate > filterLocalDate) {
+                                return 1;
+                            }
+                        },
+                        browserDatePicker: true, //달력
+                        clearButton: true //클리어버튼
+                    }
+                },
+                {
                     headerName: "이벤트 등록일", field: "timestamp",
                     suppressSizeToFit: true,
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 180,
                     cellRenderer: "formatDatesRenderer",
                     valueGetter: function(params) {
@@ -77,7 +170,7 @@ export default class EventList extends Component{
                     headerName: "이벤트 URL",
                     suppressFilter: true,   //no filter
                     suppressSorting: true,  //no sort
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 150,
                     cellRenderer: "eventUrlRenderer"
                 },
@@ -85,7 +178,7 @@ export default class EventList extends Component{
                     headerName: "비고",
                     suppressFilter: true,   //no filter
                     suppressSorting: true,  //no sort
-                    cellStyle:this.getCellStyle({cellAlign: 'center'}),
+                    cellStyle:ComUtil.getCellStyle({cellAlign: 'center'}),
                     width: 150,
                     cellRenderer: "delButtonRenderer"
                 },
@@ -95,7 +188,7 @@ export default class EventList extends Component{
                 resizable: true,
                 filter: true,
                 sortable: true,
-                floatingFilter: false,
+                floatingFilter: true,
                 filterParams: {
                     newRowsAction: 'keep'
                 }
@@ -109,9 +202,9 @@ export default class EventList extends Component{
             frameworkComponents: {
                 titleRenderer:this.titleRenderer,
                 delButtonRenderer:this.delButtonRenderer,
-                eventUrlRenderer:this.eventUrlRenderer
+                eventUrlRenderer:this.eventUrlRenderer,
+                imageRenderer:this.imageRenderer
             },
-            rowHeight: 75,
             eventNo:"",
             isModalOpen:false
         };
@@ -135,24 +228,9 @@ export default class EventList extends Component{
     //     this.gridApi = params.api;
     //     this.gridColumnApi = params.columnApi;
     // }
-
-    // Ag-Grid Cell 스타일 기본 적용 함수
-    getCellStyle ({cellAlign,color,textDecoration,whiteSpace, fontWeight}){
-        if(cellAlign === 'left') cellAlign='flex-start';
-        else if(cellAlign === 'center') cellAlign='center';
-        else if(cellAlign === 'right') cellAlign='flex-end';
-        else cellAlign='flex-start';
-        return {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: cellAlign,
-            color: color,
-            textDecoration: textDecoration,
-            whiteSpace: whiteSpace,
-            fontWeight: fontWeight
-        }
+    getRowHeight(params) {
+        return 75;
     }
-
     //Ag-Grid Cell 숫자콤마적용 렌더러
     formatCurrencyRenderer = ({value, data:rowData}) => {
         //console.log("rowData",rowData);
@@ -165,6 +243,9 @@ export default class EventList extends Component{
     formatDatesRenderer = ({value, data:rowData}) => {
         return (value ? ComUtil.utcToString(value,'YYYY-MM-DD HH:mm') : '-')
     };
+    formatIntDateRenderer = ({value, data:rowData}) => {
+        return (value ? ComUtil.intToDateString(value,'YYYY-MM-DD') : '-')
+    };
 
     titleRenderer = ({value, data:rowData}) => {
         return (
@@ -174,6 +255,17 @@ export default class EventList extends Component{
                 </div>
             </Cell>
         );
+    };
+
+    //이벤트 이미지 렌더러
+    imageRenderer = ({value: images}) => {
+        return images.map((image,index) => {
+            const src = Server.getThumbnailURL() + image.imageUrl;
+            const Style = {
+                width: 75, height: 75, paddingRight: '1px'
+            };
+            return <img key={"mainImage"+index} src={src} style={Style} alt={'이벤트 이미지'}/>
+        })
     };
 
     eventUrlRenderer = ({value, data:rowData}) => {
@@ -199,16 +291,28 @@ export default class EventList extends Component{
     };
 
     search = async () => {
-        this.setState({loading: true});
-        const { status, data } = await getEventInfoList();
+        const {api} = this.gridRef.current;
+        if (api) {
+            //ag-grid 레이지로딩중 보이기
+            api.showLoadingOverlay();
+        }
+        const searchInfo = this.state.search;
+        const params = {
+            year:searchInfo.year
+        };
+        const { status, data } = await getEventInfoList(params);
         if(status !== 200){
             alert('응답이 실패 하였습니다');
             return
         }
         this.setState({
-            data: data,
-            loading: false
+            data: data
         });
+        //ag-grid api
+        if(api) {
+            //ag-grid 레이지로딩중 감추기
+            api.hideOverlay()
+        }
     };
 
     delEvent = async(eventNo, isConfirmed) => {
@@ -249,52 +353,72 @@ export default class EventList extends Component{
         }
     };
 
-    render() {
-        return (
-            <div>
-                <div className="d-flex p-1">
-                    <div className="d-flex align-items-center pl-1">
-                        <span className="text-success">{this.state.data.length}</span>개의 이벤트
-                    </div>
-                    <div className="flex-grow-1 text-right">
-                        <Button outline size='sm' color={'info'} onClick={this.regEvent.bind(this,'')} className='m-2'>이벤트 등록</Button>
-                    </div>
-                </div>
-                <div className="p-1">
-                    <div
-                        className="ag-theme-balham"
-                        style={{
-                            height: '550px'
-                        }}
-                    >
-                        <AgGridReact
-                            // enableSorting={true}                //정렬 여부
-                            // enableFilter={true}                 //필터링 여부
-                            floatingFilter={true}               //Header 플로팅 필터 여부
-                            columnDefs={this.state.columnDefs}  //컬럼 세팅
-                            defaultColDef={this.state.defaultColDef}
-                            rowHeight={this.state.rowHeight}
-                            // enableColResize={true}              //컬럼 크기 조정
-                            overlayLoadingTemplate={this.state.overlayLoadingTemplate}
-                            overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
-                            // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
-                            rowData={this.state.data}
-                            components={this.state.components}
-                            frameworkComponents={this.state.frameworkComponents}
-                        >
-                        </AgGridReact>
+    onSearchDateChange = async (date) => {
+        //console.log("",date.getFullYear())
+        const search = Object.assign({}, this.state.search);
+        search.year = date.getFullYear();
+        await this.setState({search:search});
+        await this.search();
+    }
 
-                    </div>
-                    <AdminModalFullPopupWithNav
-                        show={this.state.isModalOpen}
-                        title={'이벤트 등록 및 수정'}
-                        onClose={this.onPopupClose}>
-                        <EventReg
-                            eventNo={this.state.eventNo}
-                        />
-                    </AdminModalFullPopupWithNav>
+    render() {
+        const ExampleCustomDateInput = ({ value, onClick }) => (
+            <MenuButton onClick={onClick}>이벤트 {value} 년</MenuButton>
+        );
+        return (
+            <Div p={16}>
+
+                <Flex mb={10}>
+                    <Div>
+                        <Space>
+                            <MenuButton bg={'green'} onClick={this.regEvent.bind(this,'')}>이벤트 등록</MenuButton>
+                            <DatePicker
+                                selected={new Date(moment().set('year',this.state.search.year))}
+                                onChange={this.onSearchDateChange}
+                                showYearPicker
+                                dateFormat="yyyy"
+                                customInput={<ExampleCustomDateInput />}
+                            />
+                            <MenuButton onClick={this.search}>검색</MenuButton>
+                        </Space>
+                    </Div>
+                    <Right>
+                        <Span fg={'green'} >{this.state.data.length}</Span>개의 이벤트
+                    </Right>
+                </Flex>
+
+
+                <div
+                    className="ag-theme-balham"
+                    style={{
+                        height: '550px'
+                    }}
+                >
+                    <AgGridReact
+                        ref={this.gridRef}
+                        columnDefs={this.state.columnDefs}  //컬럼 세팅
+                        defaultColDef={this.state.defaultColDef}
+                        getRowHeight={this.getRowHeight}
+                        overlayLoadingTemplate={this.state.overlayLoadingTemplate}
+                        overlayNoRowsTemplate={this.state.overlayNoRowsTemplate}
+                        // onGridReady={this.onGridReady.bind(this)}   //그리드 init(최초한번실행)
+                        rowData={this.state.data}
+                        components={this.state.components}
+                        frameworkComponents={this.state.frameworkComponents}
+                    >
+                    </AgGridReact>
+
                 </div>
-            </div>
+                <AdminModalFullPopupWithNav
+                    show={this.state.isModalOpen}
+                    title={'이벤트 등록 및 수정'}
+                    onClose={this.onPopupClose}>
+                    <EventReg
+                        eventNo={this.state.eventNo}
+                    />
+                </AdminModalFullPopupWithNav>
+
+            </Div>
         )
     }
 }
